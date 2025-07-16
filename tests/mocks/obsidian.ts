@@ -1,0 +1,69 @@
+// Minimal test stub for the Obsidian API used in unit tests.
+// Provides runtime exports so Vite can resolve the 'obsidian' module during tests.
+
+export class Notice {
+  public message: string;
+  public constructor(message = "") {
+    this.message = message;
+  }
+}
+
+// Lightweight types/classes so imports type-check in tests
+export type TFile = {
+  path: string;
+  name?: string;
+  vault?: unknown;
+};
+
+export type Vault = {
+  getFileByPath: (path: string) => TFile | null | undefined;
+  cachedRead?: (file: TFile) => Promise<string>;
+  modify?: (file: TFile, data: string) => Promise<void>;
+};
+
+// Stubs for UI classes if ever imported in tests (not used currently)
+export class Plugin {
+  // minimal base class
+  public async loadData(): Promise<unknown> {
+    return {};
+  }
+  public async saveData(_data: unknown): Promise<void> {
+    // no-op
+  }
+}
+export class PluginSettingTab {
+  // minimal base class
+  public containerEl: HTMLElement = {} as HTMLElement;
+}
+export class Setting {
+  // minimal base class
+  public controlEl: HTMLElement = {} as HTMLElement;
+  public descEl: HTMLElement = {
+    createDiv: () => ({
+      setText: (_text: string) => undefined,
+    }),
+  } as unknown as HTMLElement;
+  public setName(_name: string): this {
+    return this;
+  }
+  public setDesc(_desc: string): this {
+    return this;
+  }
+  public addButton(_callback: (_button: unknown) => unknown): this {
+    return this;
+  }
+}
+export class TextComponent {
+  public setPlaceholder(): void {
+    // no-op
+  }
+  public setValue(): void {
+    // no-op
+  }
+  public onChange(): void {
+    // no-op
+  }
+  public get inputEl(): HTMLInputElement {
+    return {} as HTMLInputElement;
+  }
+}

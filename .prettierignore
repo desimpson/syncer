@@ -1,0 +1,19 @@
+# Ignore node_modules
+**/node_modules/
+
+# Ignore build output folder
+**/dist/
+
+# Ignore emitted TypeScript artifacts
+**/*.d.ts
+**/*.map
+**/tsconfig.tsbuildinfo
+
+# Ignore compiled .js files only in specific folders
+**/dist/**/*.js
+
+# Ignore test coverage output
+**/coverage/
+
+# Ignore .gitkeep to avoid "No parser could be inferred for file" error
+**/.gitkeep

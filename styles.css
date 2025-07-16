@@ -6,3 +6,18 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--interactive-accent);
+  color: white;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  margin: 4px;
+  font-size: 0.9em;
+}
+.pill-remove {
+  cursor: pointer;
+  margin-left: 6px;
+}

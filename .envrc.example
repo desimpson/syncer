@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# Local development only: path to Obsidian vault plugin directory for hot-reloading, etc.
+export OBSIDIAN_VAULT_PLUGIN_DIR_DEV="$HOME/Documents/Obsidian Dev Vault/.obsidian/plugins/obsidian-syncer"

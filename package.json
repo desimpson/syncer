@@ -1,24 +1,72 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
-	"main": "main.js",
-	"scripts": {
-		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"version": "node version-bump.mjs && git add manifest.json versions.json"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "MIT",
-	"devDependencies": {
-		"@types/node": "^16.11.6",
-		"@typescript-eslint/eslint-plugin": "5.29.0",
-		"@typescript-eslint/parser": "5.29.0",
-		"builtin-modules": "3.3.0",
-		"esbuild": "0.17.3",
-		"obsidian": "latest",
-		"tslib": "2.4.0",
-		"typescript": "4.7.4"
-	}
+  "name": "obsidian-syncer",
+  "version": "1.0.0",
+  "description": "Sync external data sources to your vault.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:dev",
+    "build:dev": "npm run typecheck && node esbuild.config.mjs --mode development",
+    "build:prod": "npm run typecheck && node esbuild.config.mjs --mode production",
+    "build:watch": "npm run typecheck && node esbuild.config.mjs --mode watch",
+    "dev": "npm run build:watch",
+    "format": "npm run format:check",
+    "format:check": "prettier --check \"src/**/*\" \"tests/**/*\" \"*.mjs\"",
+    "format:fix": "prettier --write \"src/**/*\" \"tests/**/*\" \"*.mjs\"",
+    "sync": "node scripts/sync.mjs",
+    "lint": "npm run lint:check",
+    "lint:check": "eslint src tests scripts *.mjs --ext .ts,.mjs",
+    "lint:fix": "eslint src tests scripts *.mjs --ext .ts,.mjs --fix",
+    "prepare": "husky",
+    "test": "vitest run --silent",
+    "test:coverage": "vitest run --coverage --reporter=html",
+    "test:watch": "vitest --watch",
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.3.3",
+    "@typescript-eslint/eslint-plugin": "^8.43.0",
+    "@typescript-eslint/parser": "^8.43.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "builtin-modules": "^5.0.0",
+    "editorconfig": "^3.0.1",
+    "esbuild": "^0.25.9",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-unicorn": "^61.0.2",
+    "husky": "^9.1.7",
+    "jsdom": "^27.0.0",
+    "lint-staged": "^16.1.6",
+    "obsidian": "^1.8.7",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.43.0",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
+  },
+  "lint-staged": {
+    "**/*.{js,ts,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,css,md}": "prettier --write --ignore-unknown"
+  },
+  "dependencies": {
+    "electron": "^38.1.0",
+    "zod": "4.1.8"
+  },
+  "engines": {
+    "obsidian": ">=1.8.0",
+    "node": ">=22.15"
+  }
 }

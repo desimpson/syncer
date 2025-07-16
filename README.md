@@ -1,94 +1,97 @@
-# Obsidian Sample Plugin
+# Obsidian Syncer
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Sync external data sources into your Obsidian vault.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. The first supported source is Google Tasks; more sources will be added in future. It is inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done) workflows, but can easily be adapted to other use cases. It is designed to work well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban).
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+[![Screenshot of Obsidian Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
-## First time developing plugins?
+## Features
 
-Quick starting guide for new plugin devs:
+- Scheduled background sync on a configurable interval (minutes)
+- Manual sync command from the Command Palette
+- Configurable target Markdown file to write to
+- Configurable target heading under which items will be inserted
+- Google Tasks integration:
+  - OAuth 2.0 (Authorization Code with PKCE)
+  - Select which task lists to sync
+  - One-way sync (Tasks updates are reflected in Obsidian, but not vice versa)
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## Requirements
 
-## Releasing new releases
+- Node.js >= 22.15 (for builds and tests)
+- Obsidian Desktop
+- (Optional) [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) for task board views
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+## Installation
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+Manual install into a vault:
 
-## Adding your plugin to the community plugin list
+1. Build the plugin (see [Development](##-development) below)
+1. Copy these files to your vault: `Vault/.obsidian/plugins/obsidian-syncer/`
+   - `manifest.json`
+   - `main.js`
+   - `styles.css`
+1. Enable “Obsidian Syncer” in Obsidian → Settings → Community plugins
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+## Configuration
 
-## How to use
+Open Obsidian settings and navigate to **Community plugins** → **Obsidian Syncer**.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md` as the target file and `## Inbox` as the heading. You can keep these for a classic capture inbox, or change them to suit your workflow.
 
-## Manually installing the plugin
+### Google Tasks:
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+- Connect your Google account using the **Connect** button in the plugin's settings tab
+- Select task lists to sync via the multi-select input
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
+## Commands:
 
-## Funding URL
+- `Manual Sync`: Triggers a once-off sync and restarts the scheduler
 
-You can include funding URLs where people who use your plugin can financially support it.
+## Development
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+Install dependencies, then build with esbuild.
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+```sh
+npm clean-install
 ```
 
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+```sh
+npm run build:dev
 ```
 
-## API Documentation
+Sync to your vault with:
 
-See https://github.com/obsidianmd/obsidian-api
+```sh
+npm run sync
+```
+
+You will need to create a dev Obsidian vault and set the `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` variable in a [`.envrc`](https://direnv.net/) file to use the `sync` script. See `envrc.example` for an example.
+
+It is also recommended to install the [Hot-Reload plugin](https://github.com/pjeby/hot-reload) for automatic reloads.
+
+## Releasing
+
+- Update versions in `manifest.json` and `package.json`
+- Optionally use the helper script:
+
+```sh
+npm run version
+```
+
+- Build production bundle:
+
+```sh
+npm run build:prod
+```
+
+- Create a GitHub release with `manifest.json`, `main.js`, and `styles.css` attached:
+
+```sh
+npm run release
+```
+
+## Security notes
+
+For development convenience, the plugin currently hardcodes OAuth client credentials for the Google Tasks integration. This must be replaced by a secure external server before making the repo public or publishing the plugin to the Obsidian community plugins list. See `esbuild.config.mjs` for details on why the decision to bundle a client secret was made.

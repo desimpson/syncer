@@ -12,6 +12,12 @@ node_modules
 # They should be uploaded to GitHub releases instead.
 main.js
 
+# Coverage reports
+coverage/
+
+# HTML output
+html/
+
 # Exclude sourcemaps
 *.map
 
@@ -20,3 +26,13 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# Build artifacts
+dist/
+
+# Secrets
+keys/
+
+# Environment files
+.envrc
+.direnv

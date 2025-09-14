@@ -79,29 +79,29 @@ export default class ObsidianSyncerPlugin extends Plugin {
    *
    * @returns A promise that resolves to the plugin settings
    */
-  public async loadSettings(): Promise<PluginSettings> {
+  public loadSettings = async (): Promise<PluginSettings> => {
     const raw = (await this.loadData()) ?? {};
     const parsed = pluginSettingsSchema.parse(raw);
     return parsed satisfies PluginSettings;
-  }
+  };
 
   /**
    * Saves the plugin settings to disk.
    *
    * @param settings - The settings to save
    */
-  public async saveSettings(settings: PluginSettings): Promise<void> {
+  public saveSettings = async (settings: PluginSettings): Promise<void> => {
     await this.saveData(settings);
-  }
+  };
 
   /**
    * Updates the plugin settings on disk.
    *
    * @param partial - Partial settings to update
    */
-  public async updateSettings(partial: Partial<PluginSettings>): Promise<void> {
+  public updateSettings = async (partial: Partial<PluginSettings>): Promise<void> => {
     const current = await this.loadSettings();
     const updated = { ...current, ...partial };
     await this.saveSettings(updated);
-  }
+  };
 }

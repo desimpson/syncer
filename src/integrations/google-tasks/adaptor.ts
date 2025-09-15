@@ -1,5 +1,6 @@
 import type { GoogleTask } from "@/services/google/types";
 import type { SyncAdaptor } from "@/integrations/types";
+import { GOOGLE_TASKS_SOURCE } from "@/integrations/google-tasks/constants";
 
 /**
  * Maps a single `GoogleTask` to a generic `SyncItem`.
@@ -11,7 +12,7 @@ import type { SyncAdaptor } from "@/integrations/types";
 export const mapGoogleTaskToSyncItem: SyncAdaptor<GoogleTask> =
   (heading) =>
   ({ id, title, webViewLink: link }) => ({
-    source: "google-tasks",
+    source: GOOGLE_TASKS_SOURCE,
     id,
     title,
     link,

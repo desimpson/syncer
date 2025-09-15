@@ -4,11 +4,10 @@ import { generateSyncActions } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { writeSyncActions } from "@/sync/writer";
 import { mapGoogleTaskToSyncItem } from "@/integrations/google-tasks/adaptor";
+import { GOOGLE_TASKS_SOURCE } from "@/integrations/google-tasks/constants";
 import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin/types";
 import type { TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/google/types";
-
-const GOOGLE_TASKS_SOURCE = "google-tasks";
 
 const ensureAccessToken = async (
   googleTasks: GoogleTasksSettings,

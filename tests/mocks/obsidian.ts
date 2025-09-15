@@ -35,6 +35,29 @@ export class PluginSettingTab {
   // minimal base class
   public containerEl: HTMLElement = {} as HTMLElement;
 }
+export class Modal {
+  // minimal base class used by AuthCodeModal
+  public app: unknown;
+  public contentEl: { createEl: (..._arguments: unknown[]) => void; empty: () => void };
+  public constructor(app?: unknown) {
+    this.app = app;
+    this.contentEl = {
+      createEl: () => undefined,
+      empty: () => undefined,
+    };
+  }
+  // lifecycle hooks (no-op in tests)
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  public onOpen(): void {}
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  public onClose(): void {}
+  public open(): void {
+    this.onOpen();
+  }
+  public close(): void {
+    this.onClose();
+  }
+}
 export class Setting {
   // minimal base class
   public controlEl: HTMLElement = {} as HTMLElement;

@@ -215,7 +215,7 @@ describe("pluginSettingsSchema", () => {
     }
   });
 
-  it("coerces syncIntervalMinutes and accepts overrides for document and heading", () => {
+  it("coerces syncIntervalMinutes and normalises heading to H2", () => {
     // Arrange
     const input = { syncIntervalMinutes: "7", syncDocument: "Work.md", syncHeading: "### Tasks" };
 
@@ -225,7 +225,7 @@ describe("pluginSettingsSchema", () => {
     // Assert
     expect(parsed.syncIntervalMinutes).toBe(7);
     expect(parsed.syncDocument).toBe("Work.md");
-    expect(parsed.syncHeading).toBe("### Tasks");
+    expect(parsed.syncHeading).toBe("## Tasks");
   });
 
   it("rejects invalid document extension with a helpful message", () => {
@@ -313,33 +313,44 @@ describe("googleTasksSettingsSchema", () => {
 });
 
 describe("headingSchema", () => {
-  it("accepts headings with 1-6 hashes and text", () => {
-    for (const h of ["# A", "## B", "### C", "#### D", "##### E", "###### F"]) {
-      const result = headingSchema.safeParse(h);
+  it("normalises various inputs to H2 with text", () => {
+    const cases: [string, string][] = [
+      ["# A", "## A"],
+      ["## B", "## B"],
+      ["### C", "## C"],
+      ["Inbox", "## Inbox"],
+      ["#   Work", "## Work"],
+      ["####### Inbox", "## Inbox"],
+    ];
+    for (const [input, expected] of cases) {
+      const result = headingSchema.safeParse(input);
       expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(expected);
+      }
     }
   });
 
-  it("rejects invalid headings (no hash, no space, too many hashes, or no text)", () => {
-    const invalid = ["Inbox", "#NoSpace", "# ", "####### Too many"];
+  it("rejects empty headings after normalisation", () => {
+    // TODO: parameterise this test with it.each
+    const invalid = ["", "   ", "# ", "## "];
     for (const value of invalid) {
       const result = headingSchema.safeParse(value);
       expect(result.success).toBe(false);
       if (!result.success) {
         const messages = result.error.issues.map((issue) => issue.message).join(" | ");
-        expect(messages).toContain("Heading must start with '#'");
+        expect(messages).toContain("Heading must be H2 with text");
       }
     }
   });
 });
 
 describe("pluginSettingsSchema with heading", () => {
-  it("rejects an invalid heading while still applying other defaults", () => {
+  it("accepts flexible heading inputs and stores H2", () => {
     const result = pluginSettingsSchema.safeParse({ syncHeading: "Inbox" });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const messages = result.error.issues.map((issue) => issue.message).join(" | ");
-      expect(messages).toContain("Heading must start with '#'");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.syncHeading).toBe("## Inbox");
     }
   });
 });

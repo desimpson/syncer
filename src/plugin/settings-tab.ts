@@ -115,7 +115,7 @@ export class SettingsTab extends PluginSettingTab {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
       "Sync Heading",
-      "The Markdown heading under which new Google Tasks will be inserted.",
+      "The H2 heading under which new Google Tasks will be inserted.",
       settings.syncHeading,
       "e.g., ## Inbox",
     );
@@ -125,6 +125,9 @@ export class SettingsTab extends PluginSettingTab {
       if (result.success) {
         await this.plugin.updateSettings({ syncHeading: result.data });
         errorElement.setText("");
+        if (result.data !== value) {
+          new Notice(`Adjusted heading to H2: "${result.data}"`);
+        }
         console.info(`Updated sync heading: [${result.data}].`);
       } else {
         errorElement.setText(formatUiError(result.error));

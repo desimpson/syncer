@@ -15,7 +15,7 @@ export const minimumSyncIntervalMinutes = 1;
 export const maximumSyncIntervalMinutes = 24 * 60;
 
 const markdownExtensionRegex = /\.md$/;
-const markdownHeadingRegex = /^#{1,6}\s.+/;
+const h2HeadingRegex = /^##\s.+/;
 
 /**
  * Schema for validating and parsing the plugin configuration settings.
@@ -61,12 +61,31 @@ export const syncIntervalSchema: z.ZodCoercedNumber<unknown> = z.coerce
   });
 
 /**
- * Schema for Markdown heading (e.g., "## Inbox"). Allows 1-6 leading #, a
- * space, then at least one non-space character.
+ * Normalise any user-provided text or markdown heading into an H2 heading.
+ * Examples:
+ *  - "Inbox"       -> "## Inbox"
+ *  - "### Tasks"   -> "## Tasks"
+ *  - "#   Work"    -> "## Work"
+ * Empty/whitespace strings normalise to an invalid "## " (caller validates).
  */
-export const headingSchema = z.string().trim().regex(markdownHeadingRegex, {
-  message: "Heading must start with '#' (1-6), a space, and text, e.g., '## Tasks'",
-});
+const normaliseHeadingToH2 = (input: string): string => {
+  const trimmed = (input ?? "").trim();
+  // Strip leading markdown heading markers if present
+  const title = trimmed.replace(/^#+\s*/, "");
+  return title === "" ? "## " : `## ${title}`;
+};
+
+/**
+ * Schema for Markdown heading that always normalises to H2 ("## ") with text.
+ * Accepts flexible input but stores a consistent H2 heading.
+ */
+export const headingSchema = z
+  .string()
+  .trim()
+  .transform((value) => normaliseHeadingToH2(value))
+  .refine((value) => h2HeadingRegex.test(value), {
+    message: "Heading must be H2 with text, e.g., '## Tasks'",
+  });
 
 /**
  * Schema for Google Tasks integration settings stored inside plugin settings.

@@ -149,6 +149,16 @@ const appendCreates = (lines: string[], createItems: SyncItem[], heading: string
 
   const headingIndex = findTargetHeadingIndex(lines, heading);
   if (headingIndex === -1) {
+    // If the heading doesn't exist, prefer inserting before a global Kanban
+    // settings block so that the Kanban metadata remains last in the file.
+    const kanbanIndex = lines.findIndex((line) => kanbanSettingsStartRegex.test(line));
+    if (kanbanIndex !== -1) {
+      const before = lines.slice(0, kanbanIndex);
+      const lastNonBlank = findLastIndex(before, (line) => !isBlank(line ?? ""));
+      const insertIndex = lastNonBlank + 1; // start of trailing blank run (or 0 if none)
+      return insertAt(lines, insertIndex, [heading, ...createItems.map(createLine)]);
+    }
+    // No Kanban block: append to end
     return [...lines, heading, ...createItems.map(createLine)];
   }
 

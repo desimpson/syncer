@@ -36,3 +36,4 @@ keys/
 # Environment files
 .envrc
 .direnv
+.env

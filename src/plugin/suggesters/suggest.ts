@@ -94,14 +94,14 @@ export class Suggest<T> {
   }
 
   private setSelectedItem(index: number, scrollIntoView: boolean): void {
-    const normalizedIndex = wrapAround(index, this.suggestions.length);
+    const normalisedIndex = wrapAround(index, this.suggestions.length);
     const previous = this.suggestions[this.selectedItem];
-    const next = this.suggestions[normalizedIndex];
+    const next = this.suggestions[normalisedIndex];
 
     previous?.removeClass("is-selected");
     next?.addClass("is-selected");
 
-    this.selectedItem = normalizedIndex;
+    this.selectedItem = normalisedIndex;
 
     if (scrollIntoView) {
       next?.scrollIntoView(false);

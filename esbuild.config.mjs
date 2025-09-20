@@ -47,6 +47,8 @@ const productionOptions = {
       // TODO: Create a production GCP project and set these values (securely - see below)
       GOOGLE_CLIENT_ID: "",
       GOOGLE_CLIENT_SECRET: "",
+      // Build-time experimental flag for MCP integrations
+      MCP_EXPERIMENTAL: process.env.MCP_EXPERIMENTAL ?? "0",
     }),
   },
 };
@@ -70,6 +72,8 @@ const developmentOptions = {
        */
       GOOGLE_CLIENT_ID: "769446597482-0gmcfbcka0t6qftcanslrmtbfjg7kiqq.apps.googleusercontent.com",
       GOOGLE_CLIENT_SECRET: "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",
+      // Build-time experimental flag for MCP integrations
+      MCP_EXPERIMENTAL: process.env.MCP_EXPERIMENTAL ?? "0",
     }),
   },
 };

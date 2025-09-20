@@ -16,6 +16,8 @@ export type PluginSettings = {
 export type PluginConfig = {
   googleClientId: string;
   googleClientSecret: string;
+  /** Build-time experimental flag for MCP */
+  mcpExperimental: boolean;
 };
 
 /**

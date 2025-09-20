@@ -61,7 +61,11 @@ import { writeSyncActions } from "@/sync/writer";
 import { mapGoogleTaskToSyncItem } from "@/integrations/google-tasks/adaptor";
 import { GoogleOAuth2Service, GoogleTasksService } from "services";
 
-const baseConfig = { googleClientId: "id", googleClientSecret: "secret" } as const;
+const baseConfig = {
+  googleClientId: "id",
+  googleClientSecret: "secret",
+  mcpExperimental: false,
+} as const;
 
 const makeVault = (file: TFile | null) =>
   ({ getFileByPath: vi.fn().mockReturnValue(file) }) as unknown as Vault;

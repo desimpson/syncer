@@ -150,4 +150,38 @@ describe("writeSyncActions", () => {
       ].join("\n"),
     );
   });
+
+  it("inserts missing heading and tasks before global Kanban block at end", async () => {
+    const initialLines = [
+      "# Notes",
+      "",
+      "",
+      "%% kanban:settings",
+      "```",
+      '{"kanban-plugin":"board","list-collapse":[false]}',
+      "```",
+      "%%",
+    ];
+    readMock.mockResolvedValue(initialLines.join("\n"));
+
+    const actions: SyncAction[] = [{ operation: "create", item: makeItem("1", "google-tasks") }];
+
+    await writeSyncActions(mockFile, actions, "## Heading");
+
+    expect(modifyMock).toHaveBeenCalledWith(
+      mockFile,
+      [
+        "# Notes",
+        "## Heading",
+        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
+        "",
+        "",
+        "%% kanban:settings",
+        "```",
+        '{"kanban-plugin":"board","list-collapse":[false]}',
+        "```",
+        "%%",
+      ].join("\n"),
+    );
+  });
 });

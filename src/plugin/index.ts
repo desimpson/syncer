@@ -14,8 +14,14 @@ export default class ObsidianSyncerPlugin extends Plugin {
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = pluginSchema.parse(process.env);
-    this.config = { googleClientId: GOOGLE_CLIENT_ID, googleClientSecret: GOOGLE_CLIENT_SECRET };
+    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MCP_EXPERIMENTAL } = pluginSchema.parse(
+      process.env,
+    );
+    this.config = {
+      googleClientId: GOOGLE_CLIENT_ID,
+      googleClientSecret: GOOGLE_CLIENT_SECRET,
+      mcpExperimental: MCP_EXPERIMENTAL === "1",
+    };
     console.info(`Initialising [${manifest.name}] plugin...`);
   }
 

@@ -1,4 +1,5 @@
-import type { AccessToken, GoogleUserInfo, GoogleTasksList } from "@/services/google/types";
+import type { GoogleTasksList } from "@/services/types";
+import type { GoogleAccessToken, GoogleUserInfo } from "@/auth/types";
 
 /**
  * Obsidian Syncer plugin settings.
@@ -15,9 +16,6 @@ export type PluginSettings = {
  */
 export type PluginConfig = {
   googleClientId: string;
-  googleClientSecret: string;
-  /** Build-time experimental flag for MCP */
-  mcpExperimental: boolean;
 };
 
 /**
@@ -25,7 +23,7 @@ export type PluginConfig = {
  */
 export type GoogleTasksSettings = {
   userInfo: GoogleUserInfo;
-  token: AccessToken;
+  credentials: GoogleAccessToken;
   availableLists: readonly GoogleTasksList[];
   selectedListIds: readonly string[];
 };

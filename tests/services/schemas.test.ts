@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  googleOAuthTokenResponseSchema,
-  googleUserInfoResponseSchema,
-  refreshResponseSchema,
-} from "@/services/google/schemas";
+import { googleOAuthTokenResponseSchema } from "@/services/schemas";
+import { refreshResponseSchema, googleUserInfoResponseSchema } from "@/auth/schemas";
 
 describe("googleOAuthTokenResponseSchema", () => {
   it("parses valid token response", () => {
@@ -20,12 +17,12 @@ describe("googleOAuthTokenResponseSchema", () => {
 
 describe("googleUserInfoResponseSchema", () => {
   it("parses valid user info", () => {
-    const input = { sub: "123", email: "user@example.com" };
+    const input = { email: "user@example.com" };
     expect(googleUserInfoResponseSchema.parse(input)).toEqual(input);
   });
 
   it("rejects invalid email", () => {
-    const input = { sub: "123", email: "not-an-email" };
+    const input = { email: "not-an-email" };
     const result = googleUserInfoResponseSchema.safeParse(input);
     expect(result.success).toBe(false);
   });

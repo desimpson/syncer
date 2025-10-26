@@ -43,11 +43,8 @@ const baseOptions = {
   treeShaking: true,
 };
 
-// Define schema and parse environment with Zod (fail fast if invalid)
 const environmentSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
-  MCP_EXPERIMENTAL: z.enum(["0", "1"]).default("0"),
 });
 
 const parsedEnvironment = (() => {
@@ -61,11 +58,9 @@ const parsedEnvironment = (() => {
   throw new Error(`Invalid build environment: ${issues}`);
 })();
 
-// Build-time environment injected into the bundle
+// Build-time environment variables injected into the bundle
 const buildEnvironment = {
   GOOGLE_CLIENT_ID: parsedEnvironment.GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET: parsedEnvironment.GOOGLE_CLIENT_SECRET,
-  MCP_EXPERIMENTAL: parsedEnvironment.MCP_EXPERIMENTAL,
 };
 
 const productionOptions = {

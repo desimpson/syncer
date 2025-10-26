@@ -1,7 +1,7 @@
 import { type App, Notice, Plugin, type PluginManifest } from "obsidian";
 import { SettingsTab } from "@/plugin/settings-tab";
 import { createScheduler, type Scheduler } from "@/sync/scheduler";
-import { createGoogleTasksJob } from "@/integrations/google-tasks/job";
+import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
 import { pluginSchema, pluginSettingsSchema } from "./schemas";
 
@@ -14,13 +14,9 @@ export default class ObsidianSyncerPlugin extends Plugin {
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MCP_EXPERIMENTAL } = pluginSchema.parse(
-      process.env,
-    );
+    const { GOOGLE_CLIENT_ID } = pluginSchema.parse(process.env);
     this.config = {
       googleClientId: GOOGLE_CLIENT_ID,
-      googleClientSecret: GOOGLE_CLIENT_SECRET,
-      mcpExperimental: MCP_EXPERIMENTAL === "1",
     };
     console.info(`Initialising [${manifest.name}] plugin...`);
   }

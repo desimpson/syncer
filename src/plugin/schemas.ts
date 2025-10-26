@@ -22,9 +22,6 @@ const h2HeadingRegex = /^##\s.+/;
  */
 export const pluginSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
-  // Build-time experimental flag for MCP; '0' (off) or '1' (on)
-  MCP_EXPERIMENTAL: z.enum(["0", "1"]).default("0"),
 });
 
 /**
@@ -94,23 +91,24 @@ export const headingSchema = z
  */
 export const googleTasksSettingsSchema = z.object({
   userInfo: z.object({
-    userId: z.string().min(1),
-    email: z.string().email(),
+    email: z.email(),
   }),
-  token: z.object({
-    accessToken: z.string().min(1),
-    refreshToken: z.string().min(1),
-    expiresIn: z.number().int().nonnegative(),
+  // TODO: add scope?
+  credentials: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiryDate: z.number().int(),
+    scope: z.string(),
   }),
   availableLists: z
     .array(
       z.object({
-        id: z.string().min(1),
+        id: z.string(),
         title: z.string(),
       }),
     )
     .default([]),
-  selectedListIds: z.array(z.string().min(1)).default([]),
+  selectedListIds: z.array(z.string()).default([]),
 });
 
 /**

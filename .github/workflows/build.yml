@@ -10,11 +10,8 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     env:
-      # Experimental feature flag
-      MCP_EXPERIMENTAL: 0
-      # Google OAuth secrets from GitHub Actions secrets
+      # TODO: Check used
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     steps:
       - name: ⬇️ Checkout repository

@@ -34,7 +34,6 @@ describe("pluginSchema", () => {
     // Arrange
     const input = {
       GOOGLE_CLIENT_ID: "id-123",
-      GOOGLE_CLIENT_SECRET: "secret-abc",
     };
 
     // Act
@@ -44,7 +43,6 @@ describe("pluginSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.GOOGLE_CLIENT_ID).toBe("id-123");
-      expect(result.data.GOOGLE_CLIENT_SECRET).toBe("secret-abc");
     }
   });
 
@@ -52,7 +50,6 @@ describe("pluginSchema", () => {
     // Arrange
     const input = {
       GOOGLE_CLIENT_ID: "",
-      GOOGLE_CLIENT_SECRET: "",
     };
 
     // Act
@@ -247,8 +244,8 @@ describe("pluginSettingsSchema", () => {
     // Arrange
     const input = {
       googleTasks: {
-        userInfo: { userId: "u1", email: "u1@example.com" },
-        token: { accessToken: "at", refreshToken: "rt", expiresIn: 3600 },
+        userInfo: { email: "u1@example.com" },
+        credentials: { accessToken: "at", refreshToken: "rt", expiryDate: 3600, scope: "scope" },
       },
     };
 
@@ -257,11 +254,10 @@ describe("pluginSettingsSchema", () => {
 
     // Assert
     expect(parsed.googleTasks).toBeDefined();
-    expect(parsed.googleTasks?.userInfo.userId).toBe("u1");
     expect(parsed.googleTasks?.userInfo.email).toBe("u1@example.com");
-    expect(parsed.googleTasks?.token.accessToken).toBe("at");
-    expect(parsed.googleTasks?.token.refreshToken).toBe("rt");
-    expect(parsed.googleTasks?.token.expiresIn).toBe(3600);
+    expect(parsed.googleTasks?.credentials.accessToken).toBe("at");
+    expect(parsed.googleTasks?.credentials.refreshToken).toBe("rt");
+    expect(parsed.googleTasks?.credentials.expiryDate).toBe(3600);
     expect(parsed.googleTasks?.availableLists).toEqual([]);
     expect(parsed.googleTasks?.selectedListIds).toEqual([]);
   });
@@ -270,7 +266,7 @@ describe("pluginSettingsSchema", () => {
     // Arrange
     const input = {
       googleTasks: {
-        userInfo: { userId: "u1", email: "not-an-email" },
+        userInfo: { email: "not-an-email" },
         token: { accessToken: "at", refreshToken: "rt", expiresIn: -10 },
       },
     };
@@ -291,8 +287,8 @@ describe("googleTasksSettingsSchema", () => {
   it("accepts a fully specified settings object", () => {
     // Arrange
     const input = {
-      userInfo: { userId: "u2", email: "user@example.com" },
-      token: { accessToken: "aa", refreshToken: "rr", expiresIn: 1000 },
+      userInfo: { email: "user@example.com" },
+      credentials: { accessToken: "aa", refreshToken: "rr", expiryDate: 1000, scope: "scope" },
       availableLists: [
         { id: "1", title: "Inbox" },
         { id: "2", title: "Work" },

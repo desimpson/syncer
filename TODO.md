@@ -1,14 +1,18 @@
 ## Misc. TODOs
 
-- [ ] Replace auth code modal with a local http server that listens for the redirect?
+- [x] Replace auth code modal with a local http server that listens for the redirect?
 - [ ] Support multiple accounts per source?
 - [ ] Custom errors
-- [ ] Add small AWS Lambda infra project to deploy Google API auth server (since forced to use Google API secret)
-- [ ] Handle heading levels other than the ## (h2) needed for the Kanban plugin, or restrict to h2 only
+- [x] Handle heading levels other than the ## (h2) needed for the Kanban plugin, or restrict to h2 only
 - [ ] Add option to sync to top of file instead of under a heading (?)
 - [x] Normalise heading input in settings tab to H2 (## Heading)
-- [ ] Make it so that when a list is deselected in the settings, items under the target heading are removed on the next sync but items in other columns (which the user may have moved there and wants to keep) are preserved
-  - Add a warning in the settings that deselecting items will remove them from the file (or just the target column if the above is implemented) on the next sync
-  - Add an option to either delete all synced items from the file when a list is deselected or only delete the items under the target heading (?)
+- [x] Make it so that when a list is deselected in the settings, items under the target heading are removed on the next sync but items in other columns (which the user may have moved there and wants to keep) are preserved
+  - [ ] Add a warning in the settings that deselecting items will remove them from the file (or just the target column if the above is implemented) on the next sync
+  - [ ] Add an option to either delete all synced items from the file when a list is deselected or only delete the items under the target heading (?)
 - [ ] Maybe add a "clear all synced items" button to settings to make it easy to reset
-- [ ] Use `git filter-repo` to remove the hardcoded Google client ID and secret from `esbuild.config.mjs` git history
+- [ ] Use `git filter-repo` to remove the hardcoded Google client ID and secret from `esbuild.config.mjs` git history (even though they're deleted in GCP, I would still like to remove them)
+- [ ] Use `node-version-file: .nvmrc` in GitHub Actions `build.yml` instead of hardcoding Node version
+- [ ] Rename `development` environment to `daniel-dev`; provide instructions for setting up personal dev environment (?)
+- [ ] Better separate individual dev and prod (`main` branch) environments in GitHub Actions workflows
+- [ ] Separate unit tests and integration tests
+- [ ] Reduce use of mocks in tests

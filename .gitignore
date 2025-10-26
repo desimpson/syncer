@@ -30,9 +30,6 @@ data.json
 # Build artifacts
 dist/
 
-# Secrets
-keys/
-
 # Environment files
 .envrc
 .direnv

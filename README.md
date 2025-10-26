@@ -91,7 +91,3 @@ npm run build:prod
 ```sh
 npm run release
 ```
-
-## Security notes
-
-For development convenience, the plugin currently hardcodes OAuth client credentials for the Google Tasks integration. This must be replaced by a secure external server before making the repo public or publishing the plugin to the Obsidian community plugins list. See `esbuild.config.mjs` for details on why the decision to bundle a client secret was made.

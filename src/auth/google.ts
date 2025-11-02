@@ -296,7 +296,7 @@ export const refreshAccessToken = async (
   clientId: string,
   refreshToken: string,
   retries = 2,
-): Promise<{ accessToken: string; expiresIn: number }> => {
+): Promise<{ accessToken: string; expiryDate: number }> => {
   const parameters = new URLSearchParams({
     client_id: clientId,
     refresh_token: refreshToken,
@@ -305,7 +305,7 @@ export const refreshAccessToken = async (
 
   const attempt = async (
     remainingRetries: number,
-  ): Promise<{ accessToken: string; expiresIn: number }> => {
+  ): Promise<{ accessToken: string; expiryDate: number }> => {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10_000); // 10s timeout
@@ -326,7 +326,7 @@ export const refreshAccessToken = async (
         const data = refreshResponseSchema.parse(json);
         return {
           accessToken: data.access_token,
-          expiresIn: Date.now() + data.expires_in * 1000,
+          expiryDate: Date.now() + data.expires_in * 1000,
         };
       }
 

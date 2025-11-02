@@ -104,7 +104,7 @@ vi.mock("@/auth", () => {
   const refreshAccessToken = vi.fn() as unknown as (
     clientId: string,
     refreshToken: string,
-  ) => Promise<{ accessToken: string; expiresIn: number }>;
+  ) => Promise<{ accessToken: string; expiryDate: number }>;
   return {
     GoogleAuth: { refreshAccessToken },
   };
@@ -170,7 +170,7 @@ describe("createGoogleTasksJob", () => {
         credentials: {
           accessToken: "tok",
           refreshToken: "ref",
-          expiresIn: Date.now() + 60_000,
+          expiryDate: Date.now() + 60_000,
           scope: "scope",
         },
         availableLists: [],
@@ -298,7 +298,7 @@ describe("createGoogleTasksJob", () => {
 
     vi.mocked(GoogleAuth.refreshAccessToken).mockResolvedValue({
       accessToken: "new-token",
-      expiresIn: newExpiry,
+      expiryDate: newExpiry,
     });
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async (listId) => [
       { id: `${listId}-1`, title: "T", webViewLink: "https://x" } as GoogleTask,

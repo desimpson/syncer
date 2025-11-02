@@ -72,9 +72,8 @@ tests/
 │   ├── utils/
 │   └── mocks/           # Shared test mocks
 │       └── obsidian.ts
-└── [configs]
-    ├── vitest.unit.config.ts
-    └── vitest.integration.config.ts
+├── vitest.unit.config.ts
+└── vitest.integration.config.ts
 ```
 
 ## Benefits

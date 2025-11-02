@@ -252,6 +252,12 @@ export class SettingsTab extends PluginSettingTab {
       // Track current selection for updates - use the current selectedListIds value
       let currentSelection = [...selectedListIds];
 
+      // Show selection count
+      const countElement = listContainer.createEl("p", {
+        text: `${currentSelection.length} of ${lists.length} lists selected`,
+        cls: "setting-item-description google-tasks-selection-count",
+      });
+
       lists.forEach((list) => {
         const isSelected = currentSelection.includes(list.id);
 
@@ -279,12 +285,6 @@ export class SettingsTab extends PluginSettingTab {
           // Save to settings
           await updateSelected(currentSelection);
         });
-      });
-
-      // Show selection count
-      const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${lists.length} lists selected`,
-        cls: "setting-item-description google-tasks-selection-count",
       });
     };
 

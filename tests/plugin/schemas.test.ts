@@ -267,7 +267,7 @@ describe("pluginSettingsSchema", () => {
     const input = {
       googleTasks: {
         userInfo: { email: "not-an-email" },
-        token: { accessToken: "at", refreshToken: "rt", expiresIn: -10 },
+        credentials: { accessToken: "at", refreshToken: "rt", expiresIn: -10, scope: "scope" },
       },
     };
 

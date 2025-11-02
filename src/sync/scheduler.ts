@@ -1,4 +1,4 @@
-import type { SyncJob } from "@/integrations/types";
+import type { SyncJob } from "@/jobs/types";
 import { formatLogError } from "@/utils/error-formatters";
 
 /**

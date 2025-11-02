@@ -1,14 +1,13 @@
 import { Notice, PluginSettingTab, Setting, TextComponent, type App } from "obsidian";
 import { FileSuggest } from "@/plugin/suggesters/file-suggest";
 import type ObsidianSyncerPlugin from "@/plugin";
-import { fetchGoogleTasksLists } from "@/services/google/tasks";
-import type { AccessToken, GoogleTasksList, GoogleUserInfo } from "@/services/google/types";
+import { fetchGoogleTasksLists } from "@/services/google-tasks";
+import type { GoogleTasksList } from "@/services/types";
 import { PillSuggest as GoogleTaskListSuggest } from "@/plugin/suggesters/pill-suggest";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
 import type { PluginSettings, PluginConfig } from "@/plugin/types";
-import { GoogleOAuth2Service } from "@/services";
-import { AuthCodeModal } from "@/plugin/modals/auth-code-modal";
 import { createMarkdownFilePathSchema, headingSchema, syncIntervalSchema } from "./schemas";
+import { GoogleAuth } from "@/auth";
 
 /**
  * Settings tab for the Obsidian Syncer plugin.
@@ -173,16 +172,17 @@ export class SettingsTab extends PluginSettingTab {
     console.info("Connecting to Google Tasks...");
 
     try {
-      console.info("Fetching Google Tasks token...");
-      const scopes = ["https://www.googleapis.com/auth/tasks", "openid", "email", "profile"].join(
-        " ",
-      );
-      const { token, userInfo } = await this.handleGoogleOAuthFlow(scopes);
+      const credentials = await GoogleAuth.authenticate({
+        clientId: this.config.googleClientId,
+        scopes: "https://www.googleapis.com/auth/tasks openid email profile",
+      });
+
+      const userInfo = await GoogleAuth.getUserInfo(credentials.accessToken);
 
       await this.plugin.updateSettings({
         googleTasks: {
+          credentials,
           userInfo,
-          token,
           availableLists: [],
           selectedListIds: [],
         },
@@ -194,38 +194,6 @@ export class SettingsTab extends PluginSettingTab {
       new Notice(`Failed to connect Google Tasks.`);
       console.error(`Error connecting Google Tasks: [${formatLogError(error)}].`);
     }
-  }
-
-  private async handleGoogleOAuthFlow(
-    scopes: string,
-  ): Promise<{ token: AccessToken; userInfo: GoogleUserInfo }> {
-    const { authUrl, codeVerifier } = await GoogleOAuth2Service.createOAuthUrl(
-      this.config.googleClientId,
-      scopes,
-    );
-    window.open(authUrl, "_blank");
-
-    return new Promise((resolve, reject) => {
-      new AuthCodeModal(this.app, async (code: string) => {
-        if (code.trim() === "") {
-          return reject("Empty code");
-        }
-
-        try {
-          const token = await GoogleOAuth2Service.exchangeOAuthCode(
-            this.config.googleClientId,
-            this.config.googleClientSecret,
-            code,
-            codeVerifier,
-          );
-          const { userId, email } = await GoogleOAuth2Service.getUserInfo(token.accessToken);
-          const userInfo: GoogleUserInfo = { userId, email };
-          resolve({ token, userInfo });
-        } catch (error) {
-          reject(error);
-        }
-      }).open();
-    });
   }
 
   private async disconnectGoogleTasks(): Promise<void> {
@@ -286,7 +254,7 @@ export class SettingsTab extends PluginSettingTab {
 
     // Then refresh lists from Google API
     try {
-      const lists = await fetchGoogleTasksLists(googleTasks.token?.accessToken ?? "");
+      const lists = await fetchGoogleTasksLists(googleTasks.credentials?.accessToken ?? "");
       await this.plugin.updateSettings({ googleTasks: { ...googleTasks, availableLists: lists } });
 
       initSuggest(lists); // re-init with fresh data

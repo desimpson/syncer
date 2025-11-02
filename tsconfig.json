@@ -13,7 +13,7 @@
     "isolatedModules": true,
     "lib": ["DOM", "ES2021"],
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,

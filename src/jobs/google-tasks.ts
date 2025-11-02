@@ -1,30 +1,28 @@
-import { GoogleOAuth2Service, GoogleTasksService } from "@/services";
-import type { SyncJobCreator } from "@/integrations/types";
+import { GoogleTasksService } from "@/services";
+import type { SyncAdaptor, SyncJobCreator } from "@/jobs/types";
 import { generateSyncActions } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { writeSyncActions } from "@/sync/writer";
-import { mapGoogleTaskToSyncItem } from "@/integrations/google-tasks/adaptor";
-import { GOOGLE_TASKS_SOURCE } from "@/integrations/google-tasks/constants";
 import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin/types";
 import type { TFile, Vault } from "obsidian";
-import type { GoogleTask } from "@/services/google/types";
+import type { GoogleTask } from "@/services/types";
+import { GoogleAuth } from "@/auth";
 
 const ensureAccessToken = async (
   googleTasks: GoogleTasksSettings,
   config: PluginConfig,
-  persist: (update: { accessToken: string; expiresIn: number }) => Promise<void>,
+  persist: (update: { accessToken: string; expiryDate: number }) => Promise<void>,
 ): Promise<string> => {
-  const { token } = googleTasks;
+  const { credentials: token } = googleTasks;
 
-  if (token.expiresIn < Date.now()) {
+  if (token.expiryDate < Date.now()) {
     console.info("Google Tasks token has expired. Refreshing...");
-    const { accessToken, expiresIn } = await GoogleOAuth2Service.refreshAccessToken(
+    const { accessToken, expiryDate } = await GoogleAuth.refreshAccessToken(
       config.googleClientId,
-      config.googleClientSecret,
       token.refreshToken,
     );
 
-    await persist({ accessToken, expiresIn });
+    await persist({ accessToken, expiryDate });
     console.info("Saved refreshed Google Tasks token.");
     return accessToken;
   }
@@ -52,6 +50,23 @@ const fetchAllSelectedTasks = async (accessToken: string, selectedListIds: reado
   return fetchedTasks.flat();
 };
 
+/**
+ * Maps a single `GoogleTask` to a generic `SyncItem`.
+ *
+ * @param heading - The heading under which the item will be synced
+ * @param task - A `GoogleTask` object returned from the Google Tasks API
+ * @returns A `SyncItem` suitable for writing to Markdown
+ */
+export const mapGoogleTaskToSyncItem: SyncAdaptor<GoogleTask> =
+  (heading) =>
+  ({ id, title, webViewLink: link }) => ({
+    source: "google-tasks",
+    id,
+    title,
+    link,
+    heading,
+  });
+
 const syncTasksToFile = async (
   file: TFile,
   tasks: readonly GoogleTask[],
@@ -64,7 +79,7 @@ const syncTasksToFile = async (
   console.info(`Mapped incoming Google Tasks to sync items: [${incoming.length}] items.`);
 
   try {
-    const existing = await readMarkdownSyncItems(file, GOOGLE_TASKS_SOURCE);
+    const existing = await readMarkdownSyncItems(file, "google-tasks");
     console.info(`Read existing Google Tasks Markdown items: [${existing.length}] items.`);
 
     const actions = generateSyncActions(incoming, existing);
@@ -103,7 +118,7 @@ export const createGoogleTasksJob: SyncJobCreator = (
   vault,
   notify,
 ) => ({
-  name: GOOGLE_TASKS_SOURCE,
+  name: "google-tasks",
   task: async () => {
     console.info("Starting Google Tasks sync job...");
 
@@ -123,12 +138,12 @@ export const createGoogleTasksJob: SyncJobCreator = (
     const currentAccessToken = await ensureAccessToken(
       googleTasks,
       config,
-      async ({ accessToken, expiresIn }) => {
+      async ({ accessToken, expiryDate }) => {
         const updatedSettings: PluginSettings = {
           ...settings,
           googleTasks: {
             ...googleTasks,
-            token: { ...googleTasks.token, accessToken, expiresIn },
+            credentials: { ...googleTasks.credentials, accessToken, expiryDate },
           },
         };
         console.info("Updated Google Tasks token in memory.");

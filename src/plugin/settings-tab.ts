@@ -249,12 +249,6 @@ export class SettingsTab extends PluginSettingTab {
       // Create toggle buttons container
       const toggleContainer = listContainer.createDiv("google-tasks-toggle-container");
 
-      // Show selection count
-      const countElement = listContainer.createEl("p", {
-        text: `${selectedListIds.length} of ${lists.length} lists selected`,
-        cls: "setting-item-description google-tasks-selection-count",
-      });
-
       lists.forEach((list) => {
         const isSelected = selectedListIds.includes(list.id);
 
@@ -283,6 +277,12 @@ export class SettingsTab extends PluginSettingTab {
           // Save to settings (this will update the selectedListIds variable)
           await updateSelected(newSelection);
         });
+      });
+
+      // Show selection count below the buttons
+      const countElement = listContainer.createEl("p", {
+        text: `${selectedListIds.length} of ${lists.length} lists selected`,
+        cls: "setting-item-description google-tasks-selection-count",
       });
     };
 

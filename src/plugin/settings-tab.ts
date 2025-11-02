@@ -249,17 +249,14 @@ export class SettingsTab extends PluginSettingTab {
       // Create toggle buttons container
       const toggleContainer = listContainer.createDiv("google-tasks-toggle-container");
 
-      // Track current selection for updates - use the current selectedListIds value
-      let currentSelection = [...selectedListIds];
-
       // Show selection count
       const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${lists.length} lists selected`,
+        text: `${selectedListIds.length} of ${lists.length} lists selected`,
         cls: "setting-item-description google-tasks-selection-count",
       });
 
       lists.forEach((list) => {
-        const isSelected = currentSelection.includes(list.id);
+        const isSelected = selectedListIds.includes(list.id);
 
         const button = toggleContainer.createEl("button", {
           text: list.title,
@@ -267,23 +264,24 @@ export class SettingsTab extends PluginSettingTab {
         });
 
         button.addEventListener("click", async () => {
-          const wasSelected = currentSelection.includes(list.id);
+          const wasSelected = selectedListIds.includes(list.id);
+          let newSelection: string[];
 
           if (wasSelected) {
             // Remove from selection
-            currentSelection = currentSelection.filter((id) => id !== list.id);
+            newSelection = selectedListIds.filter((id) => id !== list.id);
             button.removeClass("is-selected");
           } else {
             // Add to selection
-            currentSelection = [...currentSelection, list.id];
+            newSelection = [...selectedListIds, list.id];
             button.addClass("is-selected");
           }
 
           // Update count display
-          countElement.setText(`${currentSelection.length} of ${lists.length} lists selected`);
+          countElement.setText(`${newSelection.length} of ${lists.length} lists selected`);
 
-          // Save to settings
-          await updateSelected(currentSelection);
+          // Save to settings (this will update the selectedListIds variable)
+          await updateSelected(newSelection);
         });
       });
     };

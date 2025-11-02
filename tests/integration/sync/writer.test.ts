@@ -105,16 +105,19 @@ describe("writeSyncActions", () => {
 
   testCases.forEach(({ desc, initialLines, actions, expectedLines }) => {
     it(desc, async () => {
+      // Arrange
       readMock.mockResolvedValue(initialLines.join("\n"));
 
+      // Act
       await writeSyncActions(mockFile, actions, "## Heading");
 
+      // Assert
       expect(modifyMock).toHaveBeenCalledWith(mockFile, expectedLines.join("\n"));
     });
   });
 
   it("inserts before Kanban settings block, preserving blank lines", async () => {
-    // Simulate an empty heading section with just blank lines and a Kanban settings block
+    // Arrange
     const initialLines = [
       "# Notes",
       "## Heading",
@@ -128,11 +131,12 @@ describe("writeSyncActions", () => {
       "%%",
     ];
     readMock.mockResolvedValue(initialLines.join("\n"));
-
     const actions: SyncAction[] = [{ operation: "create", item: makeItem("1", "google-tasks") }];
 
+    // Act
     await writeSyncActions(mockFile, actions, "## Heading");
 
+    // Assert
     expect(modifyMock).toHaveBeenCalledWith(
       mockFile,
       [
@@ -152,6 +156,7 @@ describe("writeSyncActions", () => {
   });
 
   it("inserts missing heading and tasks before global Kanban block at end", async () => {
+    // Arrange
     const initialLines = [
       "# Notes",
       "",
@@ -163,11 +168,12 @@ describe("writeSyncActions", () => {
       "%%",
     ];
     readMock.mockResolvedValue(initialLines.join("\n"));
-
     const actions: SyncAction[] = [{ operation: "create", item: makeItem("1", "google-tasks") }];
 
+    // Act
     await writeSyncActions(mockFile, actions, "## Heading");
 
+    // Assert
     expect(modifyMock).toHaveBeenCalledWith(
       mockFile,
       [

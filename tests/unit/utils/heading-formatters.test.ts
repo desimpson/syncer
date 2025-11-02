@@ -38,8 +38,8 @@ describe("normaliseHeadingToH2", () => {
     // Act & Assert
     // @ts-expect-error Testing runtime behavior with undefined
     expect(normaliseHeadingToH2(undefined)).toBe("## ");
-    // @ts-expect-error Testing runtime behavior with undefined
-    expect(normaliseHeadingToH2(undefined)).toBe("## ");
+    // @ts-expect-error Testing runtime behavior with null
+    expect(normaliseHeadingToH2(null)).toBe("## ");
   });
 
   it("preserves text with # that is not a heading marker", () => {

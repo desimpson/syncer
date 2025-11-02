@@ -111,9 +111,13 @@ describe("readMarkdownSyncItems", () => {
 
   cases.forEach(({ name, markdown, expected }) => {
     it(name, async () => {
+      // Arrange
       const file = mockTFile("Tasks.md", markdown);
+
+      // Act
       const items = await readMarkdownSyncItems(file, "google-tasks");
 
+      // Assert
       expect(items).toEqual(expected);
     });
   });

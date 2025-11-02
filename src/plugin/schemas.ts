@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatPlural } from "@/utils/string-formatters";
+import { normaliseHeadingToH2 } from "@/utils/heading-formatters";
 import type { Vault } from "obsidian";
 
 const minimumFilePathLength = 1;
@@ -58,21 +59,6 @@ export const syncIntervalSchema: z.ZodCoercedNumber<unknown> = z.coerce
   .max(maximumSyncIntervalMinutes, {
     message: `Must be less than or equal to ${formatPlural(maximumSyncIntervalMinutes, "minute")}.`,
   });
-
-/**
- * Normalise any user-provided text or markdown heading into an H2 heading.
- * Examples:
- *  - "Inbox"       -> "## Inbox"
- *  - "### Tasks"   -> "## Tasks"
- *  - "#   Work"    -> "## Work"
- * Empty/whitespace strings normalise to an invalid "## " (caller validates).
- */
-const normaliseHeadingToH2 = (input: string): string => {
-  const trimmed = (input ?? "").trim();
-  // Strip leading markdown heading markers if present
-  const title = trimmed.replace(/^#+\s*/, "");
-  return title === "" ? "## " : `## ${title}`;
-};
 
 /**
  * Schema for Markdown heading that always normalises to H2 ("## ") with text.

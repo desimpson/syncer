@@ -33,8 +33,11 @@ jobs:
       - name: 💅 Check formatting (Prettier)
         run: npm run format:check
 
-      - name: 🧪 Run tests (Vitest)
-        run: npm run test
+      - name: 🧪 Run unit tests (Vitest)
+        run: npm run test:unit
+
+      - name: 🔗 Run integration tests (Vitest)
+        run: npm run test:integration
 
       - name: 🔧 Build plugin (esbuild)
         run: npm run build:prod

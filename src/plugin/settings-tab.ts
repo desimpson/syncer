@@ -1,13 +1,12 @@
 import { Notice, PluginSettingTab, Setting, TextComponent, type App } from "obsidian";
 import { FileSuggest } from "@/plugin/suggesters/file-suggest";
 import type ObsidianSyncerPlugin from "@/plugin";
-import { fetchGoogleTasksLists } from "@/services/google-tasks";
-import type { GoogleTasksList } from "@/services/types";
-import { PillSuggest as GoogleTaskListSuggest } from "@/plugin/suggesters/pill-suggest";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
 import type { PluginSettings, PluginConfig } from "@/plugin/types";
 import { createMarkdownFilePathSchema, headingSchema, syncIntervalSchema } from "./schemas";
 import { GoogleAuth } from "@/auth";
+import { GoogleTasksService } from "@/services";
+import type { GoogleTasksList } from "@/services/types";
 
 /**
  * Settings tab for the Obsidian Syncer plugin.
@@ -214,14 +213,10 @@ export class SettingsTab extends PluginSettingTab {
 
     let selectedListIds: readonly string[] = [...(googleTasks.selectedListIds ?? [])];
 
-    const pillContainer = containerElement.createDiv({ cls: "google-tasks-pill-container" });
-    const searchSetting = new Setting(containerElement).setName("Search Task Lists");
-
-    let textComponent!: TextComponent;
-    searchSetting.addText((tc) => (textComponent = tc));
+    const listContainer = containerElement.createDiv({ cls: "google-tasks-list-selector" });
 
     const updateSelected = async (newSelected: readonly string[]) => {
-      selectedListIds = [...newSelected]; // preserve order via new array
+      selectedListIds = [...newSelected];
       const freshSettings = await this.plugin.loadSettings();
       if (freshSettings.googleTasks !== undefined) {
         await this.plugin.updateSettings({
@@ -234,33 +229,108 @@ export class SettingsTab extends PluginSettingTab {
       }
     };
 
-    const initSuggest = (lists: readonly GoogleTasksList[]) => {
-      pillContainer.empty(); // clear old pills
+    const createListDropdown = (lists: readonly GoogleTasksList[]) => {
+      listContainer.empty(); // clear existing content
 
-      new GoogleTaskListSuggest(
-        this.app,
-        textComponent,
-        lists,
-        selectedListIds,
-        pillContainer,
-        updateSelected,
-      );
+      if (lists.length === 0) {
+        listContainer.createEl("p", {
+          text: "No task lists found.",
+          cls: "setting-item-description",
+        });
+        return;
+      }
+
+      // Add clear instructions
+      listContainer.createEl("p", {
+        text: "Click lists to select them for syncing:",
+        cls: "setting-item-description",
+      });
+
+      // Create toggle buttons container
+      const toggleContainer = listContainer.createDiv("google-tasks-toggle-container");
+
+      lists.forEach((list) => {
+        const isSelected = selectedListIds.includes(list.id);
+
+        const button = toggleContainer.createEl("button", {
+          text: list.title,
+          cls: `google-tasks-toggle-button${isSelected ? " is-selected" : ""}`,
+        });
+
+        button.addEventListener("click", async () => {
+          const wasSelected = selectedListIds.includes(list.id);
+          let newSelection: string[];
+
+          if (wasSelected) {
+            // Remove from selection
+            newSelection = selectedListIds.filter((id) => id !== list.id);
+            button.removeClass("is-selected");
+          } else {
+            // Add to selection
+            newSelection = [...selectedListIds, list.id];
+            button.addClass("is-selected");
+          }
+
+          // Update count display
+          countElement.setText(`${newSelection.length} of ${lists.length} lists selected`);
+
+          // Save to settings (this will update the selectedListIds variable)
+          await updateSelected(newSelection);
+        });
+      });
+
+      // Show selection count below the buttons
+      const countElement = listContainer.createEl("p", {
+        text: `${selectedListIds.length} of ${lists.length} lists selected`,
+        cls: "setting-item-description google-tasks-selection-count",
+      });
     };
 
-    // FIXME: Slight delay when opening settings for second time after choosing a list (?)
-
-    // Initialise suggester with cached lists first
-    initSuggest(googleTasks.availableLists ?? []);
+    // Initialize with cached lists first
+    createListDropdown(googleTasks.availableLists ?? []);
 
     // Then refresh lists from Google API
     try {
-      const lists = await fetchGoogleTasksLists(googleTasks.credentials?.accessToken ?? "");
-      await this.plugin.updateSettings({ googleTasks: { ...googleTasks, availableLists: lists } });
+      const lists = await GoogleTasksService.fetchGoogleTasksLists(
+        googleTasks.credentials?.accessToken ?? "",
+      );
 
-      initSuggest(lists); // re-init with fresh data
+      // Clean up selected list IDs - remove any that no longer exist
+      const availableListIds = new Set(lists.map((list) => list.id));
+      const cleanedSelectedIds = selectedListIds.filter((id) => availableListIds.has(id));
+
+      // If any selected lists were removed, update the settings
+      if (cleanedSelectedIds.length < selectedListIds.length) {
+        const removedCount = selectedListIds.length - cleanedSelectedIds.length;
+        console.info(`Removed ${removedCount} deleted Google Task list(s) from selection.`);
+
+        await this.plugin.updateSettings({
+          googleTasks: {
+            ...googleTasks,
+            availableLists: lists,
+            selectedListIds: cleanedSelectedIds,
+          },
+        });
+
+        // Update the local variable so the UI reflects the cleaned selection
+        selectedListIds = cleanedSelectedIds;
+        console.info(
+          `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ")}].`,
+        );
+      } else {
+        await this.plugin.updateSettings({
+          googleTasks: { ...googleTasks, availableLists: lists },
+        });
+      }
+
+      createListDropdown(lists); // re-create with fresh data
       console.info(`Refreshed available Google Task lists: [${lists.length}] lists.`);
     } catch (error) {
       console.error(`Failed to refresh task lists. Error: [${formatLogError(error)}].`);
+      listContainer.createEl("p", {
+        text: "Failed to load task lists. Check your connection and try refreshing.",
+        cls: "setting-item-description mod-warning",
+      });
     }
   }
 

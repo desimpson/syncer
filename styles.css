@@ -7,17 +7,48 @@ If your plugin does not need CSS, delete this file.
 
 */
 
-.pill {
+/* Google Tasks List Selector */
+.google-tasks-toggle-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.google-tasks-toggle-button {
   display: inline-flex;
   align-items: center;
-  background-color: var(--interactive-accent);
-  color: white;
-  border-radius: 9999px;
-  padding: 2px 8px;
-  margin: 4px;
-  font-size: 0.9em;
-}
-.pill-remove {
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-size-interface);
   cursor: pointer;
-  margin-left: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.google-tasks-toggle-button:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.google-tasks-toggle-button.is-selected {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.google-tasks-toggle-button.is-selected:hover {
+  background-color: var(--interactive-accent-hover);
+  border-color: var(--interactive-accent-hover);
+}
+
+.google-tasks-selection-count {
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 8px;
 }

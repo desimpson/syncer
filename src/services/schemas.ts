@@ -9,22 +9,6 @@ export const googleOAuthTokenResponseSchema = z.object({
   expires_in: z.number(),
 });
 
-/**
- * Schema for validating the response from Google's user info endpoint.
- */
-export const googleUserInfoResponseSchema = z.object({
-  sub: z.string(),
-  email: z.string().email(),
-});
-
-/**
- * Schema for validating the response from Google's token refresh endpoint.
- */
-export const refreshResponseSchema = z.object({
-  access_token: z.string(),
-  expires_in: z.number(),
-});
-
 // --- Google Tasks Schemas ---
 
 /** Schema for a Google Tasks list item. */

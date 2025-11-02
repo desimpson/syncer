@@ -14,8 +14,6 @@ describe("Plugin settings method binding", () => {
   beforeEach(() => {
     // Ensure required env vars for constructor schema parse
     process.env["GOOGLE_CLIENT_ID"] = process.env["GOOGLE_CLIENT_ID"] ?? "test-client-id";
-    process.env["GOOGLE_CLIENT_SECRET"] =
-      process.env["GOOGLE_CLIENT_SECRET"] ?? "test-client-secret";
   });
 
   it("allows calling load/save/update after destructuring (bound methods)", async () => {

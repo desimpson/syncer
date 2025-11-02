@@ -1,5 +1,5 @@
 import { createScheduler } from "@/sync/scheduler";
-import { type SyncJob } from "@/integrations/types";
+import { type SyncJob } from "@/jobs/types";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const createJob = (name: string, task: () => Promise<void>): SyncJob => ({

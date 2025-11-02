@@ -1,8 +1,69 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { TFile, Vault } from "obsidian";
-import { createGoogleTasksJob } from "@/integrations/google-tasks/job";
+import { createGoogleTasksJob, mapGoogleTaskToSyncItem } from "@/jobs/google-tasks";
 import type { SyncAction, SyncItem } from "@/sync/types";
-import type { GoogleTask } from "@/services/google/types";
+import type { GoogleTask } from "@/services/types";
+
+describe("mapGoogleTaskToSyncItem", () => {
+  it.each([
+    {
+      name: "maps all fields correctly",
+      input: {
+        id: "task-123",
+        title: "Write unit tests",
+        webViewLink: "https://tasks.google.com/task-123",
+      },
+      expected: {
+        source: "google-tasks",
+        id: "task-123",
+        title: "Write unit tests",
+        link: "https://tasks.google.com/task-123",
+        heading: "# Tasks",
+      },
+    },
+    {
+      name: "handles empty title (still valid)",
+      input: {
+        id: "task-456",
+        title: "",
+        webViewLink: "https://tasks.google.com/task-456",
+      },
+      expected: {
+        source: "google-tasks",
+        id: "task-456",
+        title: "",
+        link: "https://tasks.google.com/task-456",
+        heading: "# Tasks",
+      },
+    },
+    {
+      name: "handles whitespace-only title",
+      input: {
+        id: "task-789",
+        title: "   ",
+        webViewLink: "https://tasks.google.com/task-789",
+      },
+      expected: {
+        source: "google-tasks",
+        id: "task-789",
+        title: "   ",
+        link: "https://tasks.google.com/task-789",
+        heading: "# Tasks",
+      },
+    },
+  ])("$name", ({ input, expected }) => {
+    // Arrange
+    const task = input;
+    const heading = "# Tasks";
+
+    // Act
+    const adaptor = mapGoogleTaskToSyncItem(heading);
+    const actual = adaptor(task);
+
+    // Assert
+    expect(actual).toEqual(expected);
+  });
+});
 
 // Module mocks
 vi.mock("@/sync/reader", () => {
@@ -30,25 +91,22 @@ vi.mock("@/sync/writer", () => {
   return { writeSyncActions };
 });
 
-vi.mock("@/integrations/google-tasks/adaptor", () => {
-  const mapGoogleTaskToSyncItem = vi.fn() as unknown as (
-    heading: string,
-  ) => (task: GoogleTask) => SyncItem;
-  return { mapGoogleTaskToSyncItem };
-});
-
-vi.mock("services", () => {
-  const refreshAccessToken = vi.fn() as unknown as (
-    clientId: string,
-    clientSecret: string,
-    refreshToken: string,
-  ) => Promise<{ accessToken: string; expiresIn: number }>;
+vi.mock("@/services", () => {
   const createGoogleTasksFetcher = vi.fn() as unknown as (
     accessToken: string,
   ) => (listId: string) => Promise<readonly GoogleTask[]>;
   return {
-    GoogleOAuth2Service: { refreshAccessToken },
     GoogleTasksService: { createGoogleTasksFetcher },
+  };
+});
+
+vi.mock("@/auth", () => {
+  const refreshAccessToken = vi.fn() as unknown as (
+    clientId: string,
+    refreshToken: string,
+  ) => Promise<{ accessToken: string; expiryDate: number }>;
+  return {
+    GoogleAuth: { refreshAccessToken },
   };
 });
 
@@ -58,13 +116,11 @@ vi.mock("services", () => {
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { generateSyncActions } from "@/sync/actions";
 import { writeSyncActions } from "@/sync/writer";
-import { mapGoogleTaskToSyncItem } from "@/integrations/google-tasks/adaptor";
-import { GoogleOAuth2Service, GoogleTasksService } from "services";
+import { GoogleTasksService } from "@/services";
+import { GoogleAuth } from "@/auth";
 
 const baseConfig = {
   googleClientId: "id",
-  googleClientSecret: "secret",
-  mcpExperimental: false,
 } as const;
 
 const makeVault = (file: TFile | null) =>
@@ -111,10 +167,15 @@ describe("createGoogleTasksJob", () => {
     // Arrange
     const loadSettings = vi.fn().mockResolvedValue({
       googleTasks: {
-        token: { accessToken: "tok", refreshToken: "ref", expiresIn: Date.now() + 60_000 },
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
         availableLists: [],
         selectedListIds: [],
-        userInfo: { userId: "u", email: "e@x.com" },
+        userInfo: { email: "e@x.com" },
       },
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
@@ -137,10 +198,15 @@ describe("createGoogleTasksJob", () => {
     // Arrange
     const loadSettings = vi.fn().mockResolvedValue({
       googleTasks: {
-        token: { accessToken: "tok", refreshToken: "ref", expiresIn: Date.now() + 60_000 },
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
         availableLists: [],
         selectedListIds: ["list-1"],
-        userInfo: { userId: "u", email: "e@x.com" },
+        userInfo: { email: "e@x.com" },
       },
       syncDocument: "Missing.md",
       syncHeading: "## Inbox",
@@ -167,10 +233,15 @@ describe("createGoogleTasksJob", () => {
     // Arrange
     const settings = {
       googleTasks: {
-        token: { accessToken: "tok", refreshToken: "ref", expiresIn: Date.now() + 60_000 },
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
         availableLists: [],
         selectedListIds: ["A"],
-        userInfo: { userId: "u", email: "e@x.com" },
+        userInfo: { email: "e@x.com" },
       },
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
@@ -183,13 +254,6 @@ describe("createGoogleTasksJob", () => {
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
       { id: "A-1", title: "T", webViewLink: "https://x" } as GoogleTask,
     ]);
-    vi.mocked(mapGoogleTaskToSyncItem).mockReturnValue((task) => ({
-      id: task.id,
-      title: task.title,
-      link: task.webViewLink,
-      source: "google-tasks",
-      heading: "## Inbox",
-    }));
     vi.mocked(readMarkdownSyncItems).mockRejectedValue(
       new Error("ENOENT: no such file or directory"),
     );
@@ -213,10 +277,15 @@ describe("createGoogleTasksJob", () => {
     const newExpiry = Date.now() + 3_600_000;
     const settings = {
       googleTasks: {
-        token: { accessToken: "old", refreshToken: "ref", expiresIn: expired },
+        credentials: {
+          accessToken: "old",
+          refreshToken: "ref",
+          expiryDate: expired,
+          scope: "scope",
+        },
         availableLists: [],
         selectedListIds: ["A"],
-        userInfo: { userId: "u", email: "e@x.com" },
+        userInfo: { email: "e@x.com" },
       },
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
@@ -227,20 +296,13 @@ describe("createGoogleTasksJob", () => {
     const file = makeFile();
     const vault = makeVault(file);
 
-    vi.mocked(GoogleOAuth2Service.refreshAccessToken).mockResolvedValue({
+    vi.mocked(GoogleAuth.refreshAccessToken).mockResolvedValue({
       accessToken: "new-token",
-      expiresIn: newExpiry,
+      expiryDate: newExpiry,
     });
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async (listId) => [
       { id: `${listId}-1`, title: "T", webViewLink: "https://x" } as GoogleTask,
     ]);
-    vi.mocked(mapGoogleTaskToSyncItem).mockReturnValue((task) => ({
-      id: task.id,
-      title: task.title,
-      link: task.webViewLink,
-      source: "google-tasks",
-      heading: "## Inbox",
-    }));
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
     vi.mocked(generateSyncActions).mockReturnValue([]);
     vi.mocked(writeSyncActions).mockResolvedValue();
@@ -251,11 +313,11 @@ describe("createGoogleTasksJob", () => {
     await job.task();
 
     // Assert token refresh & persistence
-    expect(GoogleOAuth2Service.refreshAccessToken).toHaveBeenCalledWith("id", "secret", "ref");
+    expect(GoogleAuth.refreshAccessToken).toHaveBeenCalledWith("id", "ref");
     expect(saveSettings).toHaveBeenCalledTimes(1);
     const savedSettingsArgument = saveSettings.mock.calls[0]?.[0];
-    expect(savedSettingsArgument.googleTasks.token.accessToken).toBe("new-token");
-    expect(savedSettingsArgument.googleTasks.token.expiresIn).toBe(newExpiry);
+    expect(savedSettingsArgument.googleTasks.credentials.accessToken).toBe("new-token");
+    expect(savedSettingsArgument.googleTasks.credentials.expiryDate).toBe(newExpiry);
 
     // Subsequent fetch and write
     expect(GoogleTasksService.createGoogleTasksFetcher).toHaveBeenCalledWith("new-token");
@@ -268,10 +330,15 @@ describe("createGoogleTasksJob", () => {
     // Arrange
     const settings = {
       googleTasks: {
-        token: { accessToken: "tok", refreshToken: "ref", expiresIn: Date.now() + 60_000 },
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
         availableLists: [],
         selectedListIds: ["A", "B"],
-        userInfo: { userId: "u", email: "e@x.com" },
+        userInfo: { email: "e@x.com" },
       },
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
@@ -285,13 +352,6 @@ describe("createGoogleTasksJob", () => {
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async (listId) => [
       { id: `${listId}-1`, title: "T1", webViewLink: "https://x1" } as GoogleTask,
     ]);
-    vi.mocked(mapGoogleTaskToSyncItem).mockReturnValue((task) => ({
-      id: task.id,
-      title: task.title,
-      link: task.webViewLink,
-      source: "google-tasks",
-      heading: "## Inbox",
-    }));
     const existing: SyncItem[] = [
       { id: "A-1", title: "Old", link: "", source: "google-tasks", heading: "## Inbox" },
     ];
@@ -328,7 +388,6 @@ describe("createGoogleTasksJob", () => {
 
     // Assert
     expect(GoogleTasksService.createGoogleTasksFetcher).toHaveBeenCalledWith("tok");
-    expect(mapGoogleTaskToSyncItem).toHaveBeenCalledWith("## Inbox");
     expect(readMarkdownSyncItems).toHaveBeenCalledWith(file, "google-tasks");
     expect(generateSyncActions).toHaveBeenCalledWith(
       [

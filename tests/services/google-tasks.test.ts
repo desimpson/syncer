@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchGoogleTasksLists, fetchGoogleTasks } from "@/services/google/tasks";
+import { fetchGoogleTasksLists, fetchGoogleTasks } from "@/services/google-tasks";
 
 describe("Google Tasks API service", () => {
   beforeEach(() => {

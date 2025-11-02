@@ -167,7 +167,12 @@ describe("createGoogleTasksJob", () => {
     // Arrange
     const loadSettings = vi.fn().mockResolvedValue({
       googleTasks: {
-        token: { accessToken: "tok", refreshToken: "ref", expiresIn: Date.now() + 60_000 },
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiresIn: Date.now() + 60_000,
+          scope: "scope",
+        },
         availableLists: [],
         selectedListIds: [],
         userInfo: { email: "e@x.com" },

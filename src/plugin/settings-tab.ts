@@ -179,7 +179,6 @@ export class SettingsTab extends PluginSettingTab {
 
       const userInfo = await GoogleAuth.getUserInfo(credentials.accessToken);
 
-      // TODO: Why do I call updateSettings and not saveSettings here?
       await this.plugin.updateSettings({
         googleTasks: {
           // FIXME: Remove token once auth migration done

@@ -16,3 +16,4 @@
 - [ ] Better separate individual dev and prod (`main` branch) environments in GitHub Actions workflows
 - [ ] Separate unit tests and integration tests
 - [ ] Reduce use of mocks in tests
+- [ ] Enforce importing barrel files?

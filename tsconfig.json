@@ -30,5 +30,5 @@
     "target": "ES2021",
     "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "vitest.*.config.ts"]
 }

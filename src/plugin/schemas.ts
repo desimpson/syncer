@@ -93,7 +93,6 @@ export const googleTasksSettingsSchema = z.object({
   userInfo: z.object({
     email: z.email(),
   }),
-  // TODO: add scope?
   credentials: z.object({
     accessToken: z.string(),
     refreshToken: z.string(),

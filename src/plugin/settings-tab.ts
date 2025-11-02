@@ -181,7 +181,6 @@ export class SettingsTab extends PluginSettingTab {
 
       await this.plugin.updateSettings({
         googleTasks: {
-          // FIXME: Remove token once auth migration done
           credentials,
           userInfo,
           availableLists: [],

@@ -606,7 +606,7 @@ describe("GoogleAuth", () => {
       const result = await GoogleAuth.refreshAccessToken("id", "refresh");
 
       // Assert
-      expect(result).toEqual({ accessToken: "new-token", expiresIn: expect.any(Number) });
+      expect(result).toEqual({ accessToken: "new-token", expiryDate: expect.any(Number) });
     });
 
     it("retries on network failure and succeeds", async () => {
@@ -628,7 +628,7 @@ describe("GoogleAuth", () => {
 
       // Assert
       expect(callCount).toBe(2);
-      expect(result).toEqual({ accessToken: "ok", expiresIn: expect.any(Number) });
+      expect(result).toEqual({ accessToken: "ok", expiryDate: expect.any(Number) });
     });
 
     it("fails after all retries", async () => {

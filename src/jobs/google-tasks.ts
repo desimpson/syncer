@@ -17,12 +17,12 @@ const ensureAccessToken = async (
 
   if (token.expiryDate < Date.now()) {
     console.info("Google Tasks token has expired. Refreshing...");
-    const { accessToken, expiresIn } = await GoogleAuth.refreshAccessToken(
+    const { accessToken, expiryDate } = await GoogleAuth.refreshAccessToken(
       config.googleClientId,
       token.refreshToken,
     );
 
-    await persist({ accessToken, expiryDate: expiresIn });
+    await persist({ accessToken, expiryDate });
     console.info("Saved refreshed Google Tasks token.");
     return accessToken;
   }

@@ -286,7 +286,7 @@ export class SettingsTab extends PluginSettingTab {
       });
     };
 
-    // Initialize with cached lists first
+    // Initialise with cached lists first
     createListDropdown(googleTasks.availableLists ?? []);
 
     // Then refresh lists from Google API

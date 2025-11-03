@@ -9,7 +9,7 @@ describe("normaliseHeadingToH2", () => {
     expect(normaliseHeadingToH2("Work Items")).toBe("## Work Items");
   });
 
-  it("normalizes different heading levels to H2", () => {
+  it("normalises different heading levels to H2", () => {
     // Act & Assert
     expect(normaliseHeadingToH2("# Inbox")).toBe("## Inbox");
     expect(normaliseHeadingToH2("### Tasks")).toBe("## Tasks");

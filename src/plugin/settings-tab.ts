@@ -113,26 +113,30 @@ export class SettingsTab extends PluginSettingTab {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
       "Sync Heading",
-      "The H2 heading under which new Google Tasks will be inserted.",
+      "The H2 heading under which new Google Tasks will be inserted. Text will be converted to H2 format.",
       settings.syncHeading,
-      "e.g., ## Inbox",
+      "e.g., ## Inbox, ## Tasks, or ## To-Do",
     );
 
     input.onChange(async (value) => {
       const result = headingSchema.safeParse(value);
-      if (result.success) {
-        await this.plugin.updateSettings({ syncHeading: result.data });
-        errorElement.setText("");
-        if (result.data !== value) {
-          new Notice(`Adjusted heading to H2: "${result.data}"`);
-        }
-        console.info(`Updated sync heading: [${result.data}].`);
-      } else {
+      if (!result.success) {
+        // E.g., empty or all whitespace
         errorElement.setText(formatUiError(result.error));
         console.warn(
           `Invalid heading format: [${value}]. Error: [${formatLogError(result.error)}].`,
         );
+        return;
       }
+
+      const normalised = result.data;
+      if (normalised !== value) {
+        input.setValue(normalised);
+      }
+
+      await this.plugin.updateSettings({ syncHeading: result.data });
+      errorElement.setText("");
+      console.info(`Updated sync heading: [${result.data}].`);
     });
   }
 

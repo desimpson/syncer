@@ -181,7 +181,13 @@ describe("generateSyncActions", () => {
 
   cases.forEach(({ name, incoming, existing, expected }) => {
     it(name, () => {
+      // Arrange
+      // (incoming and existing are already arranged from test cases)
+
+      // Act
       const actions = generateSyncActions(incoming, existing);
+
+      // Assert
       expect(actions).toEqual(expected);
     });
   });

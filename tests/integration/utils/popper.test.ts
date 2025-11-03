@@ -34,14 +34,16 @@ describe("createPopper", () => {
   });
 
   it("positions popper below reference and matches width", () => {
+    // Arrange
     const reference = document.createElement("input");
     const popper = document.createElement("div");
     document.body.append(reference, popper);
-
     mockRect(reference, { bottom: 120, left: 40, width: 300 });
 
+    // Act
     const { destroy } = createPopper(reference, popper);
 
+    // Assert
     expect(popper.style.position).toBe("absolute");
     expect(popper.style.top).toBe(`${120 + window.scrollY}px`);
     expect(popper.style.left).toBe(`${40 + window.scrollX}px`);
@@ -51,30 +53,34 @@ describe("createPopper", () => {
   });
 
   it("updates on resize/scroll and cleans up on destroy", () => {
+    // Arrange
     const reference = document.createElement("input");
     const popper = document.createElement("div");
     document.body.append(reference, popper);
-
     mockRect(reference, { bottom: 100, left: 10, width: 100 });
-
     const addEventListenerSpy = vi.spyOn(globalThis, "addEventListener");
     const removeEventListenerSpy = vi.spyOn(globalThis, "removeEventListener");
 
+    // Act
     const { destroy } = createPopper(reference, popper);
 
+    // Assert
     expect(addEventListenerSpy).toHaveBeenCalledWith("scroll", expect.any(Function), true);
     expect(addEventListenerSpy).toHaveBeenCalledWith("resize", expect.any(Function));
 
-    // simulate change
+    // Act: simulate change
     mockRect(reference, { bottom: 300, left: 20, width: 150 });
     globalThis.dispatchEvent(new Event("resize"));
 
+    // Assert
     expect(popper.style.top).toBe(`${300 + window.scrollY}px`);
     expect(popper.style.left).toBe(`${20 + window.scrollX}px`);
     expect(popper.style.width).toBe("150px");
 
+    // Act: destroy
     destroy();
 
+    // Assert
     expect(removeEventListenerSpy).toHaveBeenCalledWith("scroll", expect.any(Function), true);
     expect(removeEventListenerSpy).toHaveBeenCalledWith("resize", expect.any(Function));
   });

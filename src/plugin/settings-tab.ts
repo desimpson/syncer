@@ -129,9 +129,9 @@ export class SettingsTab extends PluginSettingTab {
         return;
       }
 
-      // Update the input field to show the normalised value
-      if (result.data !== value) {
-        input.setValue(result.data);
+      const normalised = result.data;
+      if (normalised !== value) {
+        input.setValue(normalised);
       }
 
       await this.plugin.updateSettings({ syncHeading: result.data });

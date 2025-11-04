@@ -8,6 +8,8 @@ import type { TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/types";
 import { GoogleAuth } from "@/auth";
 
+const VAULT_INIT_RETRY_DELAY_MS = 500;
+
 const ensureAccessToken = async (
   googleTasks: GoogleTasksSettings,
   config: PluginConfig,
@@ -43,7 +45,7 @@ const getSyncFileWithRetry = async (
 
   // Retry after a short delay in case vault is still initialising
   console.info("Sync document not found on first attempt, retrying after delay...");
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
   const retryFile = vault.getFileByPath(syncDocument);
 
   if (retryFile === null) {

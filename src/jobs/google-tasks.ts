@@ -8,6 +8,8 @@ import type { TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/types";
 import { GoogleAuth } from "@/auth";
 
+const VAULT_INIT_RETRY_DELAY_MS = 500;
+
 const ensureAccessToken = async (
   googleTasks: GoogleTasksSettings,
   config: PluginConfig,
@@ -30,18 +32,29 @@ const ensureAccessToken = async (
   return token.accessToken;
 };
 
-const getSyncFileOrNotify = (
+const getSyncFileWithRetry = async (
   vault: Vault,
   syncDocument: string,
   notify: (message: string) => void,
-) => {
+): Promise<TFile | undefined> => {
+  // The initial lookup fails when Obsidian is still starting up
   const file = vault.getFileByPath(syncDocument);
-  if (file === null) {
+  if (file !== null) {
+    return file;
+  }
+
+  // Retry after a short delay in case vault is still initialising
+  console.info("Sync document not found on first attempt, retrying after delay...");
+  await new Promise((resolve) => setTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
+  const retryFile = vault.getFileByPath(syncDocument);
+
+  if (retryFile === null) {
     notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
     console.warn(`Sync document [${syncDocument}] not found. Aborting sync.`);
     return undefined;
   }
-  return file;
+
+  return retryFile;
 };
 
 const fetchAllSelectedTasks = async (accessToken: string, selectedListIds: readonly string[]) => {
@@ -151,10 +164,9 @@ export const createGoogleTasksJob: SyncJobCreator = (
       },
     );
 
-    // Read the Markdown file
-    const file = getSyncFileOrNotify(vault, syncDocument, notify);
+    // Read the Markdown file with retry for Obsidian startup timing
+    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
     if (file === undefined) {
-      console.error(`Sync document [${syncDocument}] not found.`);
       return;
     }
 

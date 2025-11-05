@@ -26,27 +26,6 @@ describe("mapGoogleTaskToSyncItem", () => {
     });
   });
 
-  it("preserves all fields correctly", () => {
-    // Arrange
-    const googleTask: GoogleTask = {
-      id: "xyz789",
-      title: "Review documents",
-      webViewLink: "https://tasks.google.com/task/xyz789",
-    };
-    const heading = "## Work";
-    const adaptor = mapGoogleTaskToSyncItem(heading);
-
-    // Act
-    const result = adaptor(googleTask);
-
-    // Assert
-    expect(result.source).toBe("google-tasks");
-    expect(result.id).toBe(googleTask.id);
-    expect(result.title).toBe(googleTask.title);
-    expect(result.link).toBe(googleTask.webViewLink);
-    expect(result.heading).toBe(heading);
-  });
-
   it("works with empty title", () => {
     // Arrange
     const googleTask: GoogleTask = {

@@ -1,11 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { mapGoogleTaskToSyncItem } from "@/jobs/google-tasks";
+import { mapGoogleTaskToSyncItem } from "@/adaptors";
 import type { GoogleTask } from "@/services/types";
 
 describe("mapGoogleTaskToSyncItem", () => {
-  const heading = "## Inbox";
-  const mapper = mapGoogleTaskToSyncItem(heading);
-
   it("maps a Google Task to a SyncItem", () => {
     // Arrange
     const googleTask: GoogleTask = {
@@ -13,9 +10,11 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "Complete project",
       webViewLink: "https://tasks.google.com/task/task123",
     };
+    const heading = "## Inbox";
+    const adaptor = mapGoogleTaskToSyncItem(heading);
 
     // Act
-    const result = mapper(googleTask);
+    const result = adaptor(googleTask);
 
     // Assert
     expect(result).toEqual({
@@ -34,9 +33,11 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "Review documents",
       webViewLink: "https://tasks.google.com/task/xyz789",
     };
+    const heading = "## Work";
+    const adaptor = mapGoogleTaskToSyncItem(heading);
 
     // Act
-    const result = mapper(googleTask);
+    const result = adaptor(googleTask);
 
     // Assert
     expect(result.source).toBe("google-tasks");
@@ -53,9 +54,11 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "",
       webViewLink: "https://tasks.google.com/task/empty123",
     };
+    const heading = "## Tasks";
+    const adaptor = mapGoogleTaskToSyncItem(heading);
 
     // Act
-    const result = mapper(googleTask);
+    const result = adaptor(googleTask);
 
     // Assert
     expect(result).toEqual({
@@ -63,25 +66,7 @@ describe("mapGoogleTaskToSyncItem", () => {
       id: "empty123",
       title: "",
       link: "https://tasks.google.com/task/empty123",
-      heading: "## Inbox",
+      heading: "## Tasks",
     });
-  });
-
-  it("uses provided heading consistently", () => {
-    // Arrange
-    const customHeading = "## Work Tasks";
-    const customMapper = mapGoogleTaskToSyncItem(customHeading);
-
-    const googleTask: GoogleTask = {
-      id: "work456",
-      title: "Team meeting",
-      webViewLink: "https://tasks.google.com/task/work456",
-    };
-
-    // Act
-    const result = customMapper(googleTask);
-
-    // Assert
-    expect(result.heading).toBe(customHeading);
   });
 });

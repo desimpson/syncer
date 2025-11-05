@@ -1,13 +1,5 @@
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
-import type { SyncItem } from "@/sync/types";
 import type { Vault } from "obsidian";
-
-/**
- * Generic interface for a curried adaptor:
- *
- * @typeParam `T` - The source-specific type (e.g., `GoogleTask`)
- */
-export type SyncAdaptor<T> = (heading: string) => (item: T) => SyncItem;
 
 /**
  * Generic sync job for any integration.

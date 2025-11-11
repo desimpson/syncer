@@ -19,3 +19,4 @@
 - [ ] Enforce importing barrel files?
 - [ ] `heading` -> `targetHeading` or `syncHeading` throughout codebase
 - [ ] Lint rule to enforce official TSDoc comment spec
+- [ ] Set up `main` branch protection rules

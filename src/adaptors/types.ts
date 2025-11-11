@@ -1,7 +1,7 @@
 import type { SyncItem } from "@/sync/types";
 
 /**
- * Generic interface for a curried adaptor:
+ * Generic adaptor type mapping source-specific items to `SyncItem`s.
  *
  * @typeParam `T` - The source-specific type (e.g., `GoogleTask`)
  */

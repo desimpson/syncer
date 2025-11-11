@@ -48,4 +48,51 @@ describe("mapGoogleTaskToSyncItem", () => {
       heading: "## Tasks",
     });
   });
+
+  it("handles special characters in title and link", () => {
+    // Arrange
+    const googleTask: GoogleTask = {
+      id: "special456",
+      title: "Task with 'quotes' & <symbols>",
+      webViewLink: "https://tasks.google.com/task/special456?param=value&other=data",
+    };
+    const heading = "## Special";
+    const adaptor = mapGoogleTaskToSyncItem(heading);
+
+    // Act
+    const result = adaptor(googleTask);
+
+    // Assert
+    expect(result).toEqual({
+      source: "google-tasks",
+      id: "special456",
+      title: "Task with 'quotes' & <symbols>",
+      link: "https://tasks.google.com/task/special456?param=value&other=data",
+      heading: "## Special",
+    });
+  });
+
+  it("preserves various heading formats", () => {
+    // Arrange
+    const googleTask: GoogleTask = {
+      id: "task789",
+      title: "Test task",
+      webViewLink: "https://tasks.google.com/task/task789",
+    };
+    const headingWithoutHash = "Custom Section";
+    const adaptor = mapGoogleTaskToSyncItem(headingWithoutHash);
+
+    // Act
+    const result = adaptor(googleTask);
+
+    // Assert
+    expect(result.heading).toBe("Custom Section");
+    expect(result).toEqual({
+      source: "google-tasks",
+      id: "task789",
+      title: "Test task",
+      link: "https://tasks.google.com/task/task789",
+      heading: "Custom Section",
+    });
+  });
 });

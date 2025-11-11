@@ -86,7 +86,6 @@ describe("mapGoogleTaskToSyncItem", () => {
     const result = adaptor(googleTask);
 
     // Assert
-    expect(result.heading).toBe("Custom Section");
     expect(result).toEqual({
       source: "google-tasks",
       id: "task789",

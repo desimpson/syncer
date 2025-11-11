@@ -17,3 +17,5 @@
 - [ ] Separate unit tests and integration tests
 - [ ] Reduce use of mocks in tests
 - [ ] Enforce importing barrel files?
+- [ ] `heading` -> `targetHeading` or `syncHeading` throughout codebase
+- [ ] Lint rule to enforce official TSDoc comment spec

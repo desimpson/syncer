@@ -1,5 +1,6 @@
 import { GoogleTasksService } from "@/services";
-import type { SyncAdaptor, SyncJobCreator } from "@/jobs/types";
+import { mapGoogleTaskToSyncItem } from "@/adaptors";
+import type { SyncJobCreator } from "@/jobs/types";
 import { generateSyncActions } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { writeSyncActions } from "@/sync/writer";
@@ -62,23 +63,6 @@ const fetchAllSelectedTasks = async (accessToken: string, selectedListIds: reado
   const fetchedTasks = await Promise.all(selectedListIds.map(fetchTasks));
   return fetchedTasks.flat();
 };
-
-/**
- * Maps a single `GoogleTask` to a generic `SyncItem`.
- *
- * @param heading - The heading under which the item will be synced
- * @param task - A `GoogleTask` object returned from the Google Tasks API
- * @returns A `SyncItem` suitable for writing to Markdown
- */
-export const mapGoogleTaskToSyncItem: SyncAdaptor<GoogleTask> =
-  (heading) =>
-  ({ id, title, webViewLink: link }) => ({
-    source: "google-tasks",
-    id,
-    title,
-    link,
-    heading,
-  });
 
 const syncTasksToFile = async (
   file: TFile,

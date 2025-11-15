@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchGoogleTasksLists, fetchGoogleTasks } from "@/services/google-tasks";
+import {
+  fetchGoogleTasksLists,
+  fetchGoogleTasks,
+  updateGoogleTaskStatus,
+} from "@/services/google-tasks";
 
 describe("Google Tasks API service", () => {
   beforeEach(() => {
@@ -114,6 +118,100 @@ describe("Google Tasks API service", () => {
 
       // Act & Assert
       await expect(fetchGoogleTasks("fake-token", listId)).rejects.toThrow();
+    });
+  });
+
+  describe("updateGoogleTaskStatus", () => {
+    it("marks task as completed with status and timestamp", async () => {
+      // Arrange
+      const token = "fake-token";
+      const listId = "list-123";
+      const taskId = "task-456";
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+      });
+      globalThis.fetch = mockFetch;
+
+      // Act
+      await updateGoogleTaskStatus(token, listId, taskId, true);
+
+      // Assert
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: expect.stringContaining('"status":"completed"'),
+        },
+      );
+      const call = mockFetch.mock.calls[0];
+      expect(call).toBeDefined();
+      const bodyParameter = call?.[1];
+      expect(bodyParameter).toBeDefined();
+      expect(typeof bodyParameter?.body).toBe("string");
+      if (bodyParameter === undefined || typeof bodyParameter.body !== "string") {
+        throw new Error("Expected bodyParameter.body to be a string");
+      }
+      const body = JSON.parse(bodyParameter.body);
+      expect(body.status).toBe("completed");
+      expect(body.completed).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/); // ISO date format
+    });
+
+    it("marks task as uncompleted with needsAction status", async () => {
+      // Arrange
+      const token = "fake-token";
+      const listId = "list-123";
+      const taskId = "task-456";
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+      });
+      globalThis.fetch = mockFetch;
+
+      // Act
+      await updateGoogleTaskStatus(token, listId, taskId, false);
+
+      // Assert
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: expect.stringContaining('"status":"needsAction"'),
+        },
+      );
+      const call = mockFetch.mock.calls[0];
+      expect(call).toBeDefined();
+      const bodyParameter = call?.[1];
+      expect(bodyParameter).toBeDefined();
+      expect(typeof bodyParameter?.body).toBe("string");
+      if (bodyParameter === undefined || typeof bodyParameter.body !== "string") {
+        throw new Error("Expected bodyParameter.body to be a string");
+      }
+      const body = JSON.parse(bodyParameter.body);
+      expect(body.status).toBe("needsAction");
+      expect(body.completed).toBeUndefined();
+    });
+
+    it("throws error when response is not ok", async () => {
+      // Arrange
+      const token = "fake-token";
+      const listId = "list-123";
+      const taskId = "task-456";
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+      });
+
+      // Act & Assert
+      await expect(updateGoogleTaskStatus(token, listId, taskId, true)).rejects.toThrow(
+        "Failed to update task task-456 for list list-123: 404",
+      );
     });
   });
 });

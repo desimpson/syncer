@@ -23,6 +23,7 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "Complete project",
       link: "https://tasks.google.com/task/task123",
       heading: "## Inbox",
+      completed: false,
     });
   });
 
@@ -46,6 +47,7 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "",
       link: "https://tasks.google.com/task/empty123",
       heading: "## Tasks",
+      completed: false,
     });
   });
 
@@ -69,6 +71,7 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "Task with 'quotes' & <symbols>",
       link: "https://tasks.google.com/task/special456?param=value&other=data",
       heading: "## Special",
+      completed: false,
     });
   });
 
@@ -92,6 +95,82 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "Test task",
       link: "https://tasks.google.com/task/task789",
       heading: "Custom Section",
+      completed: false,
+    });
+  });
+
+  it("maps completed Google Task to completed SyncItem", () => {
+    // Arrange
+    const googleTask: GoogleTask = {
+      id: "completed123",
+      title: "Completed task",
+      webViewLink: "https://tasks.google.com/task/completed123",
+      status: "completed",
+      completed: "2024-01-15T10:30:00Z",
+    };
+    const heading = "## Done";
+    const adaptor = mapGoogleTaskToSyncItem(heading);
+
+    // Act
+    const result = adaptor(googleTask);
+
+    // Assert
+    expect(result).toEqual({
+      source: "google-tasks",
+      id: "completed123",
+      title: "Completed task",
+      link: "https://tasks.google.com/task/completed123",
+      heading: "## Done",
+      completed: true,
+    });
+  });
+
+  it("maps needsAction Google Task to uncompleted SyncItem", () => {
+    // Arrange
+    const googleTask: GoogleTask = {
+      id: "pending456",
+      title: "Pending task",
+      webViewLink: "https://tasks.google.com/task/pending456",
+      status: "needsAction",
+    };
+    const heading = "## To Do";
+    const adaptor = mapGoogleTaskToSyncItem(heading);
+
+    // Act
+    const result = adaptor(googleTask);
+
+    // Assert
+    expect(result).toEqual({
+      source: "google-tasks",
+      id: "pending456",
+      title: "Pending task",
+      link: "https://tasks.google.com/task/pending456",
+      heading: "## To Do",
+      completed: false,
+    });
+  });
+
+  it("maps task without status to uncompleted SyncItem", () => {
+    // Arrange
+    const googleTask: GoogleTask = {
+      id: "no-status789",
+      title: "Task without status",
+      webViewLink: "https://tasks.google.com/task/no-status789",
+    };
+    const heading = "## Inbox";
+    const adaptor = mapGoogleTaskToSyncItem(heading);
+
+    // Act
+    const result = adaptor(googleTask);
+
+    // Assert
+    expect(result).toEqual({
+      source: "google-tasks",
+      id: "no-status789",
+      title: "Task without status",
+      link: "https://tasks.google.com/task/no-status789",
+      heading: "## Inbox",
+      completed: false,
     });
   });
 });

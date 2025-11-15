@@ -16,7 +16,7 @@ describe("parsedLineSchema", () => {
     const result = parsedLineSchema.parse(input);
 
     // Assert
-    expect(result).toEqual(input);
+    expect(result).toEqual({ ...input, completed: false });
   });
 
   it("provides default empty string for missing title", () => {
@@ -35,6 +35,7 @@ describe("parsedLineSchema", () => {
     expect(result).toEqual({
       ...input,
       title: "",
+      completed: false,
     });
   });
 
@@ -104,6 +105,6 @@ describe("parsedLineSchema", () => {
     const result = parsedLineSchema.parse(input);
 
     // Assert
-    expect(result).toEqual(input);
+    expect(result).toEqual({ ...input, completed: false });
   });
 });

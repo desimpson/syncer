@@ -39,6 +39,7 @@ describe("normaliseHeadingToH2", () => {
     // @ts-expect-error Testing runtime behavior with undefined
     expect(normaliseHeadingToH2(undefined)).toBe("## ");
     // @ts-expect-error Testing runtime behavior with null
+    // eslint-disable-next-line unicorn/no-null
     expect(normaliseHeadingToH2(null)).toBe("## ");
   });
 

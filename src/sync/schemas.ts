@@ -9,4 +9,5 @@ export const parsedLineSchema = z.object({
   title: z.string().optional().default(""),
   link: z.string().min(1),
   heading: z.string().min(1),
+  completed: z.boolean().optional().default(false),
 });

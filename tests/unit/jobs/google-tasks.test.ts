@@ -23,6 +23,7 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "Complete project",
       link: "https://tasks.google.com/task/task123",
       heading: "## Inbox",
+      completed: false,
     });
   });
 
@@ -67,6 +68,7 @@ describe("mapGoogleTaskToSyncItem", () => {
       title: "",
       link: "https://tasks.google.com/task/empty123",
       heading: "## Tasks",
+      completed: false,
     });
   });
 });

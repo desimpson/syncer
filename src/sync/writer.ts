@@ -22,22 +22,30 @@ const createLine = (item: SyncItem) => {
     title: item.title,
     link: item.link,
     heading: item.heading,
+    completed: item.completed ?? false,
   };
+  const checkbox = (item.completed ?? false) ? "[x]" : "[ ]";
   // Indentation handled by caller; keep this at top-level format
-  return `- [ ] [${item.title}](${item.link}) <!-- ${JSON.stringify(metadata)} -->`;
+  return `- ${checkbox} [${item.title}](${item.link}) <!-- ${JSON.stringify(metadata)} -->`;
 };
 
-const updateLine = (line: string, item: SyncItem) =>
-  line.replace(
-    jsonCommentRegex,
-    `<!-- ${JSON.stringify({
-      id: item.id,
-      source: item.source,
-      title: item.title,
-      link: item.link,
-      heading: item.heading,
-    })} -->`,
-  );
+const updateLine = (line: string, item: SyncItem) => {
+  const checkbox = (item.completed ?? false) ? "[x]" : "[ ]";
+  // Update both the checkbox and the metadata
+  return line
+    .replace(/^\s*- \[[ xX]\]/, (match) => match.replace(/\[[ xX]\]/, checkbox))
+    .replace(
+      jsonCommentRegex,
+      `<!-- ${JSON.stringify({
+        id: item.id,
+        source: item.source,
+        title: item.title,
+        link: item.link,
+        heading: item.heading,
+        completed: item.completed ?? false,
+      })} -->`,
+    );
+};
 
 const buildUpdateDeleteMap = (actions: SyncAction[]) =>
   new Map(

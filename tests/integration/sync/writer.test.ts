@@ -47,8 +47,8 @@ describe("writeSyncActions", () => {
       expectedLines: [
         "# Notes",
         "## Heading",
-        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
-        `- [ ] [Task](https://example.com/2) <!-- {"id":"2","source":"google-tasks","title":"Task","link":"https://example.com/2","heading":"## Heading"} -->`,
+        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading","completed":false} -->`,
+        `- [ ] [Task](https://example.com/2) <!-- {"id":"2","source":"google-tasks","title":"Task","link":"https://example.com/2","heading":"## Heading","completed":false} -->`,
       ],
     },
     {
@@ -60,7 +60,7 @@ describe("writeSyncActions", () => {
       actions: [{ operation: "update", item: makeItem("1", "google-tasks", "Updated") }],
       expectedLines: [
         "## Heading",
-        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Updated","link":"https://example.com/1","heading":"## Heading"} -->`,
+        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Updated","link":"https://example.com/1","heading":"## Heading","completed":false} -->`,
       ],
     },
     {
@@ -79,7 +79,7 @@ describe("writeSyncActions", () => {
       expectedLines: [
         "# Notes",
         "## Heading",
-        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
+        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading","completed":false} -->`,
       ],
     },
     {
@@ -98,7 +98,7 @@ describe("writeSyncActions", () => {
       expectedLines: [
         "## Heading",
         `- [ ] [Existing](https://example.com/0) <!-- {"id":"0","source":"google-tasks","title":"Existing","link":"https://example.com/0","heading":"## Heading"} -->`,
-        `- [ ] [Task](https://example.com/2) <!-- {"id":"2","source":"google-tasks","title":"Task","link":"https://example.com/2","heading":"## Heading"} -->`,
+        `- [ ] [Task](https://example.com/2) <!-- {"id":"2","source":"google-tasks","title":"Task","link":"https://example.com/2","heading":"## Heading","completed":false} -->`,
       ],
     },
   ];
@@ -142,7 +142,7 @@ describe("writeSyncActions", () => {
       [
         "# Notes",
         "## Heading",
-        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
+        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading","completed":false} -->`,
         "",
         "",
         "",
@@ -179,7 +179,7 @@ describe("writeSyncActions", () => {
       [
         "# Notes",
         "## Heading",
-        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
+        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading","completed":false} -->`,
         "",
         "",
         "%% kanban:settings",

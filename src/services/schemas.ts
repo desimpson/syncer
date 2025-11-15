@@ -28,6 +28,8 @@ export const googleTaskSchema = z.object({
   id: z.string(),
   title: z.string(),
   webViewLink: z.string().url(),
+  status: z.enum(["needsAction", "completed"]).optional(),
+  completed: z.string().datetime().optional().nullable(),
 });
 
 /** Schema for the Google Tasks items response payload. */

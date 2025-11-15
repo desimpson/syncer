@@ -35,14 +35,24 @@ const parseLine = (line: string): ParsedLine | undefined => {
 
 const parseMarkdownLines = (lines: string[]): SyncItem[] =>
   lines
-    .map(parseLine)
-    .filter((line): line is ParsedLine => line !== undefined)
-    .map(({ id, title, link, source, heading }) => ({
+    .map((line) => {
+      const parsed = parseLine(line);
+      if (parsed === undefined) {
+        return undefined;
+      }
+      // Check if the checkbox is checked by examining the actual line
+      const checkedMatch = line.match(/^\s*- \[([xX])\]/);
+      const completed = checkedMatch !== null;
+      return { ...parsed, completed };
+    })
+    .filter((line): line is ParsedLine & { completed: boolean } => line !== undefined)
+    .map(({ id, title, link, source, heading, completed }) => ({
       id,
       title,
       link,
       source,
       heading,
+      completed,
     }));
 
 /**

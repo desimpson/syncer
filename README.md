@@ -2,7 +2,7 @@
 
 Sync external data sources into your Obsidian vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. The first supported source is Google Tasks, with more integrations planned. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), it's equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. The first supported source is Google Tasks, with more integrations planned. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), it's equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Obsidian Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -15,13 +15,14 @@ This plugin fetches data from external sources and syncs them to a target Markdo
 - Google Tasks integration:
   - OAuth 2.0 (Authorization Code with PKCE)
   - Select which task lists to sync
-  - One-way sync (Tasks updates are reflected in Obsidian, but not vice versa)
+  - Bidirectional completion status sync: checking/unchecking tasks in Obsidian syncs back to Google Tasks
 
 ## Requirements
 
 - Node.js >= 22.15 (for builds and tests)
 - Obsidian Desktop
 - (Optional) [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) for task board views
+- (Optional) [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks) for enhanced task management
 
 ## Installation
 

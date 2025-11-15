@@ -13,10 +13,11 @@ import type { GoogleTask } from "@/services/types";
  */
 export const mapGoogleTaskToSyncItem: SyncAdaptor<GoogleTask> =
   (heading) =>
-  ({ id, title, webViewLink: link }) => ({
+  ({ id, title, webViewLink: link, status }) => ({
     source: "google-tasks",
     id,
     title,
     link,
     heading,
+    completed: status === "completed",
   });

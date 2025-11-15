@@ -330,8 +330,22 @@ describe("createGoogleTasksJob", () => {
     expect(readMarkdownSyncItems).toHaveBeenCalledWith(file, "google-tasks");
     expect(generateSyncActions).toHaveBeenCalledWith(
       [
-        { id: "A-1", title: "T1", link: "https://x1", source: "google-tasks", heading: "## Inbox" },
-        { id: "B-1", title: "T1", link: "https://x1", source: "google-tasks", heading: "## Inbox" },
+        {
+          id: "A-1",
+          title: "T1",
+          link: "https://x1",
+          source: "google-tasks",
+          heading: "## Inbox",
+          completed: false,
+        },
+        {
+          id: "B-1",
+          title: "T1",
+          link: "https://x1",
+          source: "google-tasks",
+          heading: "## Inbox",
+          completed: false,
+        },
       ],
       existing,
     );

@@ -19,12 +19,13 @@ const getUpdates = (incoming: SyncItem[], existingMap: Map<string, SyncItem>): S
         return false;
       }
 
-      // Compare all metadata fields
+      // Compare all metadata fields, including completion status
       return (
         existing.title !== item.title ||
         existing.link !== item.link ||
         existing.source !== item.source ||
-        existing.heading !== item.heading
+        existing.heading !== item.heading ||
+        (existing.completed ?? false) !== (item.completed ?? false)
       );
     })
     .map((item) => ({ item, operation: "update" as const }));

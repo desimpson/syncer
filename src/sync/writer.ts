@@ -47,14 +47,14 @@ const updateLine = (line: string, item: SyncItem) => {
     );
 };
 
-const buildUpdateDeleteMap = (actions: SyncAction[]) =>
+const buildUpdateDeleteMap = (actions: readonly SyncAction[]) =>
   new Map(
     actions
       .filter((action) => action.operation !== "create")
       .map((action) => [`${action.item.id}:${action.item.source}`, action]),
   );
 
-const getCreateItems = (actions: SyncAction[]): SyncItem[] =>
+const getCreateItems = (actions: readonly SyncAction[]): readonly SyncItem[] =>
   actions.filter((action) => action.operation === "create").map((action) => action.item);
 
 const applyUpdatesAndDeletes = (lines: string[], updateDeleteMap: Map<string, SyncAction>) =>
@@ -141,7 +141,7 @@ const findKanbanInsertBeforeIndex = (
   return sectionStart + blankRunStart;
 };
 
-const buildCreateLines = (items: SyncItem[], indent: string): string[] =>
+const buildCreateLines = (items: readonly SyncItem[], indent: string): string[] =>
   items.map((item) => (indent ?? "") + createLine(item));
 
 const insertAt = (lines: string[], index: number, newLines: string[]): string[] => [
@@ -150,7 +150,11 @@ const insertAt = (lines: string[], index: number, newLines: string[]): string[] 
   ...lines.slice(index),
 ];
 
-const appendCreates = (lines: string[], createItems: SyncItem[], heading: string): string[] => {
+const appendCreates = (
+  lines: string[],
+  createItems: readonly SyncItem[],
+  heading: string,
+): string[] => {
   if (createItems.length === 0) {
     return lines;
   }
@@ -196,7 +200,7 @@ const appendCreates = (lines: string[], createItems: SyncItem[], heading: string
  */
 export const writeSyncActions = async (
   file: TFile,
-  actions: SyncAction[],
+  actions: readonly SyncAction[],
   heading: string,
 ): Promise<void> => {
   const content = await file.vault.read(file);

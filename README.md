@@ -15,7 +15,8 @@ This plugin fetches data from external sources and syncs them to a target Markdo
 - Google Tasks integration:
   - OAuth 2.0 (Authorization Code with PKCE)
   - Select which task lists to sync
-  - Bidirectional completion status sync: checking/unchecking tasks in Obsidian syncs back to Google Tasks
+  - Only incomplete Google Tasks are synced into Obsidian; when you complete a task in Google it drops out of the incoming feed and the corresponding line is removed from the items under the target heading in the Obsidian note on the next sync
+  - Bidirectional completion status sync for active tasks: checking/unchecking tasks in Obsidian syncs completion status back to Google Tasks
 
 ## Requirements
 

@@ -53,7 +53,13 @@ export const fetchGoogleTasks = async (
   accessToken: string,
   listId: string,
 ): Promise<readonly GoogleTask[]> => {
-  const response = await fetch(`${tasksBaseUrl}/lists/${listId}/tasks`, {
+  // Explicitly request only incomplete, non-hidden tasks for clarity and future-proofing.
+  const query = new URLSearchParams({
+    showCompleted: "false",
+    showHidden: "false",
+  }).toString();
+
+  const response = await fetch(`${tasksBaseUrl}/lists/${listId}/tasks?${query}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },

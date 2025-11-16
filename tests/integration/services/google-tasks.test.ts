@@ -88,7 +88,7 @@ describe("Google Tasks API service", () => {
       // Assert
       expect(result).toEqual(mockResponse.items);
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks`,
+        `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=false&showHidden=false`,
         { headers: { Authorization: "Bearer fake-token" } },
       );
     });

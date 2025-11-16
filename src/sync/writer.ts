@@ -30,7 +30,7 @@ const createLine = (item: SyncItem) => {
 
 const updateLine = (line: string, item: SyncItem) => {
   const checkbox = item.completed ? "[x]" : "[ ]";
-  // Update both the checkbox and the metadata
+  // Update the checkbox (source of truth for completion) and non-completion metadata
   return line
     .replace(/^\s*- \[[ xX]\]/, (match) => match.replace(/\[[ xX]\]/, checkbox))
     .replace(

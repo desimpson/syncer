@@ -98,8 +98,7 @@ export const updateGoogleTaskStatus = async (
         status: "needsAction",
         /* Setting `status` to "needsAction" is sufficient to remove the
         `completed` timestamp field; assigning `undefined` or `null` to
-        `completed` is not strictly necessary. */
-        completed: undefined,
+        `completed` is not necessary. */
       };
 
   // Update the task using PATCH to update only specific fields

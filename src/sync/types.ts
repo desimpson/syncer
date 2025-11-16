@@ -8,7 +8,7 @@ export type SyncItem = {
   title: string;
   link: string;
   heading: string;
-  completed?: boolean;
+  completed: boolean;
 };
 
 /**
@@ -38,5 +38,5 @@ export type ParsedLine = {
   id: string;
   source: string;
   heading: string;
-  completed?: boolean;
+  completed: boolean;
 };

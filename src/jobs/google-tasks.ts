@@ -104,7 +104,7 @@ const fetchAllSelectedTasks = async (
  * "Obsidian → Google" for tasks that are still active in Google.
  */
 const getCompletionStatus = (item: SyncItem): boolean => {
-  return item.completed ?? false;
+  return item.completed;
 };
 
 /**

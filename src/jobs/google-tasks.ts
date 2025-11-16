@@ -95,10 +95,34 @@ const fetchAllSelectedTasks = async (
   return { tasks: allTasks, taskIdToListIdMap };
 };
 
+/**
+ * Get the effective completion status for a sync item.
+ *
+ * NOTE: The plugin intentionally only syncs *incomplete* Google Tasks into
+ * Obsidian. Completed tasks on the Google side are omitted from the incoming
+ * list entirely, so completion changes detected here are effectively
+ * "Obsidian → Google" for tasks that are still active in Google.
+ */
 const getCompletionStatus = (item: SyncItem): boolean => {
   return item.completed ?? false;
 };
 
+/**
+ * Detect completion status changes for tasks that exist in both Obsidian and
+ * the incoming Google Tasks list.
+ *
+ * Because completed Google Tasks are not fetched/synced at all, this
+ * function will never see tasks that have already been completed only on the
+ * Google side. In practice this means:
+ *
+ * - If a task is completed in Obsidian, we push that completion state to
+ *   Google Tasks (for tasks that are still incomplete there).
+ * - If a task is completed in Google and disappears from the incoming list,
+ *   we do *not* resurrect or modify it from Obsidian; instead, the normal
+ *   create/update/delete reconciliation will remove its line from the
+ *   target Markdown document, regardless of which heading it appears under,
+ *   on the next sync.
+ */
 const detectCompletionChanges = (
   existing: readonly SyncItem[],
   incoming: readonly SyncItem[],
@@ -134,6 +158,16 @@ const detectCompletionChanges = (
     .filter((change): change is CompletionChange => change !== undefined);
 };
 
+/**
+ * Apply completion status changes detected from Obsidian to Google Tasks.
+ *
+ * This only runs for tasks that are still present in the incoming Google
+ * data; completed Google Tasks that have dropped out of the feed are
+ * intentionally unaffected. Completing a task directly in Google therefore
+ * causes it to disappear from the incoming list and, on the next sync, its
+ * corresponding line will be removed from the Obsidian note by the normal
+ * create/update/delete reconciliation.
+ */
 const applyCompletionChangesToGoogleTasks = async (
   completionChanges: readonly CompletionChange[],
   accessToken: string,
@@ -162,6 +196,12 @@ const applyCompletionChangesToGoogleTasks = async (
   console.info(`Synced [${completionChanges.length}] completion status changes to Google Tasks.`);
 };
 
+/**
+ * Update the incoming items with any completion changes pushed to Google.
+ *
+ * This keeps the in-memory representation used for Markdown sync consistent
+ * with what we just wrote back to Google.
+ */
 const updateIncomingItemsWithCompletionChanges = (
   incoming: readonly SyncItem[],
   completionChanges: readonly CompletionChange[],

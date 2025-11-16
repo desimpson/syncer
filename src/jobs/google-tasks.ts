@@ -96,18 +96,6 @@ const fetchAllSelectedTasks = async (
 };
 
 /**
- * Get the effective completion status for a sync item.
- *
- * NOTE: The plugin intentionally only syncs *incomplete* Google Tasks into
- * Obsidian. Completed tasks on the Google side are omitted from the incoming
- * list entirely, so completion changes detected here are effectively
- * "Obsidian → Google" for tasks that are still active in Google.
- */
-const getCompletionStatus = (item: SyncItem): boolean => {
-  return item.completed;
-};
-
-/**
  * Detect completion status changes for tasks that exist in both Obsidian and
  * the incoming Google Tasks list.
  *
@@ -137,8 +125,8 @@ const detectCompletionChanges = (
         return undefined;
       }
 
-      const existingCompleted = getCompletionStatus(existingItem);
-      const incomingCompleted = getCompletionStatus(incomingItem);
+      const existingCompleted = existingItem.completed;
+      const incomingCompleted = incomingItem.completed;
 
       if (existingCompleted === incomingCompleted) {
         return undefined;

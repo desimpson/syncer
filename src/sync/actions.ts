@@ -31,7 +31,7 @@ const getUpdates = (
         existing.link !== item.link ||
         existing.source !== item.source ||
         existing.heading !== item.heading ||
-        (existing.completed ?? false) !== (item.completed ?? false)
+        existing.completed !== item.completed
       );
     })
     .map((item) => ({ item, operation: "update" as const }));

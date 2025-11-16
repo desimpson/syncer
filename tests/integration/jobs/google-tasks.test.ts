@@ -292,7 +292,14 @@ describe("createGoogleTasksJob", () => {
       { id: `${listId}-1`, title: "T1", webViewLink: "https://x1" } as GoogleTask,
     ]);
     const existing: SyncItem[] = [
-      { id: "A-1", title: "Old", link: "", source: "google-tasks", heading: "## Inbox" },
+      {
+        id: "A-1",
+        title: "Old",
+        link: "",
+        source: "google-tasks",
+        heading: "## Inbox",
+        completed: false,
+      },
     ];
     vi.mocked(readMarkdownSyncItems).mockResolvedValue(existing);
     const actions: SyncAction[] = [
@@ -304,6 +311,7 @@ describe("createGoogleTasksJob", () => {
           link: "https://x1",
           source: "google-tasks",
           heading: "## Inbox",
+          completed: false,
         },
       },
       {
@@ -314,6 +322,7 @@ describe("createGoogleTasksJob", () => {
           link: "https://x1",
           source: "google-tasks",
           heading: "## Inbox",
+          completed: false,
         },
       },
     ];

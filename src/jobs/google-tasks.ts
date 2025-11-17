@@ -8,8 +8,8 @@ import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin
 import type { TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/types";
 import { GoogleAuth } from "@/auth";
-import { updateGoogleTaskStatus } from "@/services/google-tasks";
-import type { SyncItem } from "@/sync/types";
+import { fetchGoogleTasks, updateGoogleTaskStatus } from "@/services/google-tasks";
+import type { SyncAction, SyncItem } from "@/sync/types";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
 
@@ -69,13 +69,18 @@ const getSyncFileWithRetry = async (
 const buildTaskIdToListIdMap = (
   fetchedTasksByList: readonly { listId: string; tasks: readonly GoogleTask[] }[],
 ): Map<string, string> => {
-  const map = new Map<string, string>();
-  fetchedTasksByList.forEach(({ listId, tasks }) => {
-    tasks.forEach((task) => {
-      map.set(task.id, listId);
-    });
-  });
-  return map;
+  const entries = fetchedTasksByList.flatMap(({ listId, tasks }) =>
+    tasks.map((task) => [task.id, listId] as const),
+  );
+  return new Map(entries);
+};
+
+const fetchTasksForList = async (
+  listId: string,
+  fetchFunction: (listId: string) => Promise<readonly GoogleTask[]>,
+): Promise<{ listId: string; tasks: readonly GoogleTask[] }> => {
+  const tasks = await fetchFunction(listId);
+  return { listId, tasks };
 };
 
 const fetchAllSelectedTasks = async (
@@ -83,33 +88,66 @@ const fetchAllSelectedTasks = async (
   selectedListIds: readonly string[],
 ): Promise<{ tasks: readonly GoogleTask[]; taskIdToListIdMap: Map<string, string> }> => {
   const fetchTasks = GoogleTasksService.createGoogleTasksFetcher(accessToken);
+
+  // Fetch incomplete tasks (for incoming list - only these are written to Markdown)
   const fetchedTasksByList = await Promise.all(
-    selectedListIds.map(async (listId) => {
-      const tasks = await fetchTasks(listId);
-      return { listId, tasks };
-    }),
+    selectedListIds.map((listId) => fetchTasksForList(listId, fetchTasks)),
   );
 
-  const taskIdToListIdMap = buildTaskIdToListIdMap(fetchedTasksByList);
+  // Also fetch completed tasks to build a complete taskIdToListIdMap
+  // This allows us to detect when tasks need to be uncompleted in Google
+  const fetchedCompletedTasksByList = await Promise.all(
+    selectedListIds.map((listId) =>
+      fetchTasksForList(listId, (id) => fetchGoogleTasks(accessToken, id, true)),
+    ),
+  );
+
+  // Build map from both incomplete and completed tasks
+  const allFetchedTasksByList = [...fetchedTasksByList, ...fetchedCompletedTasksByList];
+  const taskIdToListIdMap = buildTaskIdToListIdMap(allFetchedTasksByList);
+
+  // Only return incomplete tasks for the incoming list (these are written to Markdown)
   const allTasks = fetchedTasksByList.flatMap(({ tasks }) => tasks);
   return { tasks: allTasks, taskIdToListIdMap };
 };
 
+const detectChangeForTaskInBoth = (
+  existingItem: SyncItem,
+  incomingItem: SyncItem,
+  listId: string | undefined,
+): CompletionChange | undefined => {
+  if (existingItem.completed === incomingItem.completed || listId === undefined) {
+    return undefined;
+  }
+
+  return {
+    taskId: existingItem.id,
+    listId,
+    completed: existingItem.completed,
+  };
+};
+
+const detectChangeForUncompletedTask = (
+  existingItem: SyncItem,
+  listId: string | undefined,
+): CompletionChange | undefined => {
+  if (existingItem.completed || listId === undefined) {
+    return undefined;
+  }
+
+  return {
+    taskId: existingItem.id,
+    listId,
+    completed: false, // Uncomplete in Google
+  };
+};
+
 /**
- * Detect completion status changes for tasks that exist in both Obsidian and
- * the incoming Google Tasks list.
+ * Detect completion status changes for tasks in Obsidian.
  *
- * Because completed Google Tasks are not fetched/synced at all, this
- * function will never see tasks that have already been completed only on the
- * Google side. In practice this means:
- *
- * - If a task is completed in Obsidian, we push that completion state to
- *   Google Tasks (for tasks that are still incomplete there).
- * - If a task is completed in Google and disappears from the incoming list,
- *   we do *not* resurrect or modify it from Obsidian; instead, the normal
- *   create/update/delete reconciliation will remove its line from the
- *   target Markdown document, regardless of which heading it appears under,
- *   on the next sync.
+ * Detects changes in two scenarios:
+ * 1. Tasks that exist in both Obsidian and incoming (incomplete tasks from Google)
+ * 2. Tasks that are incomplete in Obsidian but not in incoming (completed in Google, need to uncomplete)
  */
 const detectCompletionChanges = (
   existing: readonly SyncItem[],
@@ -121,30 +159,64 @@ const detectCompletionChanges = (
   return existing
     .map((existingItem) => {
       const incomingItem = incomingMap.get(existingItem.id);
-      if (incomingItem === undefined) {
-        return undefined;
-      }
-
-      const existingCompleted = existingItem.completed;
-      const incomingCompleted = incomingItem.completed;
-
-      if (existingCompleted === incomingCompleted) {
-        return undefined;
-      }
-
       const listId = taskIdToListIdMap.get(existingItem.id);
-      if (listId === undefined) {
-        return undefined;
+
+      if (incomingItem !== undefined) {
+        return detectChangeForTaskInBoth(existingItem, incomingItem, listId);
       }
 
-      return {
-        taskId: existingItem.id,
-        listId,
-        completed: existingCompleted,
-      };
+      return detectChangeForUncompletedTask(existingItem, listId);
     })
     .filter((change): change is CompletionChange => change !== undefined);
 };
+
+type UpdateResult = {
+  result: PromiseSettledResult<void>;
+  change: CompletionChange | undefined;
+};
+
+const executeCompletionUpdates = async (
+  completionChanges: readonly CompletionChange[],
+  accessToken: string,
+): Promise<readonly UpdateResult[]> => {
+  const results = await Promise.allSettled(
+    completionChanges.map(({ taskId, listId, completed }) =>
+      updateGoogleTaskStatus(accessToken, listId, taskId, completed),
+    ),
+  );
+
+  return results.map((result, index) => ({
+    result,
+    change: completionChanges[index],
+  }));
+};
+
+const handleFailedUpdates = (
+  updateResults: readonly UpdateResult[],
+  notify: (message: string) => void,
+): void => {
+  updateResults.forEach((item, index) => {
+    if (item.change === undefined) {
+      console.error(`Missing completion change at index ${index}`);
+    } else if (item.result.status === "rejected") {
+      console.error(
+        `Failed to update completion status for task ${item.change.taskId} in list ${item.change.listId}:`,
+        item.result.reason,
+      );
+      notify(`Failed to sync completion status for task: ${item.change.taskId}`);
+    }
+  });
+};
+
+const extractSuccessfulChanges = (
+  updateResults: readonly UpdateResult[],
+): readonly CompletionChange[] =>
+  updateResults
+    .filter(
+      (item): item is { result: PromiseFulfilledResult<void>; change: CompletionChange } =>
+        item.result.status === "fulfilled" && item.change !== undefined,
+    )
+    .map(({ change }) => change);
 
 /**
  * Apply completion status changes detected from Obsidian to Google Tasks.
@@ -155,56 +227,73 @@ const detectCompletionChanges = (
  * causes it to disappear from the incoming list and, on the next sync, its
  * corresponding line will be removed from the Obsidian note by the normal
  * create/update/delete reconciliation.
+ *
+ * @returns An array of completion changes that were successfully applied to Google Tasks
  */
 const applyCompletionChangesToGoogleTasks = async (
   completionChanges: readonly CompletionChange[],
   accessToken: string,
   notify: (message: string) => void,
-): Promise<void> => {
+): Promise<readonly CompletionChange[]> => {
   if (completionChanges.length === 0) {
-    return;
+    return [];
   }
 
   console.info(
     `Detected [${completionChanges.length}] completion status changes. Syncing to Google Tasks...`,
   );
 
-  await Promise.all(
-    completionChanges.map(({ taskId, listId, completed }) =>
-      updateGoogleTaskStatus(accessToken, listId, taskId, completed).catch((error) => {
-        console.error(
-          `Failed to update completion status for task ${taskId} in list ${listId}:`,
-          error,
-        );
-        notify(`Failed to sync completion status for task: ${taskId}`);
-      }),
-    ),
+  const updateResults = await executeCompletionUpdates(completionChanges, accessToken);
+  handleFailedUpdates(updateResults, notify);
+  const successfulChanges = extractSuccessfulChanges(updateResults);
+
+  console.info(
+    `Synced [${successfulChanges.length}] of [${completionChanges.length}] completion status changes to Google Tasks.`,
   );
 
-  console.info(`Synced [${completionChanges.length}] completion status changes to Google Tasks.`);
+  return successfulChanges;
 };
 
 /**
  * Update the incoming items with any completion changes pushed to Google.
  *
  * This keeps the in-memory representation used for Markdown sync consistent
- * with what we just wrote back to Google.
+ * with what we just wrote back to Google. Also adds uncompleted tasks to the
+ * incoming list (since they weren't there before but now exist in Google as incomplete).
  */
 const updateIncomingItemsWithCompletionChanges = (
   incoming: readonly SyncItem[],
   completionChanges: readonly CompletionChange[],
+  existing: readonly SyncItem[],
 ): readonly SyncItem[] => {
   if (completionChanges.length === 0) {
     return incoming;
   }
 
   const changesMap = new Map(completionChanges.map((change) => [change.taskId, change.completed]));
+  const incomingIds = new Set(incoming.map((item) => item.id));
 
-  return incoming.map((item) => {
+  // Update existing incoming items with completion changes
+  const updatedIncoming = incoming.map((item) => {
     const updatedCompleted = changesMap.get(item.id);
     return updatedCompleted === undefined ? item : { ...item, completed: updatedCompleted };
   });
+
+  // Add uncompleted tasks that weren't in incoming (they were completed in Google)
+  const existingMap = new Map(existing.map((item) => [item.id, item]));
+  const uncompletedTasks = completionChanges
+    .filter((change) => !change.completed && !incomingIds.has(change.taskId))
+    .map((change) => {
+      const existingItem = existingMap.get(change.taskId);
+      return existingItem === undefined ? undefined : { ...existingItem, completed: false };
+    })
+    .filter((item): item is SyncItem => item !== undefined);
+
+  return [...updatedIncoming, ...uncompletedTasks];
 };
+
+const shouldPreserveTask = (action: SyncAction): boolean =>
+  action.operation !== "delete" || !action.item.completed;
 
 const syncTasksToFile = async (
   file: TFile,
@@ -224,10 +313,20 @@ const syncTasksToFile = async (
     console.info(`Read existing Google Tasks Markdown items: [${existing.length}] items.`);
 
     const completionChanges = detectCompletionChanges(existing, incoming, taskIdToListIdMap);
-    await applyCompletionChangesToGoogleTasks(completionChanges, accessToken, notify);
+    const successfulChanges = await applyCompletionChangesToGoogleTasks(
+      completionChanges,
+      accessToken,
+      notify,
+    );
 
-    const updatedIncoming = updateIncomingItemsWithCompletionChanges(incoming, completionChanges);
-    const actions = generateSyncActions(updatedIncoming, existing);
+    const updatedIncoming = updateIncomingItemsWithCompletionChanges(
+      incoming,
+      successfulChanges,
+      existing,
+    );
+    const allActions = generateSyncActions(updatedIncoming, existing);
+    // Preserve completed tasks in Obsidian
+    const actions = allActions.filter(shouldPreserveTask);
     console.info(`Generated [${actions.length}] sync actions.`);
 
     await writeSyncActions(file, actions, syncHeading);

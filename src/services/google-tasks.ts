@@ -52,10 +52,10 @@ export const createGoogleTasksFetcher =
 export const fetchGoogleTasks = async (
   accessToken: string,
   listId: string,
+  showCompleted = false,
 ): Promise<readonly GoogleTask[]> => {
-  // Explicitly request only incomplete, non-hidden tasks for clarity and future-proofing.
   const query = new URLSearchParams({
-    showCompleted: "false",
+    showCompleted: String(showCompleted),
     showHidden: "false",
   }).toString();
 

@@ -39,6 +39,21 @@ vi.mock("@/services", () => {
   };
 });
 
+vi.mock("@/services/google-tasks", () => {
+  const updateGoogleTaskStatus = vi.fn() as unknown as (
+    accessToken: string,
+    listId: string,
+    taskId: string,
+    completed: boolean,
+  ) => Promise<void>;
+  const fetchGoogleTasks = vi.fn() as unknown as (
+    accessToken: string,
+    listId: string,
+    showCompleted?: boolean,
+  ) => Promise<readonly GoogleTask[]>;
+  return { updateGoogleTaskStatus, fetchGoogleTasks };
+});
+
 vi.mock("@/auth", () => {
   const refreshAccessToken = vi.fn() as unknown as (
     clientId: string,
@@ -57,6 +72,7 @@ import { generateSyncActions } from "@/sync/actions";
 import { writeSyncActions } from "@/sync/writer";
 import { GoogleTasksService } from "@/services";
 import { GoogleAuth } from "@/auth";
+import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-tasks";
 
 const baseConfig = {
   googleClientId: "id",
@@ -75,6 +91,8 @@ const makeFile = (path = "GTD.md"): TFile =>
 describe("createGoogleTasksJob", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    // Default mock: fetchGoogleTasks returns empty array for completed tasks
+    vi.mocked(fetchGoogleTasks).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -359,5 +377,200 @@ describe("createGoogleTasksJob", () => {
       existing,
     );
     expect(writeSyncActions).toHaveBeenCalledWith(file, actions, "## Inbox");
+  });
+
+  it("excludes failed updates from incoming items to prevent desync", async () => {
+    // Arrange: Set up a scenario where we have completion changes
+    const settings = {
+      googleTasks: {
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["list-1"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    };
+
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    // Incoming tasks from Google (all incomplete)
+    const incomingTasks: GoogleTask[] = [
+      { id: "task-1", title: "Task 1", webViewLink: "https://x1" },
+      { id: "task-2", title: "Task 2", webViewLink: "https://x2" },
+      { id: "task-3", title: "Task 3", webViewLink: "https://x3" },
+    ];
+
+    vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(
+      async () => incomingTasks,
+    );
+
+    // Existing tasks in Obsidian (some are completed)
+    const existing: SyncItem[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        link: "https://x1",
+        source: "google-tasks",
+        heading: "## Inbox",
+        completed: true, // Completed in Obsidian, but incomplete in Google
+      },
+      {
+        id: "task-2",
+        title: "Task 2",
+        link: "https://x2",
+        source: "google-tasks",
+        heading: "## Inbox",
+        completed: true, // Completed in Obsidian, but incomplete in Google
+      },
+      {
+        id: "task-3",
+        title: "Task 3",
+        link: "https://x3",
+        source: "google-tasks",
+        heading: "## Inbox",
+        completed: false, // No change needed
+      },
+    ];
+
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue(existing);
+
+    // Mock updateGoogleTaskStatus to fail for task-1 but succeed for task-2
+    vi.mocked(updateGoogleTaskStatus).mockImplementation(
+      async (_accessToken, listId, taskId, _completed) => {
+        if (taskId === "task-1") {
+          // Simulate a failure (e.g., network error, 404, etc.)
+          throw new Error(`Failed to update task ${taskId} for list ${listId}: 404`);
+        }
+        // task-2 succeeds
+        return;
+      },
+    );
+
+    // Mock generateSyncActions to capture what incoming items it receives
+    let capturedIncoming: SyncItem[] = [];
+    vi.mocked(generateSyncActions).mockImplementation((incoming, _existing) => {
+      capturedIncoming = [...incoming];
+      return [];
+    });
+
+    vi.mocked(writeSyncActions).mockResolvedValue();
+
+    const notify = vi.fn();
+    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, notify);
+
+    // Act
+    await job.task();
+
+    // Assert: The bug is that updateIncomingItemsWithCompletionChanges is called
+    // with ALL completion changes, even though task-1 failed to update in Google
+    // This causes desync: Obsidian shows task-1 as completed, but Google still has it incomplete
+
+    // Verify that updateGoogleTaskStatus was called for both tasks
+    expect(updateGoogleTaskStatus).toHaveBeenCalledTimes(2);
+    expect(updateGoogleTaskStatus).toHaveBeenCalledWith("tok", "list-1", "task-1", true);
+    expect(updateGoogleTaskStatus).toHaveBeenCalledWith("tok", "list-1", "task-2", true);
+
+    // Verify that notify was called for the failed task
+    expect(notify).toHaveBeenCalledWith("Failed to sync completion status for task: task-1");
+
+    // FIXED: Only successful updates should be applied to incoming items
+    const task1InIncoming = capturedIncoming.find((item) => item.id === "task-1");
+    const task2InIncoming = capturedIncoming.find((item) => item.id === "task-2");
+
+    // task-1 update failed, so it should remain incomplete (matching Google's state)
+    expect(task1InIncoming?.completed).toBe(false); // Fixed: Should be false since update failed
+    // task-2 update succeeded, so it should be marked as completed
+    expect(task2InIncoming?.completed).toBe(true); // This is correct since update succeeded
+
+    // This prevents desync: Obsidian will show task-1 as incomplete (matching Google),
+    // and task-2 as completed (matching Google)
+  });
+
+  it("preserves uncompleted tasks in Obsidian when uncompleting them in Google", async () => {
+    // Arrange: Task is incomplete in Obsidian but completed in Google
+    const settings = {
+      googleTasks: {
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["list-1"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    };
+
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    // Incoming: only incomplete tasks (the task we want to uncomplete is not here)
+    const incomingTasks: GoogleTask[] = [
+      { id: "task-other", title: "Other Task", webViewLink: "https://x1" },
+    ];
+    vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(
+      async () => incomingTasks,
+    );
+
+    // Mock fetchGoogleTasks to return the completed task when showCompleted=true
+    vi.mocked(fetchGoogleTasks).mockImplementation(async (_token, listId, showCompleted) => {
+      if ((showCompleted ?? false) && listId === "list-1") {
+        return [{ id: "task-uncomplete", title: "Task to Uncomplete", webViewLink: "https://x2" }];
+      }
+      return [];
+    });
+
+    // Existing: task is incomplete in Obsidian
+    const existing: SyncItem[] = [
+      {
+        id: "task-uncomplete",
+        title: "Task to Uncomplete",
+        link: "https://x2",
+        source: "google-tasks",
+        heading: "## Inbox",
+        completed: false, // Incomplete in Obsidian
+      },
+    ];
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue(existing);
+    vi.mocked(updateGoogleTaskStatus).mockResolvedValue();
+    vi.mocked(generateSyncActions).mockReturnValue([]);
+    vi.mocked(writeSyncActions).mockResolvedValue();
+
+    // Capture the actions passed to writeSyncActions
+    let capturedActions: SyncAction[] = [];
+    vi.mocked(writeSyncActions).mockImplementation((_file, actions, _heading) => {
+      capturedActions = [...actions];
+      return Promise.resolve();
+    });
+
+    const notify = vi.fn();
+    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, notify);
+
+    // Act
+    await job.task();
+
+    // Assert: Should call updateGoogleTaskStatus to uncomplete the task
+    expect(updateGoogleTaskStatus).toHaveBeenCalledWith("tok", "list-1", "task-uncomplete", false);
+
+    // Assert: Task should not be deleted (it should be added to incoming after uncompleting)
+    const deleteActions = capturedActions.filter((action) => action.operation === "delete");
+    const uncompletedTaskDeleteAction = deleteActions.find(
+      (action) => action.item.id === "task-uncomplete",
+    );
+    expect(uncompletedTaskDeleteAction).toBeUndefined();
   });
 });

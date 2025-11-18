@@ -20,3 +20,4 @@
 - [ ] `heading` -> `targetHeading` or `syncHeading` throughout codebase
 - [ ] Lint rule to enforce official TSDoc comment spec
 - [ ] Set up `main` branch protection rules
+- [ ] Check behaviour when Markdown file isn't a Kanban plugin Markdown file; fix if broken

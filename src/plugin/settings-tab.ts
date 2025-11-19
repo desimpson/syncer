@@ -150,7 +150,7 @@ export class SettingsTab extends PluginSettingTab {
         "When enabled, completing or uncompleting tasks in Obsidian will update their status in Google Tasks.",
       )
       .addToggle((toggle) => {
-        toggle.setValue(settings.syncCompletionStatus ?? false).onChange(async (value) => {
+        toggle.setValue(settings.syncCompletionStatus).onChange(async (value) => {
           await this.plugin.updateSettings({ syncCompletionStatus: value });
           console.info(`Sync completion status set to [${value}].`);
         });

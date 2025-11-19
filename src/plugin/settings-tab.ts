@@ -140,11 +140,29 @@ export class SettingsTab extends PluginSettingTab {
     });
   }
 
+  private addSyncCompletionStatusSetting(
+    containerElement: HTMLElement,
+    settings: PluginSettings,
+  ): void {
+    new Setting(containerElement)
+      .setName("Sync completion status")
+      .setDesc(
+        "When enabled, completing or uncompleting tasks in Obsidian will update their status in Google Tasks.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(settings.syncCompletionStatus).onChange(async (value) => {
+          await this.plugin.updateSettings({ syncCompletionStatus: value });
+          console.info(`Sync completion status set to [${value}].`);
+        });
+      });
+  }
+
   private async addGoogleTasksSettings(containerElement: HTMLElement) {
-    containerElement.createEl("h4", { text: "Google Tasks Account Settings" });
+    containerElement.createEl("h4", { text: "Google Tasks" });
     const setting = new Setting(containerElement);
 
-    const { googleTasks } = await this.plugin.loadSettings();
+    const settings = await this.plugin.loadSettings();
+    const { googleTasks } = settings;
     if (googleTasks === undefined) {
       setting.setName("No Google Tasks account connected");
       setting.setDesc("Connect your Google Tasks account to sync tasks.");
@@ -167,6 +185,9 @@ export class SettingsTab extends PluginSettingTab {
           }),
       );
     }
+
+    // Add completion status sync setting
+    this.addSyncCompletionStatusSetting(containerElement, settings);
 
     await this.addGoogleTasksListSelector(containerElement);
   }

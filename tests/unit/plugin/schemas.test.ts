@@ -208,6 +208,7 @@ describe("pluginSettingsSchema", () => {
       expect(result.data.syncIntervalMinutes).toBe(5);
       expect(result.data.syncDocument).toBe("GTD.md");
       expect(result.data.syncHeading).toBe("## Inbox");
+      expect(result.data.syncCompletionStatus).toBe(false);
       expect(result.data.googleTasks).toBeUndefined();
     }
   });

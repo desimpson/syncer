@@ -421,7 +421,7 @@ export const createGoogleTasksJob: SyncJobCreator = (
       currentAccessToken,
       syncHeading,
       syncDocument,
-      syncCompletionStatus ?? false,
+      syncCompletionStatus,
       notify,
     );
   },

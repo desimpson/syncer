@@ -302,6 +302,7 @@ const syncTasksToFile = async (
   accessToken: string,
   syncHeading: string,
   syncDocument: string,
+  syncCompletionStatus: boolean,
   notify: (message: string) => void,
 ) => {
   const adaptor = mapGoogleTaskToSyncItem(syncHeading);
@@ -312,18 +313,22 @@ const syncTasksToFile = async (
     const existing = await readMarkdownSyncItems(file, "google-tasks");
     console.info(`Read existing Google Tasks Markdown items: [${existing.length}] items.`);
 
-    const completionChanges = detectCompletionChanges(existing, incoming, taskIdToListIdMap);
-    const successfulChanges = await applyCompletionChangesToGoogleTasks(
-      completionChanges,
-      accessToken,
-      notify,
-    );
+    let updatedIncoming: readonly SyncItem[] = incoming;
+    if (syncCompletionStatus) {
+      const completionChanges = detectCompletionChanges(existing, incoming, taskIdToListIdMap);
+      const successfulChanges = await applyCompletionChangesToGoogleTasks(
+        completionChanges,
+        accessToken,
+        notify,
+      );
 
-    const updatedIncoming = updateIncomingItemsWithCompletionChanges(
-      incoming,
-      successfulChanges,
-      existing,
-    );
+      updatedIncoming = updateIncomingItemsWithCompletionChanges(
+        incoming,
+        successfulChanges,
+        existing,
+      );
+    }
+
     const allActions = generateSyncActions(updatedIncoming, existing);
     // Preserve completed tasks in Obsidian
     const actions = allActions.filter(shouldPreserveTask);
@@ -368,7 +373,7 @@ export const createGoogleTasksJob: SyncJobCreator = (
 
     // TODO: Test settings freshness?
     const settings = await loadSettings();
-    const { googleTasks, syncDocument, syncHeading } = settings;
+    const { googleTasks, syncDocument, syncHeading, syncCompletionStatus } = settings;
     if (googleTasks === undefined) {
       console.info("No Google Tasks configured.");
       return;
@@ -416,6 +421,7 @@ export const createGoogleTasksJob: SyncJobCreator = (
       currentAccessToken,
       syncHeading,
       syncDocument,
+      syncCompletionStatus ?? false,
       notify,
     );
   },

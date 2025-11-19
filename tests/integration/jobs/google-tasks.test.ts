@@ -395,6 +395,7 @@ describe("createGoogleTasksJob", () => {
       },
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      syncCompletionStatus: true,
     };
 
     const loadSettings = vi.fn().mockResolvedValue(settings);
@@ -511,6 +512,7 @@ describe("createGoogleTasksJob", () => {
       },
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      syncCompletionStatus: true,
     };
 
     const loadSettings = vi.fn().mockResolvedValue(settings);

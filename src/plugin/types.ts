@@ -9,6 +9,7 @@ export type PluginSettings = {
   syncIntervalMinutes: number;
   syncDocument: string;
   syncHeading: string;
+  syncCompletionStatus: boolean;
 };
 
 /**

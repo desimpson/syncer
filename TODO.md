@@ -22,4 +22,4 @@
 - [ ] Set up `main` branch protection rules
 - [ ] Check behaviour when Markdown file isn't a Kanban plugin Markdown file; fix if broken
 - [ ] Test more complete/uncomplete Obsidian/Google scenarios (e.g., what should happen when an incomplete task in Obsidian is uncompleted in Google)
-- [ ] Reassess whether uncompleting in Obsidian should uncomplete in Google Tasks
+- [ ] Look into whether realtime bidirectional Obsidan-Tasks syncing is possible

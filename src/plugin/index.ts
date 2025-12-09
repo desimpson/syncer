@@ -4,7 +4,7 @@ import { createScheduler, type Scheduler } from "@/sync/scheduler";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
 import { pluginSchema, pluginSettingsSchema } from "./schemas";
-import { DeleteTaskConfirmationModal } from "./delete-confirmation-modal";
+import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation-modal";
 import { deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
 
@@ -66,8 +66,8 @@ export default class ObsidianSyncerPlugin extends Plugin {
 
     this.addSettingTab(new SettingsTab(this.app, this, this.config));
 
-    // Initialize previous file content for deletion detection
-    await this.initializeFileContentCache();
+    // Initialise previous file content for deletion detection
+    await this.initialiseFileContentCache();
 
     // Set up file modification listener for task deletion detection
     this.registerEvent(
@@ -128,9 +128,9 @@ export default class ObsidianSyncerPlugin extends Plugin {
   };
 
   /**
-   * Initializes the file content cache with current content.
+   * Initialises the file content cache with current content.
    */
-  private async initializeFileContentCache(): Promise<void> {
+  private async initialiseFileContentCache(): Promise<void> {
     try {
       const settings = await this.loadSettings();
       const file = this.app.vault.getFileByPath(settings.syncDocument);
@@ -144,7 +144,7 @@ export default class ObsidianSyncerPlugin extends Plugin {
         }
       }
     } catch (error) {
-      console.warn("Failed to initialize file content cache:", error);
+      console.warn("Failed to initialise file content cache:", error);
     }
   }
 
@@ -192,20 +192,13 @@ export default class ObsidianSyncerPlugin extends Plugin {
         return;
       }
 
-      // Show confirmation modal for each deleted task
-      // But first check if the task still exists in Google Tasks
-      // If it doesn't exist, it was deleted in Google Tasks (sync-initiated), so don't prompt
-      for (const deletedTask of deletedGoogleTasks) {
-        const taskStillExists = await this.checkTaskExistsInGoogle(deletedTask.id, googleTasks);
-        if (taskStillExists) {
-          // Task exists in Google Tasks, so this was a manual deletion in Obsidian
-          const confirmed = await this.showDeleteConfirmation(deletedTask.title);
-          if (confirmed) {
-            await this.deleteTaskFromGoogle(deletedTask.id, googleTasks, settings);
-          }
-        }
-        // If task doesn't exist, it was already deleted in Google Tasks (sync-initiated), so skip
-      }
+      // Process deleted tasks sequentially
+      // Check if each task still exists in Google Tasks
+      // If it exists, prompt for confirmation; if not, it was sync-initiated so skip
+      await deletedGoogleTasks.reduce(async (previousPromise, deletedTask) => {
+        await previousPromise;
+        await this.processDeletedTask(deletedTask, googleTasks, settings);
+      }, Promise.resolve());
     } catch (error) {
       console.error("Error handling file modification:", error);
     }
@@ -242,6 +235,31 @@ export default class ObsidianSyncerPlugin extends Plugin {
         }
       })
       .filter((task): task is { id: string; title: string; source: string } => task !== undefined);
+  }
+
+  /**
+   * Processes a deleted task: checks if it exists in Google Tasks and prompts for deletion if needed.
+   */
+  private async processDeletedTask(
+    deletedTask: { id: string; title: string },
+    googleTasks: PluginSettings["googleTasks"],
+    settings: PluginSettings,
+  ): Promise<void> {
+    const taskStillExists = await this.checkTaskExistsInGoogle(deletedTask.id, googleTasks);
+    if (!taskStillExists) {
+      console.debug(
+        `Task ${deletedTask.id} was already deleted in Google Tasks (sync-initiated), skipping deletion prompt`,
+      );
+      return;
+    }
+
+    const confirmed = await this.showDeleteConfirmation(deletedTask.title);
+    if (!confirmed) {
+      console.debug(`User cancelled deletion of task ${deletedTask.id} from Google Tasks`);
+      return;
+    }
+
+    await this.deleteTaskFromGoogle(deletedTask.id, googleTasks, settings);
   }
 
   /**

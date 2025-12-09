@@ -23,11 +23,26 @@ export type Vault = {
 
 // Stubs for UI classes if ever imported in tests (not used currently)
 export class Plugin {
+  public manifest: { name: string; id: string; version: string };
+  public app: unknown;
   // minimal base class
+  public constructor(app: unknown, manifest: { name: string; id: string; version: string }) {
+    this.app = app;
+    this.manifest = manifest;
+  }
   public async loadData(): Promise<unknown> {
     return {};
   }
   public async saveData(_data: unknown): Promise<void> {
+    // no-op
+  }
+  public addCommand(_command: unknown): void {
+    // no-op
+  }
+  public addSettingTab(_tab: unknown): void {
+    // no-op
+  }
+  public registerEvent(_event: { off: () => void }): void {
     // no-op
   }
 }

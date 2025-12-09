@@ -35,7 +35,7 @@ const baseOptions = {
   entryPoints: ["src/plugin/index.ts"],
   bundle: true,
   format: "cjs",
-  target: "es2021",
+  target: "es2022",
   outfile: "main.js",
   banner: { js: banner },
   external: externalDependencies,

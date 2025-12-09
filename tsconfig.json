@@ -8,12 +8,10 @@
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true,
-    "inlineSourceMap": true,
-    "inlineSources": true,
     "isolatedModules": true,
-    "lib": ["DOM", "ES2021"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "lib": ["DOM", "ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
@@ -25,10 +23,8 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "preserveConstEnums": true,
     "strict": true,
-    "target": "ES2021",
-    "verbatimModuleSyntax": true
+    "target": "ES2022"
   },
   "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "vitest.*.config.ts"]
 }

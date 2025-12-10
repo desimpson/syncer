@@ -158,6 +158,36 @@ export class SettingsTab extends PluginSettingTab {
       });
   }
 
+  private addDeleteSyncSettings(containerElement: HTMLElement, settings: PluginSettings): void {
+    new Setting(containerElement)
+      .setName("Sync task deletions")
+      .setDesc(
+        "When enabled, deleting a Google Tasks task in Obsidian will also delete it from Google Tasks.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(settings.enableDeleteSync).onChange(async (value) => {
+          await this.plugin.updateSettings({ enableDeleteSync: value });
+          console.info(`Delete sync enabled set to [${value}].`);
+          // Refresh the display to show/hide the confirm setting
+          await this.display();
+        });
+      });
+
+    if (settings.enableDeleteSync) {
+      new Setting(containerElement)
+        .setName("Confirm task deletions")
+        .setDesc(
+          "When enabled, you will be prompted to confirm before deleting tasks from Google Tasks.",
+        )
+        .addToggle((toggle) => {
+          toggle.setValue(settings.confirmDeleteSync).onChange(async (value) => {
+            await this.plugin.updateSettings({ confirmDeleteSync: value });
+            console.info(`Confirm delete sync set to [${value}].`);
+          });
+        });
+    }
+  }
+
   private async addGoogleTasksSettings(containerElement: HTMLElement) {
     containerElement.createEl("h4", { text: "Google Tasks" });
     const setting = new Setting(containerElement);
@@ -189,6 +219,7 @@ export class SettingsTab extends PluginSettingTab {
 
     // Add completion status sync setting
     this.addSyncCompletionStatusSetting(containerElement, settings);
+    this.addDeleteSyncSettings(containerElement, settings);
 
     await this.addGoogleTasksListSelector(containerElement);
   }

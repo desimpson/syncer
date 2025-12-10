@@ -104,5 +104,7 @@ export const pluginSettingsSchema = z.object({
   syncDocument: markdownFilePathShapeSchema.default("GTD.md"),
   syncHeading: headingSchema.default("## Inbox"),
   syncCompletionStatus: z.boolean().default(false),
+  enableDeleteSync: z.boolean().default(true),
+  confirmDeleteSync: z.boolean().default(true),
   googleTasks: googleTasksSettingsSchema.optional(),
 });

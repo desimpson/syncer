@@ -114,7 +114,7 @@ export class SettingsTab extends PluginSettingTab {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
       "Sync Heading",
-      "The H2 heading under which new Google Tasks will be inserted. Text will be converted to H2 format.",
+      "The H2 heading under which new synced items will be inserted. Text will be converted to H2 format.",
       settings.syncHeading,
       "e.g., ## Inbox, ## Tasks, or ## To-Do",
     );

@@ -158,10 +158,10 @@ export default class ObsidianSyncerPlugin extends Plugin {
     }
 
     const settings = await this.loadSettings();
-    const { syncDocument, googleTasks } = settings;
+    const { syncDocument, googleTasks, enableDeleteSync } = settings;
 
     // Only process the sync document
-    if (file.path !== syncDocument || googleTasks === undefined) {
+    if (file.path !== syncDocument || googleTasks === undefined || !enableDeleteSync) {
       return;
     }
 
@@ -253,8 +253,10 @@ export default class ObsidianSyncerPlugin extends Plugin {
       return;
     }
 
-    const confirmed = await this.showDeleteConfirmation(deletedTask.title);
-    if (!confirmed) {
+    // Check if confirmation is required
+    const shouldDeleteTaskFromGoogle =
+      !settings.confirmDeleteSync || (await this.showDeleteConfirmation(deletedTask.title));
+    if (!shouldDeleteTaskFromGoogle) {
       console.debug(`User cancelled deletion of task ${deletedTask.id} from Google Tasks`);
       return;
     }

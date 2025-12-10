@@ -196,6 +196,8 @@ describe("Task deletion confirmation", () => {
       syncHeading: settings.syncHeading,
       syncIntervalMinutes: 60,
       syncCompletionStatus: true,
+      enableDeleteSync: true,
+      confirmDeleteSync: true,
       googleTasks: settings.googleTasks
         ? {
             userInfo: { email: "test@example.com" },
@@ -272,7 +274,9 @@ describe("Task deletion confirmation", () => {
     vi.spyOn(DeleteTaskConfirmationModal.prototype, "open").mockImplementation(function () {
       // Auto-confirm after a tick
       setTimeout(() => {
-        const instance = modalInstances.at(-1);
+        // TODO: Change 'lib' compiler option to 'es2022' or later and use .at(-1) here and elsewhere
+        // eslint-disable-next-line unicorn/prefer-at
+        const instance = modalInstances[modalInstances.length - 1];
         instance?.resolveConfirmation(true);
       }, 0);
     });
@@ -356,7 +360,8 @@ describe("Task deletion confirmation", () => {
     vi.spyOn(DeleteTaskConfirmationModal.prototype, "open").mockImplementation(function () {
       // Auto-cancel after a tick
       setTimeout(() => {
-        const instance = modalInstances.at(-1);
+        // eslint-disable-next-line unicorn/prefer-at
+        const instance = modalInstances[modalInstances.length - 1];
         instance?.resolveConfirmation(false);
       }, 0);
     });
@@ -409,7 +414,8 @@ describe("Task deletion confirmation", () => {
     // Mock modal to confirm deletion
     vi.spyOn(DeleteTaskConfirmationModal.prototype, "open").mockImplementation(function () {
       setTimeout(() => {
-        const instance = modalInstances.at(-1);
+        // eslint-disable-next-line unicorn/prefer-at
+        const instance = modalInstances[modalInstances.length - 1];
         instance?.resolveConfirmation(true);
       }, 0);
     });

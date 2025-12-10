@@ -10,6 +10,8 @@ export type PluginSettings = {
   syncDocument: string;
   syncHeading: string;
   syncCompletionStatus: boolean;
+  enableDeleteSync: boolean;
+  confirmDeleteSync: boolean;
 };
 
 /**

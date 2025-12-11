@@ -629,4 +629,123 @@ describe("Task deletion confirmation", () => {
     );
     expect(callsWithManuallyDeletedTaskIds).toBeUndefined();
   });
+
+  it("tracks all cancelled deletions when multiple tasks are deleted at once", async () => {
+    // Arrange: Create a file with multiple tasks
+    const taskIds = ["task-A", "task-B", "task-C"];
+    const taskTitles = ["Task A", "Task B", "Task C"];
+    const listId = "list-456";
+    const syncDocument = "test-tasks.md";
+
+    const initialFileContent = `${syncHeading}\n${taskIds
+      .map((id, index) => {
+        const title = taskTitles[index];
+        if (title === undefined) {
+          throw new Error(`Missing title for task ${id} at index ${index}`);
+        }
+        return createTaskLine(id, title);
+      })
+      .join("\n")}\n`;
+
+    const updatedFileContent = `${syncHeading}\n`;
+
+    // Track settings state to simulate progressive updates
+    let currentManuallyDeletedTaskIds: string[] = [];
+
+    await createPluginWithSettings(
+      {
+        syncDocument,
+        syncHeading,
+        googleTasks: {
+          credentials: {
+            accessToken: "token-123",
+            refreshToken: "refresh-123",
+            expiryDate: Date.now() + 3_600_000,
+          },
+          selectedListIds: [listId],
+        },
+      },
+      initialFileContent,
+    );
+
+    // Mock loadSettings to return progressively updated settings
+    // This simulates the fix where we reload settings before tracking each task
+    vi.spyOn(plugin, "loadSettings").mockImplementation(async () => {
+      const baseSettings = {
+        syncDocument,
+        syncHeading,
+        syncIntervalMinutes: 60,
+        syncCompletionStatus: true,
+        enableDeleteSync: true,
+        confirmDeleteSync: true,
+        manuallyDeletedTaskIds: [...currentManuallyDeletedTaskIds],
+        googleTasks: {
+          userInfo: { email: "test@example.com" },
+          credentials: {
+            accessToken: "token-123",
+            refreshToken: "refresh-123",
+            expiryDate: Date.now() + 3_600_000,
+          },
+          availableLists: [],
+          selectedListIds: [listId],
+        },
+      };
+      return baseSettings;
+    });
+
+    // Mock updateSettings to update our tracked state
+    vi.spyOn(plugin, "updateSettings").mockImplementation(async (partial) => {
+      if (partial.manuallyDeletedTaskIds !== undefined) {
+        currentManuallyDeletedTaskIds = [...partial.manuallyDeletedTaskIds];
+      }
+    });
+
+    // Mock that all tasks exist in Google Tasks
+    (fetchGoogleTasks as ReturnType<typeof vi.fn>).mockResolvedValue(
+      taskIds.map((id, index) => ({
+        id,
+        title: taskTitles[index],
+        status: "needsAction",
+      })) as GoogleTask[],
+    );
+
+    // Mock modal to cancel deletion for each task sequentially
+    vi.spyOn(DeleteTaskConfirmationModal.prototype, "open").mockImplementation(function () {
+      setTimeout(() => {
+        // Cancel deletion for each task
+        // eslint-disable-next-line unicorn/prefer-at
+        const instance = modalInstances[modalInstances.length - 1];
+        instance?.resolveConfirmation(false);
+      }, 0);
+    });
+
+    // Act: Delete all tasks at once (trigger file modification with new content)
+    await triggerFileModification(updatedFileContent);
+
+    // Wait for all async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Assert: All three tasks should be tracked in manuallyDeletedTaskIds
+    expect(currentManuallyDeletedTaskIds).toHaveLength(3);
+    expect(currentManuallyDeletedTaskIds).toContain("task-A");
+    expect(currentManuallyDeletedTaskIds).toContain("task-B");
+    expect(currentManuallyDeletedTaskIds).toContain("task-C");
+
+    // Verify updateSettings was called for each task
+    const updateCalls = (plugin.updateSettings as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) =>
+        (call[0] as { manuallyDeletedTaskIds?: unknown[] })?.manuallyDeletedTaskIds !== undefined,
+    );
+    expect(updateCalls.length).toBeGreaterThanOrEqual(3);
+
+    // Verify each call includes the previous tasks plus the new one
+    const firstCall = updateCalls[0]?.[0] as { manuallyDeletedTaskIds?: string[] };
+    expect(firstCall?.manuallyDeletedTaskIds).toHaveLength(1);
+
+    const lastCall = updateCalls.at(-1)?.[0] as {
+      manuallyDeletedTaskIds?: string[];
+    };
+    expect(lastCall?.manuallyDeletedTaskIds).toHaveLength(3);
+    expect(lastCall?.manuallyDeletedTaskIds).toEqual(expect.arrayContaining(taskIds));
+  });
 });

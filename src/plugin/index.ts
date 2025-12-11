@@ -258,6 +258,8 @@ export default class ObsidianSyncerPlugin extends Plugin {
       !settings.confirmDeleteSync || (await this.showDeleteConfirmation(deletedTask.title));
     if (!shouldDeleteTaskFromGoogle) {
       console.debug(`User cancelled deletion of task ${deletedTask.id} from Google Tasks`);
+      // Track this task as manually deleted so it doesn't get re-added on next sync
+      await this.trackManuallyDeletedTask(deletedTask.id, settings);
       return;
     }
 
@@ -395,5 +397,19 @@ export default class ObsidianSyncerPlugin extends Plugin {
     } finally {
       this.isProcessingDeletion = false;
     }
+  }
+
+  /**
+   * Tracks a task as manually deleted in Obsidian (when user cancels deletion in Google Tasks).
+   * This prevents the task from being re-added on the next sync.
+   */
+  private async trackManuallyDeletedTask(taskId: string, settings: PluginSettings): Promise<void> {
+    if (settings.manuallyDeletedTaskIds.includes(taskId)) {
+      return;
+    }
+
+    const updatedIds = [...settings.manuallyDeletedTaskIds, taskId];
+    await this.updateSettings({ manuallyDeletedTaskIds: updatedIds });
+    console.debug(`Tracked task ${taskId} as manually deleted to prevent re-sync`);
   }
 }

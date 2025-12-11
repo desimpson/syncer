@@ -33,14 +33,14 @@ export class DeleteTaskConfirmationModal extends Modal {
     buttonContainer.style.gap = "0.5em";
     buttonContainer.style.justifyContent = "flex-end";
 
-    const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+    const cancelButton = buttonContainer.createEl("button", { text: "No, keep in Google Tasks" });
     cancelButton.addEventListener("click", () => {
       this.resolvePromise?.(false);
       this.close();
     });
 
     const deleteButton = buttonContainer.createEl("button", {
-      text: "Delete in Google Tasks",
+      text: "Yes, delete in Google Tasks",
       cls: "mod-cta",
     });
     deleteButton.addEventListener("click", () => {

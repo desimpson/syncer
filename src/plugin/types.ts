@@ -12,6 +12,7 @@ export type PluginSettings = {
   syncCompletionStatus: boolean;
   enableDeleteSync: boolean;
   confirmDeleteSync: boolean;
+  manuallyDeletedTaskIds: readonly string[];
 };
 
 /**

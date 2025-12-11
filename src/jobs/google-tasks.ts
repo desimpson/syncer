@@ -304,19 +304,47 @@ const syncTasksToFile = async (
   syncHeading: string,
   syncDocument: string,
   syncCompletionStatus: boolean,
+  manuallyDeletedTaskIds: readonly string[],
+  saveSettings: (settings: PluginSettings) => Promise<void>,
+  loadSettings: () => Promise<PluginSettings>,
   notify: (message: string) => void,
 ) => {
   const adaptor = mapGoogleTaskToSyncItem(syncHeading);
   const incoming = tasks.map(adaptor);
   console.info(`Mapped incoming Google Tasks to sync items: [${incoming.length}] items.`);
 
+  // Clean up manually deleted task IDs that no longer exist in Google Tasks
+  const incomingTaskIds = new Set(incoming.map((item) => item.id));
+  const stillDeletedTaskIds = (manuallyDeletedTaskIds ?? []).filter((id) =>
+    incomingTaskIds.has(id),
+  );
+  if (stillDeletedTaskIds.length !== (manuallyDeletedTaskIds ?? []).length) {
+    const settings = await loadSettings();
+    await saveSettings({ ...settings, manuallyDeletedTaskIds: stillDeletedTaskIds });
+    console.debug(
+      `Cleaned up [${(manuallyDeletedTaskIds ?? []).length - stillDeletedTaskIds.length}] manually deleted task IDs that no longer exist in Google Tasks`,
+    );
+  }
+
+  // Filter out manually deleted tasks to prevent them from being re-added
+  const filteredIncoming = incoming.filter((item) => !stillDeletedTaskIds.includes(item.id));
+  if (filteredIncoming.length !== incoming.length) {
+    console.info(
+      `Filtered out [${incoming.length - filteredIncoming.length}] manually deleted tasks from sync`,
+    );
+  }
+
   try {
     const existing = await readMarkdownSyncItems(file, "google-tasks");
     console.info(`Read existing Google Tasks Markdown items: [${existing.length}] items.`);
 
-    let updatedIncoming: readonly SyncItem[] = incoming;
+    let updatedIncoming: readonly SyncItem[] = filteredIncoming;
     if (syncCompletionStatus) {
-      const completionChanges = detectCompletionChanges(existing, incoming, taskIdToListIdMap);
+      const completionChanges = detectCompletionChanges(
+        existing,
+        filteredIncoming,
+        taskIdToListIdMap,
+      );
       const successfulChanges = await applyCompletionChangesToGoogleTasks(
         completionChanges,
         accessToken,
@@ -324,7 +352,7 @@ const syncTasksToFile = async (
       );
 
       updatedIncoming = updateIncomingItemsWithCompletionChanges(
-        incoming,
+        filteredIncoming,
         successfulChanges,
         existing,
       );
@@ -376,7 +404,13 @@ export const createGoogleTasksJob: SyncJobCreator = (
 
     // TODO: Test settings freshness?
     const settings = await loadSettings();
-    const { googleTasks, syncDocument, syncHeading, syncCompletionStatus } = settings;
+    const {
+      googleTasks,
+      syncDocument,
+      syncHeading,
+      syncCompletionStatus,
+      manuallyDeletedTaskIds = [],
+    } = settings;
     if (googleTasks === undefined) {
       console.info("No Google Tasks configured.");
       return;
@@ -439,6 +473,9 @@ export const createGoogleTasksJob: SyncJobCreator = (
       syncHeading,
       syncDocument,
       syncCompletionStatus,
+      manuallyDeletedTaskIds,
+      saveSettings,
+      loadSettings,
       notify,
     );
   },

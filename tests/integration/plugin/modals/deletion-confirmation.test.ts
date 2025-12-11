@@ -457,6 +457,7 @@ describe("Task deletion confirmation", () => {
     const modalOpenSpy = vi.spyOn(DeleteTaskConfirmationModal.prototype, "open");
 
     // Act: Modify a different file
+    // eslint-disable-next-line unicorn/no-null
     (mockVault.getFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(null);
     await Promise.all(modifyCallbacks.map((callback) => callback(otherFile)));
 
@@ -466,5 +467,165 @@ describe("Task deletion confirmation", () => {
     // Assert
     expect(modalOpenSpy).not.toHaveBeenCalled();
     expect(fetchGoogleTasks).not.toHaveBeenCalled();
+  });
+
+  it("does not track deletion when enableDeleteSync is disabled", async () => {
+    // Arrange
+    const taskId = "task-123";
+    const taskTitle = "Test Task";
+    const listId = "list-456";
+    const syncDocument = "test-tasks.md";
+
+    const initialFileContent = `## Tasks
+- [ ] [${taskTitle}](https://tasks.google.com/task/${taskId}) <!-- {"id":"${taskId}","source":"google-tasks","title":"${taskTitle}","link":"https://tasks.google.com/task/${taskId}","heading":"## Tasks"} -->
+`;
+
+    const updatedFileContent = `## Tasks
+`;
+
+    await createPluginWithSettings(
+      {
+        syncDocument,
+        syncHeading: "## Tasks",
+        googleTasks: {
+          credentials: {
+            accessToken: "token-123",
+            refreshToken: "refresh-123",
+            expiryDate: Date.now() + 3_600_000,
+          },
+          selectedListIds: [listId],
+        },
+      },
+      initialFileContent,
+    );
+
+    // Mock loadSettings to return enableDeleteSync: false
+    vi.spyOn(plugin, "loadSettings").mockResolvedValue({
+      syncDocument,
+      syncHeading: "## Tasks",
+      syncIntervalMinutes: 60,
+      syncCompletionStatus: true,
+      enableDeleteSync: false,
+      confirmDeleteSync: true,
+      manuallyDeletedTaskIds: [],
+      googleTasks: {
+        userInfo: { email: "test@example.com" },
+        credentials: {
+          accessToken: "token-123",
+          refreshToken: "refresh-123",
+          expiryDate: Date.now() + 3_600_000,
+        },
+        availableLists: [],
+        selectedListIds: [listId],
+      },
+    });
+
+    const updateSettingsSpy = vi.spyOn(plugin, "updateSettings");
+
+    await plugin.onload();
+
+    // Simulate file modification (task deletion)
+    mockFile.vault.cachedRead = vi.fn().mockResolvedValue(updatedFileContent);
+    const modifyCallback = (mockVault.on as ReturnType<typeof vi.fn>).mock.calls.find(
+      (call: unknown[]) => call[0] === "modify",
+    )?.[1];
+    if (modifyCallback !== undefined) {
+      await modifyCallback(mockFile);
+    }
+
+    // Wait for async operations
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Assert: Task should not be tracked since enableDeleteSync is false
+    expect(updateSettingsSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not track task if already in manuallyDeletedTaskIds", async () => {
+    // Arrange
+    const taskId = "task-123";
+    const taskTitle = "Test Task";
+    const listId = "list-456";
+    const syncDocument = "test-tasks.md";
+
+    const initialFileContent = `## Tasks
+- [ ] [${taskTitle}](https://tasks.google.com/task/${taskId}) <!-- {"id":"${taskId}","source":"google-tasks","title":"${taskTitle}","link":"https://tasks.google.com/task/${taskId}","heading":"## Tasks"} -->
+`;
+
+    const updatedFileContent = `## Tasks
+`;
+
+    await createPluginWithSettings(
+      {
+        syncDocument,
+        syncHeading: "## Tasks",
+        googleTasks: {
+          credentials: {
+            accessToken: "token-123",
+            refreshToken: "refresh-123",
+            expiryDate: Date.now() + 3_600_000,
+          },
+          selectedListIds: [listId],
+        },
+      },
+      initialFileContent,
+    );
+
+    // Mock loadSettings to return task already in manuallyDeletedTaskIds
+    vi.spyOn(plugin, "loadSettings").mockResolvedValue({
+      syncDocument,
+      syncHeading: "## Tasks",
+      syncIntervalMinutes: 60,
+      syncCompletionStatus: true,
+      enableDeleteSync: true,
+      confirmDeleteSync: true,
+      manuallyDeletedTaskIds: [taskId], // Already tracked
+      googleTasks: {
+        userInfo: { email: "test@example.com" },
+        credentials: {
+          accessToken: "token-123",
+          refreshToken: "refresh-123",
+          expiryDate: Date.now() + 3_600_000,
+        },
+        availableLists: [],
+        selectedListIds: [listId],
+      },
+    });
+
+    const updateSettingsSpy = vi.spyOn(plugin, "updateSettings");
+
+    await plugin.onload();
+
+    // Mock modal to cancel deletion
+    vi.spyOn(DeleteTaskConfirmationModal.prototype, "open").mockImplementation(function () {
+      setTimeout(() => {
+        // eslint-disable-next-line unicorn/prefer-at
+        const instance = modalInstances[modalInstances.length - 1];
+        instance?.resolveConfirmation(false);
+      }, 0);
+    });
+
+    // Mock fetchGoogleTasks to return task exists
+    vi.mocked(fetchGoogleTasks).mockResolvedValue([
+      { id: taskId, title: taskTitle, status: "needsAction" } as GoogleTask,
+    ]);
+
+    // Simulate file modification (task deletion)
+    mockFile.vault.cachedRead = vi.fn().mockResolvedValue(updatedFileContent);
+    const modifyCallback = (mockVault.on as ReturnType<typeof vi.fn>).mock.calls.find(
+      (call: unknown[]) => call[0] === "modify",
+    )?.[1];
+    if (modifyCallback !== undefined) {
+      await modifyCallback(mockFile);
+    }
+
+    // Wait for async operations
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Assert: updateSettings should not be called since task is already tracked
+    const callsWithManuallyDeletedTaskIds = updateSettingsSpy.mock.calls.find(
+      (call: unknown[]) =>
+        (call[0] as { manuallyDeletedTaskIds?: unknown[] })?.manuallyDeletedTaskIds !== undefined,
+    );
+    expect(callsWithManuallyDeletedTaskIds).toBeUndefined();
   });
 });

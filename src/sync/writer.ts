@@ -1,5 +1,6 @@
 import type { SyncAction, SyncItem } from "@/sync/types";
 import type { TFile } from "obsidian";
+import { buildUpdateDeleteMap, getCreateItems } from "@/sync/actions";
 
 /* Matches markdown heading lines at the start of the line, e.g. "## Heading".
 Anchored to avoid false matches against values inside HTML comments/JSON
@@ -45,15 +46,7 @@ const updateLine = (line: string, item: SyncItem) => {
     );
 };
 
-const buildUpdateDeleteMap = (actions: readonly SyncAction[]) =>
-  new Map(
-    actions
-      .filter((action) => action.operation !== "create")
-      .map((action) => [`${action.item.id}:${action.item.source}`, action]),
-  );
-
-const getCreateItems = (actions: readonly SyncAction[]): readonly SyncItem[] =>
-  actions.filter((action) => action.operation === "create").map((action) => action.item);
+// buildUpdateDeleteMap and getCreateItems are now imported from @/sync/actions
 
 const applyUpdatesAndDeletes = (lines: string[], updateDeleteMap: Map<string, SyncAction>) =>
   lines.reduce<string[]>((accumulator, line) => {

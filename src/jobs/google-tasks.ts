@@ -1,7 +1,7 @@
 import { GoogleTasksService } from "@/services";
 import { mapGoogleTaskToSyncItem } from "@/adaptors";
 import type { SyncJobCreator } from "@/jobs/types";
-import { generateSyncActions } from "@/sync/actions";
+import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { writeSyncActions } from "@/sync/writer";
 import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin/types";
@@ -9,8 +9,7 @@ import type { App, TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/types";
 import { GoogleAuth, InvalidGrantError } from "@/auth";
 import { fetchGoogleTasks, updateGoogleTaskStatus } from "@/services/google-tasks";
-import type { SyncAction, SyncItem } from "@/sync/types";
-import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
+import type { SyncItem } from "@/sync/types";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
 
@@ -293,8 +292,7 @@ const updateIncomingItemsWithCompletionChanges = (
   return [...updatedIncoming, ...uncompletedTasks];
 };
 
-const shouldPreserveTask = (action: SyncAction): boolean =>
-  action.operation !== "delete" || !action.item.completed;
+// shouldPreserveCompletedDeletes is now imported from @/sync/actions
 
 const syncTasksToFile = async (
   file: TFile,
@@ -360,7 +358,7 @@ const syncTasksToFile = async (
 
     const allActions = generateSyncActions(updatedIncoming, existing);
     // Preserve completed tasks in Obsidian
-    const actions = allActions.filter(shouldPreserveTask);
+    const actions = filterActions(allActions, shouldPreserveCompletedDeletes);
     console.info(`Generated [${actions.length}] sync actions.`);
 
     await writeSyncActions(file, actions, syncHeading);

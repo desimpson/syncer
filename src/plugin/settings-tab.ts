@@ -186,6 +186,25 @@ export class SettingsTab extends PluginSettingTab {
           });
         });
     }
+
+    if (settings.manuallyDeletedTaskIds.length > 0) {
+      new Setting(containerElement)
+        .setName("Clear manually deleted tasks cache")
+        .setDesc(
+          `Clear the cache of ${settings.manuallyDeletedTaskIds.length} manually deleted task(s). This will allow these tasks to be re-synced from Google Tasks on the next sync.`,
+        )
+        .addButton((button) =>
+          button
+            .setButtonText("Clear Cache")
+            .setWarning()
+            .onClick(async () => {
+              await this.plugin.updateSettings({ manuallyDeletedTaskIds: [] });
+              new Notice("Manually deleted tasks cache cleared.");
+              console.info("Cleared manually deleted tasks cache");
+              await this.display();
+            }),
+        );
+    }
   }
 
   private async addGoogleTasksSettings(containerElement: HTMLElement) {

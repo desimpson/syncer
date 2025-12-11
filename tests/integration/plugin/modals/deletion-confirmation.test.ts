@@ -198,6 +198,7 @@ describe("Task deletion confirmation", () => {
       syncCompletionStatus: true,
       enableDeleteSync: true,
       confirmDeleteSync: true,
+      manuallyDeletedTaskIds: [],
       googleTasks: settings.googleTasks
         ? {
             userInfo: { email: "test@example.com" },

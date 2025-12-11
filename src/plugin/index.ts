@@ -403,12 +403,15 @@ export default class ObsidianSyncerPlugin extends Plugin {
    * Tracks a task as manually deleted in Obsidian (when user cancels deletion in Google Tasks).
    * This prevents the task from being re-added on the next sync.
    */
-  private async trackManuallyDeletedTask(taskId: string, settings: PluginSettings): Promise<void> {
-    if (settings.manuallyDeletedTaskIds.includes(taskId)) {
+  private async trackManuallyDeletedTask(taskId: string, _settings: PluginSettings): Promise<void> {
+    // Reload settings to get the latest manuallyDeletedTaskIds, as settings may be stale
+    // when multiple tasks are deleted sequentially
+    const currentSettings = await this.loadSettings();
+    if (currentSettings.manuallyDeletedTaskIds.includes(taskId)) {
       return;
     }
 
-    const updatedIds = [...settings.manuallyDeletedTaskIds, taskId];
+    const updatedIds = [...currentSettings.manuallyDeletedTaskIds, taskId];
     await this.updateSettings({ manuallyDeletedTaskIds: updatedIds });
     console.debug(`Tracked task ${taskId} as manually deleted to prevent re-sync`);
   }

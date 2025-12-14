@@ -749,4 +749,94 @@ describe("Task deletion confirmation", () => {
     expect(lastCall?.manuallyDeletedTaskIds).toHaveLength(3);
     expect(lastCall?.manuallyDeletedTaskIds).toEqual(expect.arrayContaining(taskIds));
   });
+
+  it("prompts for confirmation when deleting task from unselected list", async () => {
+    // Arrange: Reproduce the bug where deletion sync misses tasks in unselected lists
+    // 1. Create List A with Item 1 in Google Tasks
+    // 2. Select List A and sync in Obsidian
+    // 3. Deselect List A
+    // 4. Delete Item 1
+    // 5. Observe that the prompt should appear (but currently doesn't because we only search selected lists)
+    const listAId = "list-a";
+    const listBId = "list-b";
+    const taskId = "task-from-list-a";
+    const taskTitle = "Item 1";
+
+    const previousContent = `${syncHeading}\n${createTaskLine(taskId, taskTitle)}`;
+    const newContent = `${syncHeading}\n`;
+
+    await createPluginWithSettings(
+      {
+        syncDocument,
+        syncHeading,
+        googleTasks: {
+          credentials: {
+            accessToken: "token-123",
+            refreshToken: "refresh-123",
+            expiryDate: Date.now() + 3_600_000,
+          },
+          selectedListIds: [listBId], // List A is NOT selected
+        },
+      },
+      previousContent,
+    );
+
+    // Mock loadSettings to include availableLists with List A (even though it's not selected)
+    vi.spyOn(plugin, "loadSettings").mockResolvedValue({
+      syncDocument,
+      syncHeading,
+      syncIntervalMinutes: 60,
+      syncCompletionStatus: true,
+      enableDeleteSync: true,
+      confirmDeleteSync: true,
+      manuallyDeletedTaskIds: [],
+      googleTasks: {
+        userInfo: { email: "test@example.com" },
+        credentials: {
+          accessToken: "token-123",
+          refreshToken: "refresh-123",
+          expiryDate: Date.now() + 3_600_000,
+        },
+        availableLists: [
+          { id: listAId, title: "List A" },
+          { id: listBId, title: "List B" },
+        ],
+        selectedListIds: [listBId], // Only List B is selected
+      },
+    });
+
+    // Mock that task exists in List A (unselected list)
+    // When checking selected lists (List B), return empty
+    // When checking List A, return the task
+    (fetchGoogleTasks as ReturnType<typeof vi.fn>).mockImplementation(
+      (_accessToken: string, listId: string) => {
+        if (listId === listAId) {
+          return Promise.resolve([
+            { id: taskId, title: taskTitle, status: "needsAction" } as GoogleTask,
+          ]);
+        }
+        return Promise.resolve([]); // List B is empty
+      },
+    );
+
+    // Mock modal to confirm deletion
+    vi.spyOn(DeleteTaskConfirmationModal.prototype, "open").mockImplementation(function () {
+      setTimeout(() => {
+        // eslint-disable-next-line unicorn/prefer-at
+        const instance = modalInstances[modalInstances.length - 1];
+        instance?.resolveConfirmation(true);
+      }, 0);
+    });
+
+    // Act: Delete the task (trigger file modification with new content)
+    await triggerFileModification(newContent);
+
+    // Wait for async operations
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Assert: Should find the task in List A (unselected) and prompt for deletion
+    // With the fix, checkTaskExistsInGoogle searches all availableLists, not just selectedListIds
+    expect(fetchGoogleTasks).toHaveBeenCalledWith("token-123", listAId, true);
+    expect(deleteGoogleTask).toHaveBeenCalledWith("token-123", listAId, taskId);
+  });
 });

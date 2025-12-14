@@ -311,11 +311,19 @@ export default class ObsidianSyncerPlugin extends Plugin {
         });
       }
 
-      // Check if task exists in any of the selected lists
+      // Check if task exists in any of the available lists
+      // We search all available lists, not just selected ones, because tasks
+      // from previously selected lists may still exist in the note
       const { fetchGoogleTasks } = await import("@/services/google-tasks");
 
-      for (const selectedListId of googleTasks.selectedListIds) {
-        const tasks = await fetchGoogleTasks(accessToken, selectedListId, true); // Include completed tasks
+      // Fallback to selectedListIds if availableLists is empty (backward compatibility)
+      const listsToSearch =
+        googleTasks.availableLists.length > 0
+          ? googleTasks.availableLists.map((list) => list.id)
+          : googleTasks.selectedListIds;
+
+      for (const listId of listsToSearch) {
+        const tasks = await fetchGoogleTasks(accessToken, listId, true); // Include completed tasks
         const task = tasks.find((t) => t.id === taskId);
         if (task !== undefined) {
           return true; // Task exists
@@ -367,15 +375,22 @@ export default class ObsidianSyncerPlugin extends Plugin {
       }
 
       // Find which list contains this task
-      // We need to fetch tasks from all selected lists to find the task
+      // We search all available lists, not just selected ones, because tasks
+      // from previously selected lists may still exist in the note
       const { fetchGoogleTasks } = await import("@/services/google-tasks");
       let listId: string | undefined;
 
-      for (const selectedListId of googleTasks.selectedListIds) {
-        const tasks = await fetchGoogleTasks(accessToken, selectedListId, true); // Include completed tasks
+      // Fallback to selectedListIds if availableLists is empty (backward compatibility)
+      const listsToSearch =
+        googleTasks.availableLists.length > 0
+          ? googleTasks.availableLists.map((list) => list.id)
+          : googleTasks.selectedListIds;
+
+      for (const searchListId of listsToSearch) {
+        const tasks = await fetchGoogleTasks(accessToken, searchListId, true); // Include completed tasks
         const task = tasks.find((t) => t.id === taskId);
         if (task !== undefined) {
-          listId = selectedListId;
+          listId = searchListId;
           break;
         }
       }

@@ -742,7 +742,8 @@ describe("Task deletion confirmation", () => {
     const firstCall = updateCalls[0]?.[0] as { manuallyDeletedTaskIds?: string[] };
     expect(firstCall?.manuallyDeletedTaskIds).toHaveLength(1);
 
-    const lastCall = updateCalls.at(-1)?.[0] as {
+    // eslint-disable-next-line unicorn/prefer-at
+    const lastCall = updateCalls[updateCalls.length - 1]?.[0] as {
       manuallyDeletedTaskIds?: string[];
     };
     expect(lastCall?.manuallyDeletedTaskIds).toHaveLength(3);

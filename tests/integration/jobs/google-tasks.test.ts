@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { TFile, Vault } from "obsidian";
+import type { App, TFile, Vault } from "obsidian";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import type { SyncAction, SyncItem } from "@/sync/types";
 import type { GoogleTask } from "@/services/types";
@@ -18,7 +18,16 @@ vi.mock("@/sync/actions", () => {
     incoming: SyncItem[],
     existing: SyncItem[],
   ) => SyncAction[];
-  return { generateSyncActions };
+  const filterActions = vi.fn((actions: SyncAction[], predicate: (action: SyncAction) => boolean) =>
+    actions.filter(predicate),
+  ) as unknown as (
+    actions: SyncAction[],
+    predicate: (action: SyncAction) => boolean,
+  ) => SyncAction[];
+  const shouldPreserveCompletedDeletes = vi.fn(
+    (action: SyncAction) => action.operation !== "delete" || !action.item.completed,
+  ) as unknown as (action: SyncAction) => boolean;
+  return { filterActions, generateSyncActions, shouldPreserveCompletedDeletes };
 });
 
 vi.mock("@/sync/writer", () => {
@@ -88,6 +97,8 @@ const makeFile = (path = "GTD.md"): TFile =>
     // only fields used by tests
   }) as unknown as TFile;
 
+const mockApp = {} as unknown as App;
+
 describe("createGoogleTasksJob", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -109,7 +120,14 @@ describe("createGoogleTasksJob", () => {
     const saveSettings = vi.fn();
     const vault = makeVault(makeFile());
 
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, vi.fn());
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -140,7 +158,14 @@ describe("createGoogleTasksJob", () => {
     const saveSettings = vi.fn();
     const vault = makeVault(makeFile());
 
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, vi.fn());
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -173,7 +198,14 @@ describe("createGoogleTasksJob", () => {
     const vault = makeVault(null);
 
     const notify = vi.fn();
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, notify);
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -216,7 +248,14 @@ describe("createGoogleTasksJob", () => {
     );
 
     const notify = vi.fn();
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, notify);
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -264,7 +303,14 @@ describe("createGoogleTasksJob", () => {
     vi.mocked(generateSyncActions).mockReturnValue([]);
     vi.mocked(writeSyncActions).mockResolvedValue();
 
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, vi.fn());
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -347,7 +393,14 @@ describe("createGoogleTasksJob", () => {
     vi.mocked(generateSyncActions).mockReturnValue(actions);
     vi.mocked(writeSyncActions).mockResolvedValue();
 
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, vi.fn());
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -466,7 +519,14 @@ describe("createGoogleTasksJob", () => {
     vi.mocked(writeSyncActions).mockResolvedValue();
 
     const notify = vi.fn();
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, notify);
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -560,7 +620,14 @@ describe("createGoogleTasksJob", () => {
     });
 
     const notify = vi.fn();
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, notify);
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
 
     // Act
     await job.task();

@@ -13,6 +13,20 @@ const SERVER_CLOSE_MESSAGE = "Closed authentication server.";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
+/**
+ * Error thrown when a token refresh fails due to an invalid or expired refresh token.
+ * This typically occurs when the OAuth app is in testing mode and tokens expire after 7 days,
+ * or when the user has revoked access.
+ * @see https://stackoverflow.com/a/67966982
+ */
+export class InvalidGrantError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "InvalidGrantError";
+    Object.setPrototypeOf(this, InvalidGrantError.prototype);
+  }
+}
+
 export type AuthOptions = {
   clientId: string;
   scopes: string;
@@ -331,8 +345,32 @@ export const refreshAccessToken = async (
       }
 
       const text = await response.text();
+
+      // Check for invalid_grant error (token expired or revoked)
+      if (response.status === 400) {
+        try {
+          const errorJson = JSON.parse(text) as { error?: string; error_description?: string };
+          if (errorJson.error === "invalid_grant") {
+            throw new InvalidGrantError(
+              errorJson.error_description ?? "Token has been expired or revoked",
+            );
+          }
+        } catch (parseError) {
+          // If it's InvalidGrantError, re-throw it; otherwise parsing failed, fall through to generic error
+          if (parseError instanceof InvalidGrantError) {
+            throw parseError;
+          }
+          // If parsing fails, fall through to generic error
+        }
+      }
+
       throw new Error(`Failed to refresh token: ${response.status} ${text}`);
     } catch (error) {
+      // Don't retry InvalidGrantError - it won't succeed
+      if (error instanceof InvalidGrantError) {
+        throw error;
+      }
+
       if (remainingRetries > 0) {
         console.warn(
           `Token refresh failed; retrying... Retries left: [${remainingRetries}]. Error: [${formatLogError(

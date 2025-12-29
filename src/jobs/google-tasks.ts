@@ -409,7 +409,8 @@ export const createGoogleTasksJob: SyncJobCreator = (
         console.warn(
           "Google Tasks refresh token has been expired or revoked. Clearing credentials...",
         );
-        await saveSettings({ ...settings, googleTasks: undefined });
+        const freshSettings = await loadSettings();
+        await saveSettings({ ...freshSettings, googleTasks: undefined });
         new AuthorizationExpiredModal(app).open();
         return;
       }

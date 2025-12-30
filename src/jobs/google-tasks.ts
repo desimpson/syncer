@@ -5,11 +5,12 @@ import { generateSyncActions } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { writeSyncActions } from "@/sync/writer";
 import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin/types";
-import type { TFile, Vault } from "obsidian";
+import type { App, TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/types";
-import { GoogleAuth } from "@/auth";
+import { GoogleAuth, InvalidGrantError } from "@/auth";
 import { fetchGoogleTasks, updateGoogleTaskStatus } from "@/services/google-tasks";
 import type { SyncAction, SyncItem } from "@/sync/types";
+import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
 
@@ -366,6 +367,8 @@ export const createGoogleTasksJob: SyncJobCreator = (
   config,
   vault,
   notify,
+  // App type is inferred from SyncJobCreator, but we need it in scope for the parameter
+  app: App,
 ) => ({
   name: "google-tasks",
   task: async () => {
@@ -384,21 +387,35 @@ export const createGoogleTasksJob: SyncJobCreator = (
       return;
     }
 
-    const currentAccessToken = await ensureAccessToken(
-      googleTasks,
-      config,
-      async ({ accessToken, expiryDate }) => {
-        const updatedSettings: PluginSettings = {
-          ...settings,
-          googleTasks: {
-            ...googleTasks,
-            credentials: { ...googleTasks.credentials, accessToken, expiryDate },
-          },
-        };
-        console.info("Updated Google Tasks token in memory.");
-        await saveSettings(updatedSettings);
-      },
-    );
+    let currentAccessToken: string;
+    try {
+      currentAccessToken = await ensureAccessToken(
+        googleTasks,
+        config,
+        async ({ accessToken, expiryDate }) => {
+          const updatedSettings: PluginSettings = {
+            ...settings,
+            googleTasks: {
+              ...googleTasks,
+              credentials: { ...googleTasks.credentials, accessToken, expiryDate },
+            },
+          };
+          console.info("Updated Google Tasks token in memory.");
+          await saveSettings(updatedSettings);
+        },
+      );
+    } catch (error) {
+      if (error instanceof InvalidGrantError) {
+        console.warn(
+          "Google Tasks refresh token has been expired or revoked. Clearing credentials...",
+        );
+        const freshSettings = await loadSettings();
+        await saveSettings({ ...freshSettings, googleTasks: undefined });
+        new AuthorizationExpiredModal(app).open();
+        return;
+      }
+      throw error;
+    }
 
     // Read the Markdown file with retry for Obsidian startup timing
     const file = await getSyncFileWithRetry(vault, syncDocument, notify);

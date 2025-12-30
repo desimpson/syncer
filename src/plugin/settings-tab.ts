@@ -4,9 +4,10 @@ import type ObsidianSyncerPlugin from "@/plugin";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
 import type { PluginSettings, PluginConfig } from "@/plugin/types";
 import { createMarkdownFilePathSchema, headingSchema, syncIntervalSchema } from "./schemas";
-import { GoogleAuth } from "@/auth";
+import { GoogleAuth, InvalidGrantError } from "@/auth";
 import { GoogleTasksService } from "@/services";
 import type { GoogleTasksList } from "@/services/types";
+import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 
 /**
  * Settings tab for the Obsidian Syncer plugin.
@@ -254,7 +255,10 @@ export class SettingsTab extends PluginSettingTab {
       }
     };
 
-    const createListDropdown = (lists: readonly GoogleTasksList[]) => {
+    const createListDropdown = (
+      lists: readonly GoogleTasksList[],
+      currentSelection: readonly string[],
+    ) => {
       listContainer.empty(); // clear existing content
 
       if (lists.length === 0) {
@@ -275,7 +279,7 @@ export class SettingsTab extends PluginSettingTab {
       const toggleContainer = listContainer.createDiv("google-tasks-toggle-container");
 
       lists.forEach((list) => {
-        const isSelected = selectedListIds.includes(list.id);
+        const isSelected = currentSelection.includes(list.id);
 
         const button = toggleContainer.createEl("button", {
           text: list.title,
@@ -306,49 +310,98 @@ export class SettingsTab extends PluginSettingTab {
 
       // Show selection count below the buttons
       const countElement = listContainer.createEl("p", {
-        text: `${selectedListIds.length} of ${lists.length} lists selected`,
+        text: `${currentSelection.length} of ${lists.length} lists selected`,
         cls: "setting-item-description google-tasks-selection-count",
       });
     };
 
     // Initialise with cached lists first
-    createListDropdown(googleTasks.availableLists ?? []);
+    createListDropdown(googleTasks.availableLists ?? [], selectedListIds);
 
     // Then refresh lists from Google API
     try {
-      const lists = await GoogleTasksService.fetchGoogleTasksLists(
-        googleTasks.credentials?.accessToken ?? "",
-      );
+      // Ensure access token is valid before fetching lists
+      let accessToken: string;
+      try {
+        const { credentials: token } = googleTasks;
+        if (token.expiryDate < Date.now()) {
+          console.info("Google Tasks token has expired. Refreshing...");
+          const refreshed = await GoogleAuth.refreshAccessToken(
+            this.config.googleClientId,
+            token.refreshToken,
+          );
+
+          // Update settings with refreshed token
+          const freshSettings = await this.plugin.loadSettings();
+          if (freshSettings.googleTasks !== undefined) {
+            await this.plugin.updateSettings({
+              googleTasks: {
+                ...freshSettings.googleTasks,
+                credentials: {
+                  ...freshSettings.googleTasks.credentials,
+                  accessToken: refreshed.accessToken,
+                  expiryDate: refreshed.expiryDate,
+                },
+              },
+            });
+          }
+          accessToken = refreshed.accessToken;
+          console.info("Saved refreshed Google Tasks token.");
+        } else {
+          accessToken = token.accessToken;
+        }
+      } catch (error) {
+        if (error instanceof InvalidGrantError) {
+          console.warn(
+            "Google Tasks refresh token has been expired or revoked. Clearing credentials...",
+          );
+          const freshSettings = await this.plugin.loadSettings();
+          await this.plugin.updateSettings({ ...freshSettings, googleTasks: undefined });
+          new AuthorizationExpiredModal(this.app).open();
+          // Refresh the display to show the disconnected state
+          await this.display();
+          return;
+        }
+        throw error;
+      }
+
+      const lists = await GoogleTasksService.fetchGoogleTasksLists(accessToken);
 
       // Clean up selected list IDs - remove any that no longer exist
       const availableListIds = new Set(lists.map((list) => list.id));
       const cleanedSelectedIds = selectedListIds.filter((id) => availableListIds.has(id));
 
-      // If any selected lists were removed, update the settings
+      // Log if any selected lists were removed
       if (cleanedSelectedIds.length < selectedListIds.length) {
         const removedCount = selectedListIds.length - cleanedSelectedIds.length;
-        console.info(`Removed ${removedCount} deleted Google Task list(s) from selection.`);
+        console.info(`Removed [${removedCount}] deleted Google Task list(s) from selection.`);
+        console.info(
+          `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ")}].`,
+        );
+      }
 
+      // Load fresh settings to ensure we have the latest credentials (which may have been refreshed)
+      const freshSettingsForUpdate = await this.plugin.loadSettings();
+
+      // Update Google Tasks settings with fresh data
+      if (freshSettingsForUpdate.googleTasks !== undefined) {
         await this.plugin.updateSettings({
           googleTasks: {
-            ...googleTasks,
+            ...freshSettingsForUpdate.googleTasks,
             availableLists: lists,
             selectedListIds: cleanedSelectedIds,
           },
         });
 
-        // Update the local variable so the UI reflects the cleaned selection
-        selectedListIds = cleanedSelectedIds;
-        console.info(
-          `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ")}].`,
-        );
-      } else {
-        await this.plugin.updateSettings({
-          googleTasks: { ...googleTasks, availableLists: lists },
-        });
+        // Reload selection from updated settings to keep closure variable in sync
+        const updatedSettings = await this.plugin.loadSettings();
+        if (updatedSettings.googleTasks?.selectedListIds !== undefined) {
+          selectedListIds = [...updatedSettings.googleTasks.selectedListIds];
+        }
       }
 
-      createListDropdown(lists); // re-create with fresh data
+      // Re-create dropdown with fresh data and cleaned selection
+      createListDropdown(lists, cleanedSelectedIds);
       console.info(`Refreshed available Google Task lists: [${lists.length}] lists.`);
     } catch (error) {
       console.error(`Failed to refresh task lists. Error: [${formatLogError(error)}].`);

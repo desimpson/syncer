@@ -255,7 +255,10 @@ export class SettingsTab extends PluginSettingTab {
       }
     };
 
-    const createListDropdown = (lists: readonly GoogleTasksList[]) => {
+    const createListDropdown = (
+      lists: readonly GoogleTasksList[],
+      currentSelection: readonly string[],
+    ) => {
       listContainer.empty(); // clear existing content
 
       if (lists.length === 0) {
@@ -276,7 +279,7 @@ export class SettingsTab extends PluginSettingTab {
       const toggleContainer = listContainer.createDiv("google-tasks-toggle-container");
 
       lists.forEach((list) => {
-        const isSelected = selectedListIds.includes(list.id);
+        const isSelected = currentSelection.includes(list.id);
 
         const button = toggleContainer.createEl("button", {
           text: list.title,
@@ -307,13 +310,13 @@ export class SettingsTab extends PluginSettingTab {
 
       // Show selection count below the buttons
       const countElement = listContainer.createEl("p", {
-        text: `${selectedListIds.length} of ${lists.length} lists selected`,
+        text: `${currentSelection.length} of ${lists.length} lists selected`,
         cls: "setting-item-description google-tasks-selection-count",
       });
     };
 
     // Initialise with cached lists first
-    createListDropdown(googleTasks.availableLists ?? []);
+    createListDropdown(googleTasks.availableLists ?? [], selectedListIds);
 
     // Then refresh lists from Google API
     try {
@@ -368,31 +371,37 @@ export class SettingsTab extends PluginSettingTab {
       const availableListIds = new Set(lists.map((list) => list.id));
       const cleanedSelectedIds = selectedListIds.filter((id) => availableListIds.has(id));
 
-      // If any selected lists were removed, update the settings
+      // Log if any selected lists were removed
       if (cleanedSelectedIds.length < selectedListIds.length) {
         const removedCount = selectedListIds.length - cleanedSelectedIds.length;
-        console.info(`Removed ${removedCount} deleted Google Task list(s) from selection.`);
+        console.info(`Removed [${removedCount}] deleted Google Task list(s) from selection.`);
+        console.info(
+          `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ")}].`,
+        );
+      }
 
+      // Load fresh settings to ensure we have the latest credentials (which may have been refreshed)
+      const freshSettingsForUpdate = await this.plugin.loadSettings();
+
+      // Update Google Tasks settings with fresh data
+      if (freshSettingsForUpdate.googleTasks !== undefined) {
         await this.plugin.updateSettings({
           googleTasks: {
-            ...googleTasks,
+            ...freshSettingsForUpdate.googleTasks,
             availableLists: lists,
             selectedListIds: cleanedSelectedIds,
           },
         });
 
-        // Update the local variable so the UI reflects the cleaned selection
-        selectedListIds = cleanedSelectedIds;
-        console.info(
-          `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ")}].`,
-        );
-      } else {
-        await this.plugin.updateSettings({
-          googleTasks: { ...googleTasks, availableLists: lists },
-        });
+        // Reload selection from updated settings to keep closure variable in sync
+        const updatedSettings = await this.plugin.loadSettings();
+        if (updatedSettings.googleTasks?.selectedListIds !== undefined) {
+          selectedListIds = [...updatedSettings.googleTasks.selectedListIds];
+        }
       }
 
-      createListDropdown(lists); // re-create with fresh data
+      // Re-create dropdown with fresh data and cleaned selection
+      createListDropdown(lists, cleanedSelectedIds);
       console.info(`Refreshed available Google Task lists: [${lists.length}] lists.`);
     } catch (error) {
       console.error(`Failed to refresh task lists. Error: [${formatLogError(error)}].`);

@@ -680,7 +680,14 @@ describe("createGoogleTasksJob", () => {
       capturedActions.push(...actions);
     });
 
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, vi.fn());
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
 
     // Act
     await job.task();
@@ -723,7 +730,14 @@ describe("createGoogleTasksJob", () => {
     vi.mocked(generateSyncActions).mockReturnValue([]);
     vi.mocked(writeSyncActions).mockResolvedValue();
 
-    const job = createGoogleTasksJob(loadSettings, saveSettings, baseConfig, vault, vi.fn());
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
 
     // Act
     await job.task();

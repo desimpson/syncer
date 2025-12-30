@@ -5,11 +5,12 @@ import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } fr
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { writeSyncActions } from "@/sync/writer";
 import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin/types";
-import type { App, TFile, Vault } from "obsidian";
+import type { TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/types";
 import { GoogleAuth, InvalidGrantError } from "@/auth";
 import { fetchGoogleTasks, updateGoogleTaskStatus } from "@/services/google-tasks";
 import type { SyncItem } from "@/sync/types";
+import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
 
@@ -391,8 +392,7 @@ export const createGoogleTasksJob: SyncJobCreator = (
   config,
   vault,
   notify,
-  // App type is inferred from SyncJobCreator, but we need it in scope for the parameter
-  app: App,
+  app,
 ) => ({
   name: "google-tasks",
   task: async () => {

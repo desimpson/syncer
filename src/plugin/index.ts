@@ -31,6 +31,7 @@ export default class ObsidianSyncerPlugin extends Plugin {
         this.config,
         this.app.vault,
         (message) => new Notice(message),
+        this.app,
       ),
     ];
     console.info(`Initialised [${jobs.length}] sync jobs.`);

@@ -1,5 +1,5 @@
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
-import type { Vault } from "obsidian";
+import type { App, Vault } from "obsidian";
 
 /**
  * Generic sync job for any integration.
@@ -25,6 +25,7 @@ export type Notifier = (message: string) => void;
  * @param config - Integration-independent configuration
  * @param vault - Minimal interface to interact with the Obsidian vault
  * @param notify - Callback to surface user-facing messages
+ * @param app - The Obsidian app instance for UI operations (e.g., modals)
  * @returns A `SyncJob` that the scheduler can run
  */
 export type SyncJobCreator = (
@@ -33,4 +34,5 @@ export type SyncJobCreator = (
   pluginConfig: PluginConfig,
   vault: Vault,
   notify: Notifier,
+  app: App,
 ) => SyncJob;

@@ -292,8 +292,6 @@ const updateIncomingItemsWithCompletionChanges = (
   return [...updatedIncoming, ...uncompletedTasks];
 };
 
-// shouldPreserveCompletedDeletes is now imported from @/sync/actions
-
 const syncTasksToFile = async (
   file: TFile,
   tasks: readonly GoogleTask[],

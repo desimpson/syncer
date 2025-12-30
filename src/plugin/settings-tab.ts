@@ -367,21 +367,36 @@ export class SettingsTab extends PluginSettingTab {
 
       const lists = await GoogleTasksService.fetchGoogleTasksLists(accessToken);
 
+      // Load fresh settings to check if available lists have changed
+      const freshSettingsForUpdate = await this.plugin.loadSettings();
+
+      // Log available lists changes
+      const storedListIds = new Set(
+        freshSettingsForUpdate.googleTasks?.availableLists?.map((list) => list.id) ?? [],
+      );
+      const fetchedListIds = new Set(lists.map((list) => list.id));
+      const added = lists.filter((list) => !storedListIds.has(list.id));
+      const removed = (freshSettingsForUpdate.googleTasks?.availableLists ?? []).filter(
+        (list) => !fetchedListIds.has(list.id),
+      );
+
+      console.info(
+        `Added [${added.length}] new Google Task list(s): [${added.map((list) => list.title).join(", ") || "none"}].`,
+      );
+      console.info(
+        `Removed [${removed.length}] Google Task list(s): [${removed.map((list) => list.title).join(", ") || "none"}].`,
+      );
+
       // Clean up selected list IDs - remove any that no longer exist
       const availableListIds = new Set(lists.map((list) => list.id));
       const cleanedSelectedIds = selectedListIds.filter((id) => availableListIds.has(id));
 
-      // Log if any selected lists were removed
-      if (cleanedSelectedIds.length < selectedListIds.length) {
-        const removedCount = selectedListIds.length - cleanedSelectedIds.length;
-        console.info(`Removed [${removedCount}] deleted Google Task list(s) from selection.`);
-        console.info(
-          `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ")}].`,
-        );
-      }
-
-      // Load fresh settings to ensure we have the latest credentials (which may have been refreshed)
-      const freshSettingsForUpdate = await this.plugin.loadSettings();
+      // Log selected lists cleanup
+      const removedCount = selectedListIds.length - cleanedSelectedIds.length;
+      console.info(`Removed [${removedCount}] deleted Google Task list(s) from selection.`);
+      console.info(
+        `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ") || "none"}].`,
+      );
 
       // Update Google Tasks settings with fresh data
       if (freshSettingsForUpdate.googleTasks !== undefined) {

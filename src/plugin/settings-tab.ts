@@ -114,7 +114,7 @@ export class SettingsTab extends PluginSettingTab {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
       "Sync Heading",
-      "The H2 heading under which new Google Tasks will be inserted. Text will be converted to H2 format.",
+      "The H2 heading under which new synced items will be inserted. Text will be converted to H2 format.",
       settings.syncHeading,
       "e.g., ## Inbox, ## Tasks, or ## To-Do",
     );
@@ -158,6 +158,55 @@ export class SettingsTab extends PluginSettingTab {
       });
   }
 
+  private addDeleteSyncSettings(containerElement: HTMLElement, settings: PluginSettings): void {
+    new Setting(containerElement)
+      .setName("Sync task deletions")
+      .setDesc(
+        "When enabled, deleting a Google Tasks task in Obsidian will also delete it from Google Tasks.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(settings.enableDeleteSync).onChange(async (value) => {
+          await this.plugin.updateSettings({ enableDeleteSync: value });
+          console.info(`Delete sync enabled set to [${value}].`);
+          // Refresh the display to show/hide the confirm setting
+          await this.display();
+        });
+      });
+
+    if (settings.enableDeleteSync) {
+      new Setting(containerElement)
+        .setName("Confirm task deletions")
+        .setDesc(
+          "When enabled, you will be prompted to confirm before deleting tasks from Google Tasks.",
+        )
+        .addToggle((toggle) => {
+          toggle.setValue(settings.confirmDeleteSync).onChange(async (value) => {
+            await this.plugin.updateSettings({ confirmDeleteSync: value });
+            console.info(`Confirm delete sync set to [${value}].`);
+          });
+        });
+    }
+
+    if (settings.manuallyDeletedTaskIds.length > 0) {
+      new Setting(containerElement)
+        .setName("Clear manually deleted tasks cache")
+        .setDesc(
+          `Clear the cache of ${settings.manuallyDeletedTaskIds.length} manually deleted task(s). This will allow these tasks to be re-synced from Google Tasks on the next sync.`,
+        )
+        .addButton((button) =>
+          button
+            .setButtonText("Clear Cache")
+            .setWarning()
+            .onClick(async () => {
+              await this.plugin.updateSettings({ manuallyDeletedTaskIds: [] });
+              new Notice("Manually deleted tasks cache cleared.");
+              console.info("Cleared manually deleted tasks cache");
+              await this.display();
+            }),
+        );
+    }
+  }
+
   private async addGoogleTasksSettings(containerElement: HTMLElement) {
     containerElement.createEl("h4", { text: "Google Tasks" });
     const setting = new Setting(containerElement);
@@ -189,6 +238,7 @@ export class SettingsTab extends PluginSettingTab {
 
     // Add completion status sync setting
     this.addSyncCompletionStatusSetting(containerElement, settings);
+    this.addDeleteSyncSettings(containerElement, settings);
 
     await this.addGoogleTasksListSelector(containerElement);
   }

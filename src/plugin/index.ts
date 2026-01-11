@@ -125,6 +125,11 @@ export default class ObsidianSyncerPlugin extends Plugin {
     const current = await this.loadSettings();
     const updated = { ...current, ...partial };
     await this.saveSettings(updated);
+
+    // If syncDocument changed, re-initialize the cache for the new file
+    if (partial.syncDocument !== undefined && partial.syncDocument !== current.syncDocument) {
+      await this.initialiseFileContentCache();
+    }
   };
 
   /**

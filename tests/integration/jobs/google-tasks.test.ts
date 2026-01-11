@@ -642,4 +642,111 @@ describe("createGoogleTasksJob", () => {
     );
     expect(uncompletedTaskDeleteAction).toBeUndefined();
   });
+
+  it("filters out manually deleted tasks from sync", async () => {
+    // Arrange
+    const settings = {
+      googleTasks: {
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["A"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      manuallyDeletedTaskIds: ["A-1"],
+    };
+
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
+      { id: "A-1", title: "Deleted Task", webViewLink: "https://x1" } as GoogleTask,
+      { id: "A-2", title: "Normal Task", webViewLink: "https://x2" } as GoogleTask,
+    ]);
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
+    const capturedActions: SyncAction[] = [];
+    vi.mocked(generateSyncActions).mockImplementation((incoming) => {
+      return incoming.map((item) => ({ operation: "create" as const, item }));
+    });
+    vi.mocked(writeSyncActions).mockImplementation(async (_file, actions) => {
+      capturedActions.push(...actions);
+    });
+
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert: Manually deleted task should be filtered out
+    const incomingTaskIds = capturedActions.map((action) => action.item.id);
+    expect(incomingTaskIds).not.toContain("A-1");
+    expect(incomingTaskIds).toContain("A-2");
+  });
+
+  it("auto-cleans up manually deleted task IDs that no longer exist in Google Tasks", async () => {
+    // Arrange
+    const settings = {
+      googleTasks: {
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["A"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      manuallyDeletedTaskIds: ["A-1", "A-2"], // A-1 exists, A-2 doesn't
+    };
+
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
+      { id: "A-1", title: "Task", webViewLink: "https://x1" } as GoogleTask,
+      // A-2 is not in the list (deleted from Google Tasks)
+    ]);
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
+    vi.mocked(generateSyncActions).mockReturnValue([]);
+    vi.mocked(writeSyncActions).mockResolvedValue();
+
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert: A-2 should be removed from manuallyDeletedTaskIds
+    expect(saveSettings).toHaveBeenCalled();
+    const savedSettings = saveSettings.mock.calls.find(
+      (call) => call[0]?.manuallyDeletedTaskIds !== undefined,
+    )?.[0];
+    expect(savedSettings?.manuallyDeletedTaskIds).toEqual(["A-1"]);
+  });
 });

@@ -116,8 +116,34 @@ export const updateGoogleTaskStatus = async (
   }
 };
 
+/**
+ * Deletes a Google Task.
+ *
+ * @param accessToken - A valid OAuth 2.0 access token for the Google Tasks API
+ * @param listId - The ID of the task list containing the task
+ * @param taskId - The ID of the task to delete
+ * @throws When the HTTP request fails
+ */
+export const deleteGoogleTask = async (
+  accessToken: string,
+  listId: string,
+  taskId: string,
+): Promise<void> => {
+  const deleteResponse = await fetch(`${tasksBaseUrl}/lists/${listId}/tasks/${taskId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!deleteResponse.ok) {
+    throw new Error(`Failed to delete task ${taskId} for list ${listId}: ${deleteResponse.status}`);
+  }
+};
+
 export const GoogleTasksService = {
   createGoogleTasksFetcher,
   fetchGoogleTasksLists,
   updateGoogleTaskStatus,
+  deleteGoogleTask,
 };

@@ -45,6 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     # Only build dev artifacts for non-main branches
     if: github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: development
     env:
       GOOGLE_CLIENT_ID_DEV: ${{ secrets.GOOGLE_CLIENT_ID_DEV }}
 
@@ -78,6 +80,8 @@ jobs:
     runs-on: ubuntu-latest
     # Only build production artifacts on main branch
     if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
     env:
       GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
 

@@ -26,10 +26,18 @@
     "test:unit:watch": "vitest --config vitest.unit.config.ts --watch",
     "test:integration:watch": "vitest --config vitest.integration.config.ts --watch",
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "version": "node version-bump.mjs && git add manifest.json versions.json"
+    "version": "node scripts/version-bump.mjs && git add manifest.json versions.json",
+    "release:check": "node scripts/release.mjs"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "sync",
+    "google-tasks",
+    "gtd",
+    "productivity"
+  ],
+  "author": "Daniel Simpson",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^24.3.3",

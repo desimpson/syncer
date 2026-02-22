@@ -7,6 +7,13 @@ on:
   pull_request:
     branches:
       - "**" # All branches
+  workflow_dispatch:
+    inputs:
+      test_prod_build:
+        description: "Test production build (ignores branch condition)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -78,8 +85,8 @@ jobs:
   build-prod:
     name: Build (Production)
     runs-on: ubuntu-latest
-    # Only build production artifacts on main branch
-    if: github.ref == 'refs/heads/main'
+    # Only build production artifacts on main branch, or when manually triggered with test_prod_build
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_prod_build == 'true')
     environment:
       name: production
     env:

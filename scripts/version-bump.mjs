@@ -5,7 +5,9 @@ import path from "node:path";
 
 const targetVersion = process.env.npm_package_version;
 // read minAppVersion from manifest.json and bump version to target version
-const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDirectory = path.join(__dirname, "..");
 const manifestPath = path.join(rootDirectory, "manifest.json");
 let manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const { minAppVersion } = manifest;

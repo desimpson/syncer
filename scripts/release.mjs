@@ -122,7 +122,6 @@ if (allFilesExist) {
   console.log("   npm run build:prod");
   console.log("=".repeat(50));
 
-  // Use globalThis.process to avoid 'process is not defined' errors in some ESM environments
   // Use globalThis.process for ESM compatibility and to avoid 'process is not defined' errors
-  globalThis.process?.exit(allFilesExist ? 0 : 1);
+  globalThis.process?.exit(1);
 }

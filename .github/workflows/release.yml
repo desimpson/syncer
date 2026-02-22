@@ -4,18 +4,6 @@ on:
   push:
     tags:
       - "v*" # Triggers on version tags like v1.0.0
-  workflow_dispatch:
-    inputs:
-      test_tag:
-        description: "Test tag name (e.g., v0.0.0-test)"
-        required: false
-        type: string
-        default: "v0.0.0-test"
-      create_draft:
-        description: "Create as draft release (safe for testing)"
-        required: false
-        type: boolean
-        default: true
 
 jobs:
   release:
@@ -61,11 +49,7 @@ jobs:
       - name: 📝 Extract version from tag
         id: get_version
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            TAG_NAME="${{ github.event.inputs.test_tag }}"
-          else
-            TAG_NAME=${GITHUB_REF#refs/tags/}
-          fi
+          TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -81,5 +65,5 @@ jobs:
           name: Release ${{ steps.get_version.outputs.version }}
           tag_name: ${{ steps.get_version.outputs.tag }}
           generate_release_notes: true
-          draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.create_draft == 'true' }}
+          draft: false
           prerelease: false

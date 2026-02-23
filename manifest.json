@@ -1,7 +1,7 @@
 {
   "id": "obsidian-syncer",
   "name": "Obsidian Syncer",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "minAppVersion": "0.15.0",
   "description": "Sync external data sources to your vault.",
   "author": "Daniel Simpson",

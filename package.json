@@ -1,6 +1,6 @@
 {
   "name": "obsidian-syncer",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Sync external data sources to your vault.",
   "main": "main.js",
   "type": "module",

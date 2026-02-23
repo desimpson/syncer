@@ -2,15 +2,16 @@ name: CI
 
 on:
   push:
+    branches:
+      - "**" # All branches
   pull_request:
+    branches:
+      - "**" # All branches
 
 jobs:
-  build:
-    name: Build & Test
+  test:
+    name: Test & Lint
     runs-on: ubuntu-latest
-    env:
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-
     steps:
       - name: ⬇️ Checkout repository
         uses: actions/checkout@v4
@@ -39,13 +40,73 @@ jobs:
       - name: 🔗 Run integration tests (Vitest)
         run: npm run test:integration
 
-      - name: 🔧 Build plugin (esbuild)
+  build-dev:
+    name: Build (Development)
+    runs-on: ubuntu-latest
+    needs: [test]
+    # Only build dev artifacts for non-main branches
+    if: github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: development
+    env:
+      GOOGLE_CLIENT_ID_DEV: ${{ secrets.GOOGLE_CLIENT_ID_DEV }}
+
+    steps:
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔧 Build plugin (development)
+        run: npm run build:dev
+
+      - name: 📁 Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: obsidian-syncer-dev
+          path: |
+            main.js
+            manifest.json
+            styles.css
+
+  build-prod:
+    name: Build (Production)
+    runs-on: ubuntu-latest
+    needs: [test]
+    # Only build production artifacts on main branch
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+    env:
+      GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
+
+    steps:
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔧 Build plugin (production)
         run: npm run build:prod
 
       - name: 📁 Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
-          name: obsidian-syncer
+          name: obsidian-syncer-prod
           path: |
             main.js
             manifest.json

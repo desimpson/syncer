@@ -47,39 +47,60 @@ const environmentSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
 });
 
-const parsedEnvironment = (() => {
-  const result = environmentSchema.safeParse(process.env);
-  if (result.success) {
-    return result.data;
-  }
-  const issues = result.error.issues
-    .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-    .join("; ");
-  throw new Error(`Invalid build environment: ${issues}`);
-})();
+/**
+ * Validates and returns the Google Client ID for the current build mode.
+ * Production builds require GOOGLE_CLIENT_ID_PROD.
+ * Development builds require GOOGLE_CLIENT_ID_DEV.
+ */
+const getValidatedClientId = (mode) => {
+  const environmentVariableName =
+    mode === "production" ? "GOOGLE_CLIENT_ID_PROD" : "GOOGLE_CLIENT_ID_DEV";
+  const clientId = process.env[environmentVariableName];
 
-// Build-time environment variables injected into the bundle
-const buildEnvironment = {
-  GOOGLE_CLIENT_ID: parsedEnvironment.GOOGLE_CLIENT_ID,
+  if (!clientId || clientId.trim() === "") {
+    throw new Error(
+      `Google Client ID is required. Set ${environmentVariableName} environment variable.`,
+    );
+  }
+
+  const result = environmentSchema.safeParse({ GOOGLE_CLIENT_ID: clientId });
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`Invalid Google Client ID: ${issues}`);
+  }
+
+  return result.data.GOOGLE_CLIENT_ID;
 };
 
-const productionOptions = {
+/**
+ * Creates production build options with the validated client ID.
+ */
+const createProductionOptions = (clientId) => ({
   ...baseOptions,
   sourcemap: false,
   minify: true,
   define: {
-    "process.env": JSON.stringify(buildEnvironment),
+    "process.env": JSON.stringify({
+      GOOGLE_CLIENT_ID: clientId,
+    }),
   },
-};
+});
 
-const developmentOptions = {
+/**
+ * Creates development build options with the validated client ID.
+ */
+const createDevelopmentOptions = (clientId) => ({
   ...baseOptions,
   sourcemap: "inline",
   minify: false,
   define: {
-    "process.env": JSON.stringify(buildEnvironment),
+    "process.env": JSON.stringify({
+      GOOGLE_CLIENT_ID: clientId,
+    }),
   },
-};
+});
 
 /**
  * Builds the plugin using esbuild with the provided options.
@@ -134,17 +155,25 @@ const run = async () => {
   const mode = getMode();
   console.info(`🚀 Starting build script in mode: ${mode}`);
 
+  // Get and validate the appropriate client ID for this build mode
+  const clientId = getValidatedClientId(mode);
+  const clientIdType = mode === "production" ? "PROD" : "DEV";
+  console.info(`🔑 Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
+
   switch (mode) {
     case "production": {
-      await build(productionOptions);
+      const options = createProductionOptions(clientId);
+      await build(options);
       break;
     }
     case "development": {
-      await build(developmentOptions);
+      const options = createDevelopmentOptions(clientId);
+      await build(options);
       break;
     }
     default: {
-      await watch(developmentOptions);
+      const options = createDevelopmentOptions(clientId);
+      await watch(options);
     }
   }
 };

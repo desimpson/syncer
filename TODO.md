@@ -23,3 +23,6 @@
 - [ ] Check behaviour when Markdown file isn't a Kanban plugin Markdown file; fix if broken
 - [ ] Test more complete/uncomplete Obsidian/Google scenarios (e.g., what should happen when an incomplete task in Obsidian is uncompleted in Google)
 - [ ] Look into whether realtime bidirectional Obsidan-Tasks syncing is possible
+- [ ] Fix metadata bug which makes HTML comment visible in Kanban plugin view if Tasks URL includes HTML comment "--" characters (escape them?)
+- [ ] Fix issue when deselecting lists triggers Tasks deletion sync prompt (should just remove them from Obsidian but not Google)
+- [ ] Replace removed info console logging with dev-only file logging?

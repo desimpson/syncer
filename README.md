@@ -1,10 +1,10 @@
-# Obsidian Syncer
+# Syncer
 
-Sync external data sources into your Obsidian vault.
+Obsidian plugin to sync external sources like Google Tasks to your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. The first supported source is Google Tasks, with more integrations planned. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), it's equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. The first supported source is Google Tasks, with more integrations planned. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
-[![Screenshot of Obsidian Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
+[![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
 ## Features
 
@@ -16,7 +16,7 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - OAuth 2.0 (Authorization Code with PKCE)
   - Select which task lists to sync
   - Only incomplete Google Tasks are synced into Obsidian; when you complete a task in Google it drops out of the incoming feed and the corresponding line is removed from the items under the target heading in the Obsidian note on the next sync
-  - Bidirectional completion status sync for active tasks: checking/unchecking tasks in Obsidian syncs completion status back to Google Tasks
+  - Basic bidirectional completion status sync for active tasks: checking/unchecking tasks in Obsidian syncs completion status back to Google Tasks
 
 ## Requirements
 
@@ -30,15 +30,15 @@ This plugin fetches data from external sources and syncs them to a target Markdo
 Manual install into a vault:
 
 1. Build the plugin (see [Development](##-development) below)
-1. Copy these files to your vault: `Vault/.obsidian/plugins/obsidian-syncer/`
+1. Copy these files to your vault: `Vault/.obsidian/plugins/syncer/`
    - `manifest.json`
    - `main.js`
    - `styles.css`
-1. Enable “Obsidian Syncer” in Obsidian → Settings → Community plugins
+1. Enable “Syncer” in Obsidian → Settings → Community plugins
 
 ## Configuration
 
-Open Obsidian settings and navigate to **Community plugins** → **Obsidian Syncer**.
+Open Obsidian settings and navigate to **Community plugins** → **Syncer**.
 
 GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md` as the target file and `## Inbox` as the heading. You can keep these for a classic capture inbox, or change them to suit your workflow.
 

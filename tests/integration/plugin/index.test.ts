@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import ObsidianSyncerPlugin from "@/plugin";
+import SyncerPlugin from "@/plugin";
 import type { App, PluginManifest, TFile, Vault } from "obsidian";
 
 // Minimal stubs for constructor args
 const mockApp = {} as unknown as App;
 const mockManifest = {
-  id: "obsidian-syncer",
-  name: "Obsidian Syncer",
+  id: "syncer",
+  name: "Syncer",
   version: "0.0.0",
 } as unknown as PluginManifest;
 
@@ -18,7 +18,7 @@ describe("Plugin settings method binding", () => {
 
   it("allows calling load/save/update after destructuring (bound methods)", async () => {
     // Arrange
-    const plugin = new ObsidianSyncerPlugin(mockApp, mockManifest);
+    const plugin = new SyncerPlugin(mockApp, mockManifest);
     const { loadSettings, saveSettings, updateSettings } = plugin; // destructuring used to lose `this`
 
     // Act
@@ -94,7 +94,7 @@ describe("Plugin file content cache initialization", () => {
 
     // Track settings to simulate persistence
     let savedSettings: Record<string, unknown> = {};
-    const plugin = new ObsidianSyncerPlugin(mockAppWithVault, mockManifest);
+    const plugin = new SyncerPlugin(mockAppWithVault, mockManifest);
 
     // Override loadData and saveData to simulate settings persistence
     plugin.loadData = vi.fn().mockImplementation(async () => savedSettings);

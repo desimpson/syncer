@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Release helper script for Obsidian Syncer plugin.
+ * Release helper script for Syncer Obsidian plugin.
  *
  * This script helps prepare a release by:
  * 1. Verifying all required files exist
@@ -124,7 +124,7 @@ const printSuccessMessage = (manifest) => {
   console.log("✅ All release checks passed!");
   console.log("\n📝 Next steps:");
   console.log("  1. Create a GitHub release:");
-  console.log("     - Go to: https://github.com/YOUR_USERNAME/obsidian-syncer/releases/new");
+  console.log("     - Go to: https://github.com/YOUR_USERNAME/syncer/releases/new");
   console.log("     - Tag: v" + (manifest?.version || "X.X.X"));
   console.log("     - Title: v" + (manifest?.version || "X.X.X"));
   console.log("     - Attach files: main.js, manifest.json, styles.css");

@@ -11,7 +11,7 @@ const jsonCommentRegex = /<!--\s*({[\s\S]*?})\s*-->/;
 // Obsidian Kanban plugin settings block delimiter (start line)
 const kanbanSettingsStartRegex = /^\s*%%\s*kanban:settings\s*$/;
 // Fixed in-file anchor marker; if present, target first heading AFTER this
-const anchorMarker = "<!-- obsidian-syncer:anchor -->";
+const anchorMarker = "<!-- syncer:anchor -->";
 
 /** Blank line detection. */
 const isBlank = (text: string) => text.trim() === "";

@@ -2,7 +2,7 @@ import type { GoogleTasksList } from "@/services/types";
 import type { GoogleAccessToken, GoogleUserInfo } from "@/auth/types";
 
 /**
- * Obsidian Syncer plugin settings.
+ * Syncer plugin settings.
  */
 export type PluginSettings = {
   googleTasks?: GoogleTasksSettings | undefined;
@@ -16,7 +16,7 @@ export type PluginSettings = {
 };
 
 /**
- * Obsidian Syncer plugin configuration.
+ * Syncer plugin configuration.
  */
 export type PluginConfig = {
   googleClientId: string;

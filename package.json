@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-syncer",
+  "name": "syncer",
   "version": "0.1.0",
-  "description": "Sync external data sources to your vault.",
+  "description": "Sync external sources like Google Tasks to your vault. More integrations to come.",
   "main": "main.js",
   "type": "module",
   "scripts": {

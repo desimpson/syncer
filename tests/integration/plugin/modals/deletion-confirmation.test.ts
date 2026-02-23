@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import ObsidianSyncerPlugin from "@/plugin";
+import SyncerPlugin from "@/plugin";
 import type { App, PluginManifest, TFile, TAbstractFile } from "obsidian";
 import type { GoogleTask } from "@/services/types";
 
@@ -106,7 +106,7 @@ describe("Task deletion confirmation", () => {
   };
   let modifyCallbacks: ((file: TAbstractFile) => void | Promise<void>)[];
   let mockFile: TFile;
-  let plugin: ObsidianSyncerPlugin;
+  let plugin: SyncerPlugin;
 
   const syncDocument = "test-tasks.md";
   const syncHeading = "## Google Tasks";
@@ -184,11 +184,11 @@ describe("Task deletion confirmation", () => {
   ) => {
     // Ensure manifest is properly set
     const manifest = {
-      id: "obsidian-syncer",
-      name: "Obsidian Syncer",
+      id: "syncer",
+      name: "Syncer",
       version: "0.0.0",
     } as PluginManifest;
-    plugin = new ObsidianSyncerPlugin(mockApp, manifest);
+    plugin = new SyncerPlugin(mockApp, manifest);
 
     // Mock loadSettings to return our test settings
     vi.spyOn(plugin, "loadSettings").mockResolvedValue({

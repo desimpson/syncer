@@ -9,9 +9,9 @@ import { deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
 
 /**
- * Obsidian Syncer plugin.
+ * Syncer plugin.
  */
-export default class ObsidianSyncerPlugin extends Plugin {
+export default class SyncerPlugin extends Plugin {
   private scheduler: Scheduler | undefined;
   private config: PluginConfig;
   private previousFileContent = new Map<string, string>();
@@ -53,7 +53,7 @@ export default class ObsidianSyncerPlugin extends Plugin {
       callback: async () => {
         if (this.scheduler === undefined) {
           throw new Error(
-            "The Obsidian Syncer plugin scheduler is not initialised. Please report this issue.",
+            "The Syncer plugin scheduler is not initialised. Please report this issue.",
           );
         }
 

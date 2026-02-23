@@ -1,6 +1,6 @@
 import { Notice, PluginSettingTab, Setting, TextComponent, type App } from "obsidian";
 import { FileSuggest } from "@/plugin/suggesters/file-suggest";
-import type ObsidianSyncerPlugin from "@/plugin";
+import type SyncerPlugin from "@/plugin";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
 import type { PluginSettings, PluginConfig } from "@/plugin/types";
 import { createMarkdownFilePathSchema, headingSchema, syncIntervalSchema } from "./schemas";
@@ -10,7 +10,7 @@ import type { GoogleTasksList } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 
 /**
- * Settings tab for the Obsidian Syncer plugin.
+ * Settings tab for the Syncer plugin.
  */
 export class SettingsTab extends PluginSettingTab {
   /**
@@ -22,7 +22,7 @@ export class SettingsTab extends PluginSettingTab {
    */
   public constructor(
     app: App,
-    public plugin: ObsidianSyncerPlugin,
+    public plugin: SyncerPlugin,
     private config: PluginConfig,
   ) {
     super(app, plugin);
@@ -37,7 +37,7 @@ export class SettingsTab extends PluginSettingTab {
 
     const settings = await this.plugin.loadSettings();
 
-    containerEl.createEl("h1", { text: "Obsidian Syncer Settings" });
+    containerEl.createEl("h1", { text: "Syncer Settings" });
 
     await this.renderGeneralSettings(containerEl, settings);
     await this.renderExternalSourceSettings(containerEl);

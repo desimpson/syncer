@@ -18,6 +18,7 @@ export type TFile = {
 export type Vault = {
   getFileByPath: (path: string) => TFile | null | undefined;
   cachedRead?: (file: TFile) => Promise<string>;
+  process?: (file: TFile, processor: (content: string) => string) => Promise<string>;
   modify?: (file: TFile, data: string) => Promise<void>;
 };
 
@@ -85,6 +86,9 @@ export class Setting {
     return this;
   }
   public setDesc(_desc: string): this {
+    return this;
+  }
+  public setHeading(): this {
     return this;
   }
   public addButton(_callback: (_button: unknown) => unknown): this {

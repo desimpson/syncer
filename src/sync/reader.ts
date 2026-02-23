@@ -12,13 +12,11 @@ const isValidMarkdownTask = (line: string): boolean => markdownTaskRegex.test(li
 
 const parseLine = (line: string): ParsedLine | undefined => {
   if (!isValidMarkdownTask(line)) {
-    console.debug(`Skipping non-task line: [${line}].`);
     return undefined;
   }
 
   const match = line.match(metadataRegex);
   if (match === null || match[1] === undefined) {
-    console.debug(`No metadata found in task line: [${line}].`);
     return undefined;
   }
 

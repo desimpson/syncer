@@ -19,17 +19,14 @@ const makeItem = (
 
 describe("writeSyncActions", () => {
   let mockFile: TFile;
-  let readMock: Mock;
-  let modifyMock: Mock;
+  let processMock: Mock;
 
   beforeEach(() => {
-    readMock = vi.fn();
-    modifyMock = vi.fn();
+    processMock = vi.fn();
     mockFile = {
       name: "Test.md",
       vault: {
-        read: readMock,
-        modify: modifyMock,
+        process: processMock,
       },
     } as unknown as TFile;
   });
@@ -113,13 +110,18 @@ describe("writeSyncActions", () => {
   testCases.forEach(({ desc, initialLines, actions, expectedLines }) => {
     it(desc, async () => {
       // Arrange
-      readMock.mockResolvedValue(initialLines.join("\n"));
+      processMock.mockImplementation(async (_file, processor) => {
+        return processor(initialLines.join("\n"));
+      });
 
       // Act
       await writeSyncActions(mockFile, actions, "## Heading");
 
       // Assert
-      expect(modifyMock).toHaveBeenCalledWith(mockFile, expectedLines.join("\n"));
+      expect(processMock).toHaveBeenCalledWith(mockFile, expect.any(Function));
+      const processor = processMock.mock.calls[0]?.[1] as (content: string) => string;
+      const result = processor(initialLines.join("\n"));
+      expect(result).toBe(expectedLines.join("\n"));
     });
   });
 
@@ -137,29 +139,32 @@ describe("writeSyncActions", () => {
       "```",
       "%%",
     ];
-    readMock.mockResolvedValue(initialLines.join("\n"));
+    const expectedLines = [
+      "# Notes",
+      "## Heading",
+      `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
+      "",
+      "",
+      "",
+      "%% kanban:settings",
+      "```",
+      '{"kanban-plugin":"board","list-collapse":[false]}',
+      "```",
+      "%%",
+    ];
+    processMock.mockImplementation(async (_file, processor) => {
+      return processor(initialLines.join("\n"));
+    });
     const actions: SyncAction[] = [{ operation: "create", item: makeItem("1", "google-tasks") }];
 
     // Act
     await writeSyncActions(mockFile, actions, "## Heading");
 
     // Assert
-    expect(modifyMock).toHaveBeenCalledWith(
-      mockFile,
-      [
-        "# Notes",
-        "## Heading",
-        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
-        "",
-        "",
-        "",
-        "%% kanban:settings",
-        "```",
-        '{"kanban-plugin":"board","list-collapse":[false]}',
-        "```",
-        "%%",
-      ].join("\n"),
-    );
+    expect(processMock).toHaveBeenCalledWith(mockFile, expect.any(Function));
+    const processor = processMock.mock.calls[0]?.[1] as (content: string) => string;
+    const result = processor(initialLines.join("\n"));
+    expect(result).toBe(expectedLines.join("\n"));
   });
 
   it("inserts missing heading and tasks before global Kanban block at end", async () => {
@@ -174,27 +179,30 @@ describe("writeSyncActions", () => {
       "```",
       "%%",
     ];
-    readMock.mockResolvedValue(initialLines.join("\n"));
+    const expectedLines = [
+      "# Notes",
+      "## Heading",
+      `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
+      "",
+      "",
+      "%% kanban:settings",
+      "```",
+      '{"kanban-plugin":"board","list-collapse":[false]}',
+      "```",
+      "%%",
+    ];
+    processMock.mockImplementation(async (_file, processor) => {
+      return processor(initialLines.join("\n"));
+    });
     const actions: SyncAction[] = [{ operation: "create", item: makeItem("1", "google-tasks") }];
 
     // Act
     await writeSyncActions(mockFile, actions, "## Heading");
 
     // Assert
-    expect(modifyMock).toHaveBeenCalledWith(
-      mockFile,
-      [
-        "# Notes",
-        "## Heading",
-        `- [ ] [Task](https://example.com/1) <!-- {"id":"1","source":"google-tasks","title":"Task","link":"https://example.com/1","heading":"## Heading"} -->`,
-        "",
-        "",
-        "%% kanban:settings",
-        "```",
-        '{"kanban-plugin":"board","list-collapse":[false]}',
-        "```",
-        "%%",
-      ].join("\n"),
-    );
+    expect(processMock).toHaveBeenCalledWith(mockFile, expect.any(Function));
+    const processor = processMock.mock.calls[0]?.[1] as (content: string) => string;
+    const result = processor(initialLines.join("\n"));
+    expect(result).toBe(expectedLines.join("\n"));
   });
 });

@@ -1,4 +1,4 @@
-import { type App, Modal } from "obsidian";
+import { type App, Modal, Setting } from "obsidian";
 
 /**
  * A confirmation modal for deleting a Google Task.
@@ -21,17 +21,14 @@ export class DeleteTaskConfirmationModal extends Modal {
     const { contentEl } = this;
 
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Delete Google Task?" });
+    new Setting(contentEl).setName("Delete Google Task?").setHeading();
 
-    const message = contentEl.createEl("p", {
+    contentEl.createEl("p", {
       text: `You deleted the task "${this.taskTitle}" in Obsidian. Do you want to delete it in Google Tasks as well?`,
+      cls: "syncer-modal-message",
     });
-    message.style.marginBottom = "1.5em";
 
-    const buttonContainer = contentEl.createDiv();
-    buttonContainer.style.display = "flex";
-    buttonContainer.style.gap = "0.5em";
-    buttonContainer.style.justifyContent = "flex-end";
+    const buttonContainer = contentEl.createDiv({ cls: "syncer-modal-button-container" });
 
     const cancelButton = buttonContainer.createEl("button", { text: "No, keep in Google Tasks" });
     cancelButton.addEventListener("click", () => {

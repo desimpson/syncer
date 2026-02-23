@@ -28,14 +28,12 @@ const ensureAccessToken = async (
   const { credentials: token } = googleTasks;
 
   if (token.expiryDate < Date.now()) {
-    console.info("Google Tasks token has expired. Refreshing...");
     const { accessToken, expiryDate } = await GoogleAuth.refreshAccessToken(
       config.googleClientId,
       token.refreshToken,
     );
 
     await persist({ accessToken, expiryDate });
-    console.info("Saved refreshed Google Tasks token.");
     return accessToken;
   }
 
@@ -54,7 +52,6 @@ const getSyncFileWithRetry = async (
   }
 
   // Retry after a short delay in case vault is still initialising
-  console.info("Sync document not found on first attempt, retrying after delay...");
   await new Promise((resolve) => setTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
   const retryFile = vault.getFileByPath(syncDocument);
 
@@ -240,17 +237,9 @@ const applyCompletionChangesToGoogleTasks = async (
     return [];
   }
 
-  console.info(
-    `Detected [${completionChanges.length}] completion status changes. Syncing to Google Tasks...`,
-  );
-
   const updateResults = await executeCompletionUpdates(completionChanges, accessToken);
   handleFailedUpdates(updateResults, notify);
   const successfulChanges = extractSuccessfulChanges(updateResults);
-
-  console.info(
-    `Synced [${successfulChanges.length}] of [${completionChanges.length}] completion status changes to Google Tasks.`,
-  );
 
   return successfulChanges;
 };
@@ -308,7 +297,6 @@ const syncTasksToFile = async (
 ) => {
   const adaptor = mapGoogleTaskToSyncItem(syncHeading);
   const incoming = tasks.map(adaptor);
-  console.info(`Mapped incoming Google Tasks to sync items: [${incoming.length}] items.`);
 
   // Clean up manually deleted task IDs that no longer exist in Google Tasks
   const incomingTaskIds = new Set(incoming.map((item) => item.id));
@@ -318,22 +306,13 @@ const syncTasksToFile = async (
   if (stillDeletedTaskIds.length !== (manuallyDeletedTaskIds ?? []).length) {
     const settings = await loadSettings();
     await saveSettings({ ...settings, manuallyDeletedTaskIds: stillDeletedTaskIds });
-    console.debug(
-      `Cleaned up [${(manuallyDeletedTaskIds ?? []).length - stillDeletedTaskIds.length}] manually deleted task IDs that no longer exist in Google Tasks`,
-    );
   }
 
   // Filter out manually deleted tasks to prevent them from being re-added
   const filteredIncoming = incoming.filter((item) => !stillDeletedTaskIds.includes(item.id));
-  if (filteredIncoming.length !== incoming.length) {
-    console.info(
-      `Filtered out [${incoming.length - filteredIncoming.length}] manually deleted tasks from sync`,
-    );
-  }
 
   try {
     const existing = await readMarkdownSyncItems(file, "google-tasks");
-    console.info(`Read existing Google Tasks Markdown items: [${existing.length}] items.`);
 
     let updatedIncoming: readonly SyncItem[] = filteredIncoming;
     if (syncCompletionStatus) {
@@ -358,10 +337,8 @@ const syncTasksToFile = async (
     const allActions = generateSyncActions(updatedIncoming, existing);
     // Preserve completed tasks in Obsidian
     const actions = filterActions(allActions, shouldPreserveCompletedDeletes);
-    console.info(`Generated [${actions.length}] sync actions.`);
 
     await writeSyncActions(file, actions, syncHeading);
-    console.info(`Applied [${actions.length}] Google Tasks sync actions to the Markdown note.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (/ENOENT|no such file or directory|not found/i.test(message)) {
@@ -396,8 +373,6 @@ export const createGoogleTasksJob: SyncJobCreator = (
 ) => ({
   name: "google-tasks",
   task: async () => {
-    console.info("Starting Google Tasks sync job...");
-
     // TODO: Test settings freshness?
     const settings = await loadSettings();
     const {
@@ -408,12 +383,10 @@ export const createGoogleTasksJob: SyncJobCreator = (
       manuallyDeletedTaskIds = [],
     } = settings;
     if (googleTasks === undefined) {
-      console.info("No Google Tasks configured.");
       return;
     }
 
     if (googleTasks.selectedListIds.length === 0) {
-      console.info("No Google Tasks lists selected.");
       return;
     }
 
@@ -430,7 +403,6 @@ export const createGoogleTasksJob: SyncJobCreator = (
               credentials: { ...googleTasks.credentials, accessToken, expiryDate },
             },
           };
-          console.info("Updated Google Tasks token in memory.");
           await saveSettings(updatedSettings);
         },
       );
@@ -458,7 +430,6 @@ export const createGoogleTasksJob: SyncJobCreator = (
       currentAccessToken,
       googleTasks.selectedListIds,
     );
-    console.info(`Fetched [${tasks.length}] tasks from Google Tasks.`);
 
     // Convert and sync
     await syncTasksToFile(

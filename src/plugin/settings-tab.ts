@@ -37,21 +37,19 @@ export class SettingsTab extends PluginSettingTab {
 
     const settings = await this.plugin.loadSettings();
 
-    containerEl.createEl("h1", { text: "Syncer Settings" });
-
     await this.renderGeneralSettings(containerEl, settings);
     await this.renderExternalSourceSettings(containerEl);
   }
 
   private async renderGeneralSettings(containerElement: HTMLElement, settings: PluginSettings) {
-    containerElement.createEl("h4", { text: "General Settings" });
+    new Setting(containerElement).setName("General").setHeading();
     await this.addSyncIntervalSetting(containerElement, settings);
     await this.addSyncDocumentSetting(containerElement, settings);
     this.addSyncHeadingSetting(containerElement, settings);
   }
 
   private async renderExternalSourceSettings(containerElement: HTMLElement) {
-    containerElement.createEl("h3", { text: "External Source Settings" });
+    new Setting(containerElement).setName("External Sources").setHeading();
     containerElement.createEl("p", {
       text: "Configure settings for the external sources you want to sync with Obsidian.",
     });
@@ -72,7 +70,6 @@ export class SettingsTab extends PluginSettingTab {
       if (result.success) {
         await this.plugin.updateSettings({ syncIntervalMinutes: result.data });
         errorElement.setText("");
-        console.info(`Sync interval updated to [${result.data}] minutes.`);
       } else {
         errorElement.setText(formatUiError(result.error));
         console.warn(
@@ -100,7 +97,6 @@ export class SettingsTab extends PluginSettingTab {
       if (result.success) {
         await this.plugin.updateSettings({ syncDocument: result.data });
         errorElement.setText("");
-        console.info(`Sync Markdown file path set to [${result.data}].`);
       } else {
         errorElement.setText(formatUiError(result.error));
         console.warn(
@@ -137,7 +133,6 @@ export class SettingsTab extends PluginSettingTab {
 
       await this.plugin.updateSettings({ syncHeading: result.data });
       errorElement.setText("");
-      console.info(`Updated sync heading: [${result.data}].`);
     });
   }
 
@@ -153,7 +148,6 @@ export class SettingsTab extends PluginSettingTab {
       .addToggle((toggle) => {
         toggle.setValue(settings.syncCompletionStatus).onChange(async (value) => {
           await this.plugin.updateSettings({ syncCompletionStatus: value });
-          console.info(`Sync completion status set to [${value}].`);
         });
       });
   }
@@ -167,7 +161,6 @@ export class SettingsTab extends PluginSettingTab {
       .addToggle((toggle) => {
         toggle.setValue(settings.enableDeleteSync).onChange(async (value) => {
           await this.plugin.updateSettings({ enableDeleteSync: value });
-          console.info(`Delete sync enabled set to [${value}].`);
           // Refresh the display to show/hide the confirm setting
           await this.display();
         });
@@ -182,7 +175,6 @@ export class SettingsTab extends PluginSettingTab {
         .addToggle((toggle) => {
           toggle.setValue(settings.confirmDeleteSync).onChange(async (value) => {
             await this.plugin.updateSettings({ confirmDeleteSync: value });
-            console.info(`Confirm delete sync set to [${value}].`);
           });
         });
     }
@@ -200,7 +192,6 @@ export class SettingsTab extends PluginSettingTab {
             .onClick(async () => {
               await this.plugin.updateSettings({ manuallyDeletedTaskIds: [] });
               new Notice("Manually deleted tasks cache cleared.");
-              console.info("Cleared manually deleted tasks cache");
               await this.display();
             }),
         );
@@ -208,7 +199,7 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async addGoogleTasksSettings(containerElement: HTMLElement) {
-    containerElement.createEl("h4", { text: "Google Tasks" });
+    new Setting(containerElement).setName("Google Tasks").setHeading();
     const setting = new Setting(containerElement);
 
     const settings = await this.plugin.loadSettings();
@@ -244,8 +235,6 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async connectGoogleTasks(): Promise<void> {
-    console.info("Connecting to Google Tasks...");
-
     try {
       const credentials = await GoogleAuth.authenticate({
         clientId: this.config.googleClientId,
@@ -264,7 +253,6 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       new Notice("Google Tasks account connected successfully.");
-      console.info(`Google Tasks account [${userInfo.email}] connected.`);
     } catch (error) {
       new Notice(`Failed to connect Google Tasks.`);
       console.error(`Error connecting Google Tasks: [${formatLogError(error)}].`);
@@ -281,11 +269,10 @@ export class SettingsTab extends PluginSettingTab {
   private async addGoogleTasksListSelector(containerElement: HTMLElement) {
     const { googleTasks } = await this.plugin.loadSettings();
     if (googleTasks === undefined) {
-      console.warn("Google Tasks not connected. Cannot add list selector.");
       return;
     }
 
-    containerElement.createEl("h5", { text: "Select Task Lists to Sync" });
+    new Setting(containerElement).setName("Select Task Lists to Sync").setHeading();
 
     let selectedListIds: readonly string[] = [...(googleTasks.selectedListIds ?? [])];
 
@@ -301,7 +288,6 @@ export class SettingsTab extends PluginSettingTab {
             selectedListIds: [...selectedListIds],
           },
         });
-        console.info(`Saved selected Google Task list IDs: [${selectedListIds}].`);
       }
     };
 
@@ -375,7 +361,6 @@ export class SettingsTab extends PluginSettingTab {
       try {
         const { credentials: token } = googleTasks;
         if (token.expiryDate < Date.now()) {
-          console.info("Google Tasks token has expired. Refreshing...");
           const refreshed = await GoogleAuth.refreshAccessToken(
             this.config.googleClientId,
             token.refreshToken,
@@ -396,7 +381,6 @@ export class SettingsTab extends PluginSettingTab {
             });
           }
           accessToken = refreshed.accessToken;
-          console.info("Saved refreshed Google Tasks token.");
         } else {
           accessToken = token.accessToken;
         }
@@ -420,33 +404,9 @@ export class SettingsTab extends PluginSettingTab {
       // Load fresh settings to check if available lists have changed
       const freshSettingsForUpdate = await this.plugin.loadSettings();
 
-      // Log available lists changes
-      const storedListIds = new Set(
-        freshSettingsForUpdate.googleTasks?.availableLists?.map((list) => list.id) ?? [],
-      );
-      const fetchedListIds = new Set(lists.map((list) => list.id));
-      const added = lists.filter((list) => !storedListIds.has(list.id));
-      const removed = (freshSettingsForUpdate.googleTasks?.availableLists ?? []).filter(
-        (list) => !fetchedListIds.has(list.id),
-      );
-
-      console.info(
-        `Added [${added.length}] new Google Task list(s): [${added.map((list) => list.title).join(", ") || "none"}].`,
-      );
-      console.info(
-        `Removed [${removed.length}] Google Task list(s): [${removed.map((list) => list.title).join(", ") || "none"}].`,
-      );
-
       // Clean up selected list IDs - remove any that no longer exist
       const availableListIds = new Set(lists.map((list) => list.id));
       const cleanedSelectedIds = selectedListIds.filter((id) => availableListIds.has(id));
-
-      // Log selected lists cleanup
-      const removedCount = selectedListIds.length - cleanedSelectedIds.length;
-      console.info(`Removed [${removedCount}] deleted Google Task list(s) from selection.`);
-      console.info(
-        `Updated selectedListIds to cleaned selection: [${cleanedSelectedIds.join(", ") || "none"}].`,
-      );
 
       // Update Google Tasks settings with fresh data
       if (freshSettingsForUpdate.googleTasks !== undefined) {
@@ -467,7 +427,6 @@ export class SettingsTab extends PluginSettingTab {
 
       // Re-create dropdown with fresh data and cleaned selection
       createListDropdown(lists, cleanedSelectedIds);
-      console.info(`Refreshed available Google Task lists: [${lists.length}] lists.`);
     } catch (error) {
       console.error(`Failed to refresh task lists. Error: [${formatLogError(error)}].`);
       listContainer.createEl("p", {

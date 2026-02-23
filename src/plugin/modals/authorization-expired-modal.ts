@@ -1,4 +1,4 @@
-import { type App, Modal } from "obsidian";
+import { type App, Modal, Setting } from "obsidian";
 
 /**
  * A modal dialog that informs the user their Google Tasks authorization has expired
@@ -13,17 +13,14 @@ export class AuthorizationExpiredModal extends Modal {
     const { contentEl } = this;
 
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Google Tasks Authorization Expired" });
+    new Setting(contentEl).setName("Google Tasks Authorization Expired").setHeading();
 
-    const message = contentEl.createEl("p", {
+    contentEl.createEl("p", {
       text: "Your Google Tasks authorization has expired and cannot be refreshed. Please reconnect your account in the plugin settings.",
+      cls: "syncer-modal-message",
     });
-    message.style.marginBottom = "1.5em";
 
-    const buttonContainer = contentEl.createDiv();
-    buttonContainer.style.display = "flex";
-    buttonContainer.style.gap = "0.5em";
-    buttonContainer.style.justifyContent = "flex-end";
+    const buttonContainer = contentEl.createDiv({ cls: "syncer-modal-button-container" });
 
     const okButton = buttonContainer.createEl("button", {
       text: "OK",

@@ -3,7 +3,7 @@
   "name": "Obsidian Syncer",
   "version": "0.1.0",
   "minAppVersion": "0.15.0",
-  "description": "Sync external data sources to your vault.",
+  "description": "Sync external sources like Google Tasks to your Obsidian vault. More integrations to come.",
   "author": "Daniel Simpson",
   "authorUrl": "https://github.com/desimpson",
   "isDesktopOnly": false

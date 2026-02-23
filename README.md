@@ -73,6 +73,12 @@ You will need to create a dev Obsidian vault and set the `OBSIDIAN_VAULT_PLUGIN_
 
 It is also recommended to install the [Hot-Reload plugin](https://github.com/pjeby/hot-reload) for automatic reloads.
 
+## Attribution
+
+This plugin includes code adapted from the following projects:
+
+- **Periodic Notes** ([liamcain/obsidian-periodic-notes](https://github.com/liamcain/obsidian-periodic-notes)) - The `Suggest` and `FileSuggest` components used in the settings tab are based on code from this plugin.
+
 ## Releasing
 
 1. Update version: `npm run version` (or `npm version patch|minor|major`)

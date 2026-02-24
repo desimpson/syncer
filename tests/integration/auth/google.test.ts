@@ -29,16 +29,10 @@ describe("authenticate", () => {
   let mockServer: MockServer;
   let mockRequest: MockRequest;
   let mockResponse: MockResponse;
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.resetAllMocks();
-
-    // Mock console.log to avoid noise in tests
-    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
-      // Empty implementation
-    });
 
     // Mock window.open
     Object.defineProperty(globalThis, "window", {
@@ -122,8 +116,8 @@ describe("authenticate", () => {
         }, 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act
@@ -170,8 +164,8 @@ describe("authenticate", () => {
         setTimeout(() => mockServer.callback?.(mockRequest, mockResponse), 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act & Assert
@@ -201,8 +195,8 @@ describe("authenticate", () => {
         setTimeout(() => mockServer.callback?.(mockRequest, mockResponse), 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act & Assert
@@ -248,8 +242,8 @@ describe("authenticate", () => {
         }, 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act
@@ -297,8 +291,8 @@ describe("authenticate", () => {
         setTimeout(() => mockServer.callback?.(mockRequest, mockResponse), 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act & Assert
@@ -346,8 +340,8 @@ describe("authenticate", () => {
         setTimeout(() => mockServer.callback?.(mockRequest, mockResponse), 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act
@@ -410,8 +404,8 @@ describe("authenticate", () => {
         }, 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act
@@ -421,9 +415,6 @@ describe("authenticate", () => {
       expect(window.open).toHaveBeenCalledWith(
         expect.stringContaining("redirect_uri=http%3A%2F%2Flocalhost%3A8080%2F"),
         "_blank",
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        "Authentication server listening on http://localhost:8080/",
       );
     });
 
@@ -464,8 +455,8 @@ describe("authenticate", () => {
         }, 0);
       });
 
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
       });
 
       // Act
@@ -476,63 +467,6 @@ describe("authenticate", () => {
         expect.stringContaining("scope=scope1+scope2+scope3"),
         "_blank",
       );
-    });
-  });
-
-  describe("logging", () => {
-    it("should log server start and request reception", async () => {
-      // Arrange
-      const options: AuthOptions = {
-        clientId: "test-client-id",
-        scopes: "scope1",
-      };
-
-      const mockTokenResponse = {
-        access_token: "access-token",
-        refresh_token: "refresh-token",
-        expires_in: 3600,
-        scope: "scope1",
-        token_type: "Bearer",
-      };
-
-      const mockAddress: AddressInfo = {
-        address: "127.0.0.1",
-        family: "IPv4",
-        port: 3000,
-      };
-
-      mockServer.address.mockReturnValue(mockAddress);
-
-      // Mock the token exchange fetch request
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => mockTokenResponse,
-      });
-
-      mockServer.listen.mockImplementation((_port: number, callback: () => void) => {
-        callback();
-        mockRequest.url = "/?code=auth-code-123";
-        setTimeout(() => {
-          mockServer.callback?.(mockRequest, mockResponse);
-        }, 0);
-      });
-
-      mockServer.close.mockImplementation((callback: () => void) => {
-        callback();
-      });
-
-      // Act
-      await authenticate(options);
-
-      // Assert
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        "Authentication server listening on http://localhost:3000/",
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        "Received request:",
-        "http://localhost:3000/?code=auth-code-123",
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith("Closed authentication server.");
     });
   });
 });

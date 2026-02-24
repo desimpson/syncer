@@ -23,12 +23,9 @@ export default class SyncerPlugin extends Plugin {
     this.config = {
       googleClientId: GOOGLE_CLIENT_ID,
     };
-    console.info(`Initialising [${manifest.name}] plugin...`);
   }
 
   public override async onload() {
-    console.info(`Loading [${this.manifest.name}] plugin...`);
-
     const jobs = [
       createGoogleTasksJob(
         this.loadSettings,
@@ -39,13 +36,10 @@ export default class SyncerPlugin extends Plugin {
         this.app,
       ),
     ];
-    console.info(`Initialised [${jobs.length}] sync jobs.`);
 
     this.scheduler = createScheduler(jobs);
     const settings = await this.loadSettings();
-    console.info("Starting sync scheduler...");
     this.scheduler.start(settings.syncIntervalMinutes);
-    console.info("Sync scheduler started.");
 
     this.addCommand({
       id: "manual-sync",
@@ -79,16 +73,12 @@ export default class SyncerPlugin extends Plugin {
         }
       }),
     );
-
-    console.info(`[${this.manifest.name}] plugin loaded.`);
   }
 
   /**
    * Clean-up tasks when the plugin is unloaded.
    */
   public override onunload() {
-    console.info(`Unloading [${this.manifest.name}] plugin...`);
-
     if (this.scheduler !== undefined) {
       this.scheduler.stop();
     }
@@ -143,9 +133,8 @@ export default class SyncerPlugin extends Plugin {
         try {
           const content = await file.vault.cachedRead(file);
           this.previousFileContent.set(file.path, content);
-        } catch (error) {
+        } catch {
           // File might not be readable yet, that's okay
-          console.debug("Could not read file for content cache initialization:", error);
         }
       }
     } catch (error) {
@@ -252,9 +241,6 @@ export default class SyncerPlugin extends Plugin {
   ): Promise<void> {
     const taskStillExists = await this.checkTaskExistsInGoogle(deletedTask.id, googleTasks);
     if (!taskStillExists) {
-      console.debug(
-        `Task ${deletedTask.id} was already deleted in Google Tasks (sync-initiated), skipping deletion prompt`,
-      );
       return;
     }
 
@@ -262,7 +248,6 @@ export default class SyncerPlugin extends Plugin {
     const shouldDeleteTaskFromGoogle =
       !settings.confirmDeleteSync || (await this.showDeleteConfirmation(deletedTask.title));
     if (!shouldDeleteTaskFromGoogle) {
-      console.debug(`User cancelled deletion of task ${deletedTask.id} from Google Tasks`);
       // Track this task as manually deleted so it doesn't get re-added on next sync
       await this.trackManuallyDeletedTask(deletedTask.id, settings);
       return;
@@ -300,7 +285,6 @@ export default class SyncerPlugin extends Plugin {
       let accessToken = token.accessToken;
 
       if (token.expiryDate < Date.now()) {
-        console.info("Google Tasks token has expired. Refreshing...");
         const refreshed = await GoogleAuth.refreshAccessToken(
           this.config.googleClientId,
           token.refreshToken,
@@ -363,7 +347,6 @@ export default class SyncerPlugin extends Plugin {
       let accessToken = token.accessToken;
 
       if (token.expiryDate < Date.now()) {
-        console.info("Google Tasks token has expired. Refreshing...");
         const refreshed = await GoogleAuth.refreshAccessToken(
           this.config.googleClientId,
           token.refreshToken,
@@ -409,7 +392,6 @@ export default class SyncerPlugin extends Plugin {
       // Delete the task
       await deleteGoogleTask(accessToken, listId, taskId);
       new Notice(`Task deleted from Google Tasks`);
-      console.info(`Deleted task ${taskId} from Google Tasks list ${listId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       new Notice(`Failed to delete task from Google Tasks: ${message}`);
@@ -433,6 +415,5 @@ export default class SyncerPlugin extends Plugin {
 
     const updatedIds = [...currentSettings.manuallyDeletedTaskIds, taskId];
     await this.updateSettings({ manuallyDeletedTaskIds: updatedIds });
-    console.debug(`Tracked task ${taskId} as manually deleted to prevent re-sync`);
   }
 }

@@ -194,14 +194,13 @@ export const writeSyncActions = async (
   actions: readonly SyncAction[],
   heading: string,
 ): Promise<void> => {
-  const content = await file.vault.read(file);
-  const lines = content.split("\n");
-
   const updateDeleteMap = buildUpdateDeleteMap(actions);
   const createItems = getCreateItems(actions);
 
-  const updatedLines = applyUpdatesAndDeletes(lines, updateDeleteMap);
-  const resultLines = appendCreates(updatedLines, createItems, heading);
-
-  await file.vault.modify(file, resultLines.join("\n"));
+  await file.vault.process(file, (content) => {
+    const lines = content.split("\n");
+    const updatedLines = applyUpdatesAndDeletes(lines, updateDeleteMap);
+    const resultLines = appendCreates(updatedLines, createItems, heading);
+    return resultLines.join("\n");
+  });
 };

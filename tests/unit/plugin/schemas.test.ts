@@ -23,8 +23,8 @@ const makeMockVault = (existingFiles: string[] = [], content = ""): Vault =>
     getFileByPath: (path?: string) => {
       return path !== undefined && existingFiles.includes(path) ? ({ path } as TFile) : undefined;
     },
-    modify: async () => {
-      /* empty */
+    process: async (_file: TFile, processor: (content: string) => string) => {
+      return processor(content);
     },
     read: async () => content,
   }) as unknown as Vault;

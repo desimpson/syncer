@@ -15,17 +15,14 @@ export type Popper = {
  * @returns A PopperInstance with a destroy method
  */
 export function createPopper(referenceElement: HTMLElement, popperElement: HTMLElement): Popper {
+  popperElement.classList.add("syncer-popper");
   const updatePosition = () => {
     const rect = referenceElement.getBoundingClientRect();
+    // Dynamic positioning values - inline styles are acceptable for dynamic positioning
     popperElement.style.position = "absolute";
     popperElement.style.top = `${rect.bottom + window.scrollY}px`;
     popperElement.style.left = `${rect.left + window.scrollX}px`;
-
-    // Match the reference element's width
-    const width = `${rect.width}px`;
-    if (popperElement.style.width !== width) {
-      popperElement.style.width = width;
-    }
+    popperElement.style.width = `${rect.width}px`;
   };
 
   // Initial positioning

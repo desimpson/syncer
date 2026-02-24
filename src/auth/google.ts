@@ -7,7 +7,6 @@ import type { GoogleCredentials, GoogleUserInfo } from "@/auth/types";
 import { refreshResponseSchema, googleUserInfoResponseSchema } from "@/auth/schemas";
 
 const SUCCESS_MESSAGE = "Authentication successful! Please return to the console.";
-const SERVER_CLOSE_MESSAGE = "Closed authentication server.";
 
 // Google OAuth 2.0 endpoints
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth";
@@ -120,7 +119,6 @@ const exchangeCodeForTokens = async (
 
 const parseAuthRequest = (requestUrl: string, expectedPath: string): AuthResult | AuthError => {
   const url = new URL(requestUrl, "http://localhost:3000");
-  console.log("Received request:", url.toString());
 
   if (url.pathname !== expectedPath) {
     return { type: "invalid_url", message: "Invalid callback URL" };
@@ -239,15 +237,11 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
       redirectPath,
       getRedirectUri,
       (credentials: GoogleCredentials) => {
-        server.close(() => {
-          console.log(SERVER_CLOSE_MESSAGE);
-        });
+        server.close();
         resolve(credentials);
       },
       (error: Error) => {
-        server.close(() => {
-          console.log(SERVER_CLOSE_MESSAGE);
-        });
+        server.close();
         reject(error);
       },
     );
@@ -262,8 +256,6 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
 
       serverPort = address.port;
       const redirectUri = createRedirectUri(serverPort);
-
-      console.log(`Authentication server listening on ${redirectUri}`);
 
       const authUrl = generateAuthUrl(options.clientId, redirectUri, options.scopes);
       window.open(authUrl, "_blank");

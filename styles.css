@@ -52,3 +52,19 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-muted);
   margin-top: 8px;
 }
+
+/* Modal styles */
+.syncer-modal-message {
+  margin-bottom: 1.5em;
+}
+
+.syncer-modal-button-container {
+  display: flex;
+  gap: 0.5em;
+  justify-content: flex-end;
+}
+
+/* Popper styles - base styling, dynamic positioning handled inline */
+.syncer-popper {
+  /* Dynamic positioning (top, left, width) is set inline for dynamic values */
+}

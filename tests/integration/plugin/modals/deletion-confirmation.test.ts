@@ -91,6 +91,9 @@ vi.mock("@/plugin/modals/delete-confirmation-modal", () => {
 import { fetchGoogleTasks, deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
 import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation-modal";
+import { createScheduler } from "@/sync/scheduler";
+import { createGoogleTasksJob } from "@/jobs/google-tasks";
+import type { SyncJob } from "@/jobs/types";
 
 describe("Task deletion confirmation", () => {
   let mockApp: App;
@@ -748,6 +751,107 @@ describe("Task deletion confirmation", () => {
     };
     expect(lastCall?.manuallyDeletedTaskIds).toHaveLength(3);
     expect(lastCall?.manuallyDeletedTaskIds).toEqual(expect.arrayContaining(taskIds));
+  });
+
+  it("does not trigger delete confirmation when tasks are removed during sync (e.g. list deselected)", async () => {
+    // Arrange: File has a task that will be removed when the sync runs
+    // (simulating what happens when a list is deselected)
+    const previousContent = `${syncHeading}\n${createTaskLine(taskId, taskTitle)}`;
+    const postSyncContent = `${syncHeading}\n`;
+
+    await createPluginWithSettings(
+      {
+        syncDocument,
+        syncHeading,
+        googleTasks: {
+          credentials: {
+            accessToken: "token-123",
+            refreshToken: "refresh-123",
+            expiryDate: Date.now() + 3_600_000,
+          },
+          selectedListIds: [listId],
+        },
+      },
+      previousContent,
+    );
+
+    // Get the wrapped job that onload() passed to the scheduler
+    const wrappedJobs = vi.mocked(createScheduler).mock.calls[0]?.[0] as SyncJob[];
+    const wrappedJob = wrappedJobs[0];
+    expect(wrappedJob).toBeDefined();
+
+    // Get the inner (unwrapped) job task mock
+    const innerJob = vi.mocked(createGoogleTasksJob).mock.results[0]?.value as SyncJob;
+    expect(innerJob).toBeDefined();
+
+    // The inner task simulates writeSyncActions removing tasks from a deselected list,
+    // which triggers the vault "modify" event during the sync
+    vi.mocked(innerJob.task).mockImplementation(async () => {
+      await triggerFileModification(postSyncContent);
+    });
+
+    const modalOpenSpy = vi.spyOn(DeleteTaskConfirmationModal.prototype, "open");
+
+    // Act: Run the wrapped sync job (isSyncInProgress is set around the inner task)
+    await wrappedJob?.task();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Assert: No deletion modal or Google Tasks API calls
+    expect(modalOpenSpy).not.toHaveBeenCalled();
+    expect(fetchGoogleTasks).not.toHaveBeenCalled();
+    expect(deleteGoogleTask).not.toHaveBeenCalled();
+  });
+
+  it("updates file content cache after sync so delayed modify events do not falsely detect deletions", async () => {
+    // Arrange: File has a task that will be removed by the sync.
+    // This tests the second defence: if the modify event arrives AFTER the
+    // sync completes (e.g. Obsidian batches/delays events), the cache should
+    // already reflect the post-sync content, so no deletions are detected.
+    const previousContent = `${syncHeading}\n${createTaskLine(taskId, taskTitle)}`;
+    const postSyncContent = `${syncHeading}\n`;
+
+    await createPluginWithSettings(
+      {
+        syncDocument,
+        syncHeading,
+        googleTasks: {
+          credentials: {
+            accessToken: "token-123",
+            refreshToken: "refresh-123",
+            expiryDate: Date.now() + 3_600_000,
+          },
+          selectedListIds: [listId],
+        },
+      },
+      previousContent,
+    );
+
+    // Get the wrapped job and inner task
+    const wrappedJobs = vi.mocked(createScheduler).mock.calls[0]?.[0] as SyncJob[];
+    const wrappedJob = wrappedJobs[0];
+    expect(wrappedJob).toBeDefined();
+
+    const innerJob = vi.mocked(createGoogleTasksJob).mock.results[0]?.value as SyncJob;
+    // Inner task is a no-op (the file was modified externally by the sync engine)
+    vi.mocked(innerJob.task).mockResolvedValue(undefined);
+
+    // Set cachedRead to return post-sync content (as if the sync had already written the file)
+    (mockVault.cachedRead as ReturnType<typeof vi.fn>).mockResolvedValue(postSyncContent);
+
+    // Run the wrapped job — initialiseFileContentCache updates the cache to post-sync content
+    await wrappedJob?.task();
+
+    const modalOpenSpy = vi.spyOn(DeleteTaskConfirmationModal.prototype, "open");
+
+    // Simulate a delayed modify event arriving after sync has completed
+    // (isSyncInProgress is now false, but the cache is up to date)
+    await triggerFileModification(postSyncContent);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Assert: No modal because the cache reflects post-sync content
+    expect(modalOpenSpy).not.toHaveBeenCalled();
+    expect(fetchGoogleTasks).not.toHaveBeenCalled();
+    expect(deleteGoogleTask).not.toHaveBeenCalled();
   });
 
   it("prompts for confirmation when deleting task from unselected list", async () => {

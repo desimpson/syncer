@@ -16,6 +16,7 @@ export default class SyncerPlugin extends Plugin {
   private config: PluginConfig;
   private previousFileContent = new Map<string, string>();
   private isProcessingDeletion = false;
+  private isSyncInProgress = false;
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
@@ -37,7 +38,34 @@ export default class SyncerPlugin extends Plugin {
       ),
     ];
 
-    this.scheduler = createScheduler(jobs);
+    // Wrap jobs so file-modification deletion detection is suppressed while syncing.
+    // Without this, deselecting a list would trigger delete-confirmation modals for
+    // every task the sync legitimately removed from the Markdown file.
+    //
+    // Two defences work together:
+    //  1. The flag is captured synchronously in handleFileModification (before any
+    //     await) so even if the modify event fires during the sync, the handler
+    //     sees the flag before it can be cleared.
+    //  2. The file-content cache is refreshed BEFORE the flag is cleared, so if
+    //     the modify event arrives after the sync, the handler compares the
+    //     current content against the post-sync cache and sees no deletions.
+    const wrappedJobs = jobs.map((job) => ({
+      ...job,
+      task: async () => {
+        this.isSyncInProgress = true;
+        try {
+          await job.task();
+          // Update the content cache while the flag is still true so any
+          // modify events that arrive after the sync compare against the
+          // post-sync content and detect no deletions.
+          await this.initialiseFileContentCache();
+        } finally {
+          this.isSyncInProgress = false;
+        }
+      },
+    }));
+
+    this.scheduler = createScheduler(wrappedJobs);
     const settings = await this.loadSettings();
     this.scheduler.start(settings.syncIntervalMinutes);
 
@@ -151,6 +179,11 @@ export default class SyncerPlugin extends Plugin {
       return;
     }
 
+    // Capture synchronously before any awaits. The flag may be cleared by the
+    // time async work below resumes, so we snapshot it here while we can still
+    // observe the sync job's in-progress state.
+    const wasSyncInProgress = this.isSyncInProgress;
+
     const settings = await this.loadSettings();
     const { syncDocument, googleTasks, enableDeleteSync } = settings;
 
@@ -165,6 +198,13 @@ export default class SyncerPlugin extends Plugin {
 
       // Store current content for next comparison
       this.previousFileContent.set(file.path, currentContent);
+
+      // During a sync, the sync engine may legitimately remove tasks (e.g. when a
+      // list is deselected). We still update the cache above so the next manual edit
+      // compares against the post-sync content, but we skip deletion detection.
+      if (wasSyncInProgress) {
+        return;
+      }
 
       // If we don't have previous content, this is the first time we're seeing this file
       if (previousContent === undefined) {

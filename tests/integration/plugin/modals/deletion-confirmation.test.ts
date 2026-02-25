@@ -792,7 +792,7 @@ describe("Task deletion confirmation", () => {
 
     const modalOpenSpy = vi.spyOn(DeleteTaskConfirmationModal.prototype, "open");
 
-    // Act: Run the wrapped sync job (isSyncInProgress is set around the inner task)
+    // Act: Run the wrapped sync job (syncGuard is active around the inner task)
     await wrappedJob?.task();
     await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -844,7 +844,7 @@ describe("Task deletion confirmation", () => {
     const modalOpenSpy = vi.spyOn(DeleteTaskConfirmationModal.prototype, "open");
 
     // Simulate a delayed modify event arriving after sync has completed
-    // (isSyncInProgress is now false, but the cache is up to date)
+    // (syncGuard is no longer active, but the cache is up to date)
     await triggerFileModification(postSyncContent);
     await new Promise((resolve) => setTimeout(resolve, 100));
 

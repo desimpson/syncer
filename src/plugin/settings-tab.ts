@@ -42,7 +42,6 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async renderGeneralSettings(containerElement: HTMLElement, settings: PluginSettings) {
-    new Setting(containerElement).setName("General").setHeading();
     await this.addSyncIntervalSetting(containerElement, settings);
     await this.addSyncDocumentSetting(containerElement, settings);
     this.addSyncHeadingSetting(containerElement, settings);

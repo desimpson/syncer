@@ -13,9 +13,11 @@ export class AuthorizationExpiredModal extends Modal {
     const { contentEl } = this;
 
     contentEl.empty();
-    new Setting(contentEl).setName("Google Tasks Authorization Expired").setHeading();
+    // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
+    new Setting(contentEl).setName("Google Tasks authorization expired").setHeading();
 
     contentEl.createEl("p", {
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       text: "Your Google Tasks authorization has expired and cannot be refreshed. Please reconnect your account in the plugin settings.",
       cls: "syncer-modal-message",
     });

@@ -16,12 +16,12 @@ const parseLine = (line: string): ParsedLine | undefined => {
   }
 
   const match = line.match(metadataRegex);
-  if (match === null || match[1] === undefined) {
+  if (match?.[1] === undefined) {
     return undefined;
   }
 
   try {
-    const json = JSON.parse(match[1]);
+    const json: unknown = JSON.parse(match[1]);
     const metadata = parsedLineSchema.parse(json);
 
     return metadata;

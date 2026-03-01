@@ -11,11 +11,11 @@ const wrapAround = (value: number, size: number): number => ((value % size) + si
  * https://github.com/liamcain/obsidian-periodic-notes/blob/a8aa7e4e368ac344282b17e381b9101af12af0d1/src/ui/file-suggest.ts#L5)
  */
 export class Suggest<T> {
-  private owner: ISuggestOwner<T>;
+  private readonly owner: ISuggestOwner<T>;
   private values: T[] = [];
   private suggestions: HTMLElement[] = [];
   private selectedItem = 0;
-  private containerEl: HTMLElement;
+  private readonly containerEl: HTMLElement;
 
   /**
    * Constructs a new Suggest instance.

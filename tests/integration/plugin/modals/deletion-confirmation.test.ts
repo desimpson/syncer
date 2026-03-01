@@ -463,7 +463,7 @@ describe("Task deletion confirmation", () => {
     // Act: Modify a different file
     // eslint-disable-next-line unicorn/no-null
     (mockVault.getFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(null);
-    await Promise.all(modifyCallbacks.map((callback) => callback(otherFile)));
+    await Promise.all(modifyCallbacks.map(async (callback) => callback(otherFile)));
 
     // Wait for async operations
     await new Promise((resolve) => setTimeout(resolve, 10));

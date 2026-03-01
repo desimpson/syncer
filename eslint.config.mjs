@@ -12,6 +12,13 @@ export default defineConfig([
   },
   ...obsidianmd.configs.recommended,
   {
+    files: ["package.json"],
+    rules: {
+      // lint-staged has no drop-in replacement that works with the current husky setup
+      "depend/ban-dependencies": "off",
+    },
+  },
+  {
     files: ["**/*.mjs", "**/*.js"],
     languageOptions: {
       ecmaVersion: 2021,
@@ -86,6 +93,25 @@ export default defineConfig([
       "@typescript-eslint/return-await": ["error", "in-try-catch"],
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
+    },
+  },
+  {
+    files: ["tests/**/*.ts"],
+    rules: {
+      // Tests legitimately import Node.js modules for mocking HTTP servers, etc.
+      "import/no-nodejs-modules": "off",
+      // Tests must cast mock objects to Obsidian types like TFile
+      "obsidianmd/no-tfile-tfolder-cast": "off",
+      // Mocks and test utilities are frequently untyped
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      // Nested describe/it blocks commonly reuse variable names
+      "@typescript-eslint/no-shadow": "off",
+      // Test assertions reference methods like expect(obj.method).toHaveBeenCalled()
+      "@typescript-eslint/unbound-method": "off",
     },
   },
 ]);

@@ -15,6 +15,7 @@ const tasksBaseUrl = "https://tasks.googleapis.com/tasks/v1";
 export const fetchGoogleTasksLists = async (
   accessToken: string,
 ): Promise<readonly GoogleTasksList[]> => {
+  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
   const response = await fetch(`${tasksBaseUrl}/users/@me/lists`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -59,6 +60,7 @@ export const fetchGoogleTasks = async (
     showHidden: "false",
   }).toString();
 
+  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
   const response = await fetch(`${tasksBaseUrl}/lists/${listId}/tasks?${query}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -102,6 +104,7 @@ export const updateGoogleTaskStatus = async (
       };
 
   // Update the task using PATCH to update only specific fields
+  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
   const patchResponse = await fetch(`${tasksBaseUrl}/lists/${listId}/tasks/${taskId}`, {
     method: "PATCH",
     headers: {
@@ -129,6 +132,7 @@ export const deleteGoogleTask = async (
   listId: string,
   taskId: string,
 ): Promise<void> => {
+  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
   const deleteResponse = await fetch(`${tasksBaseUrl}/lists/${listId}/tasks/${taskId}`, {
     method: "DELETE",
     headers: {

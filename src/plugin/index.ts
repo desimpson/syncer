@@ -8,14 +8,15 @@ import { pluginSchema, pluginSettingsSchema } from "./schemas";
 import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation-modal";
 import { deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
+import { parsedLineSchema } from "@/sync/schemas";
 
 /**
  * Syncer plugin.
  */
 export default class SyncerPlugin extends Plugin {
   private scheduler: Scheduler | undefined;
-  private config: PluginConfig;
-  private previousFileContent = new Map<string, string>();
+  private readonly config: PluginConfig;
+  private readonly previousFileContent = new Map<string, string>();
   private isProcessingDeletion = false;
   private readonly syncGuard = new SyncGuard();
 
@@ -68,7 +69,7 @@ export default class SyncerPlugin extends Plugin {
 
     this.addCommand({
       id: "manual-sync",
-      name: "Manual Sync",
+      name: "Manual sync",
       callback: async () => {
         if (this.scheduler === undefined) {
           throw new Error(
@@ -117,7 +118,7 @@ export default class SyncerPlugin extends Plugin {
    * @returns A promise that resolves to the plugin settings
    */
   public loadSettings = async (): Promise<PluginSettings> => {
-    const raw = (await this.loadData()) ?? {};
+    const raw: unknown = (await this.loadData()) ?? {};
     const parsed = pluginSettingsSchema.parse(raw);
     return parsed satisfies PluginSettings;
   };
@@ -250,12 +251,13 @@ export default class SyncerPlugin extends Plugin {
     return lines
       .map((line) => {
         const match = line.match(metadataRegex);
-        if (match === null || match[1] === undefined) {
+        if (match?.[1] === undefined) {
           return undefined;
         }
 
         try {
-          const metadata = JSON.parse(match[1]);
+          const json: unknown = JSON.parse(match[1]);
+          const metadata = parsedLineSchema.parse(json);
           return {
             id: metadata.id,
             title: metadata.title,
@@ -428,7 +430,7 @@ export default class SyncerPlugin extends Plugin {
 
       // Delete the task
       await deleteGoogleTask(accessToken, listId, taskId);
-      new Notice(`Task deleted from Google Tasks`);
+      new Notice("Task deleted from Google Tasks"); // eslint-disable-line obsidianmd/ui/sentence-case -- product name
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       new Notice(`Failed to delete task from Google Tasks: ${message}`);

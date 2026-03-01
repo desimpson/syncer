@@ -18,7 +18,7 @@ export function createPopper(referenceElement: HTMLElement, popperElement: HTMLE
   popperElement.classList.add("syncer-popper");
   const updatePosition = () => {
     const rect = referenceElement.getBoundingClientRect();
-    // Dynamic positioning values - inline styles are acceptable for dynamic positioning
+    // eslint-disable-next-line obsidianmd/no-static-styles-assignment -- dynamic positioning requires inline styles
     popperElement.style.position = "absolute";
     popperElement.style.top = `${rect.bottom + window.scrollY}px`;
     popperElement.style.left = `${rect.left + window.scrollX}px`;

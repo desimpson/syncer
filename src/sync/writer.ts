@@ -1,6 +1,7 @@
 import type { SyncAction, SyncItem } from "@/sync/types";
 import type { TFile } from "obsidian";
 import { buildUpdateDeleteMap, getCreateItems } from "@/sync/actions";
+import { parsedLineSchema } from "@/sync/schemas";
 
 /* Matches markdown heading lines at the start of the line, e.g. "## Heading".
 Anchored to avoid false matches against values inside HTML comments/JSON
@@ -51,9 +52,10 @@ const updateLine = (line: string, item: SyncItem) => {
 const applyUpdatesAndDeletes = (lines: string[], updateDeleteMap: Map<string, SyncAction>) =>
   lines.reduce<string[]>((accumulator, line) => {
     const match = line.match(jsonCommentRegex);
-    if (match !== null && match[1] !== undefined) {
+    if (match?.[1] !== undefined) {
       try {
-        const metadata = JSON.parse(match[1]);
+        const json: unknown = JSON.parse(match[1]);
+        const metadata = parsedLineSchema.parse(json);
         const key = `${metadata.id}:${metadata.source}`;
         const action = updateDeleteMap.get(key);
         if (action !== undefined) {

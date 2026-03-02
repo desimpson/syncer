@@ -23,7 +23,7 @@ export class SettingsTab extends PluginSettingTab {
   public constructor(
     app: App,
     public plugin: SyncerPlugin,
-    private config: PluginConfig,
+    private readonly config: PluginConfig,
   ) {
     super(app, plugin);
   }
@@ -48,7 +48,7 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async renderExternalSourceSettings(containerElement: HTMLElement) {
-    new Setting(containerElement).setName("External Sources").setHeading();
+    new Setting(containerElement).setName("External sources").setHeading();
     containerElement.createEl("p", {
       text: "Configure settings for the external sources you want to sync with Obsidian.",
     });
@@ -81,8 +81,8 @@ export class SettingsTab extends PluginSettingTab {
   private async addSyncDocumentSetting(containerElement: HTMLElement, settings: PluginSettings) {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
-      "Sync Markdown file path",
-      "Path to the Markdown file you want to sync external data to.",
+      "Sync markdown file path",
+      "Path to the markdown file you want to sync external data to.",
       settings.syncDocument,
       "e.g., GTD.md",
     );
@@ -108,7 +108,7 @@ export class SettingsTab extends PluginSettingTab {
   private addSyncHeadingSetting(containerElement: HTMLElement, settings: PluginSettings): void {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
-      "Sync Heading",
+      "Sync heading",
       "The H2 heading under which new synced items will be inserted. Text will be converted to H2 format.",
       settings.syncHeading,
       "e.g., ## Inbox, ## Tasks, or ## To-Do",
@@ -142,6 +142,7 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Sync completion status")
       .setDesc(
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- product names
         "When enabled, completing or uncompleting tasks in Obsidian will update their status in Google Tasks.",
       )
       .addToggle((toggle) => {
@@ -155,6 +156,7 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Sync task deletions")
       .setDesc(
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- product names
         "When enabled, deleting a Google Tasks task in Obsidian will also delete it from Google Tasks.",
       )
       .addToggle((toggle) => {
@@ -169,6 +171,7 @@ export class SettingsTab extends PluginSettingTab {
       new Setting(containerElement)
         .setName("Confirm task deletions")
         .setDesc(
+          // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
           "When enabled, you will be prompted to confirm before deleting tasks from Google Tasks.",
         )
         .addToggle((toggle) => {
@@ -186,7 +189,7 @@ export class SettingsTab extends PluginSettingTab {
         )
         .addButton((button) =>
           button
-            .setButtonText("Clear Cache")
+            .setButtonText("Clear cache")
             .setWarning()
             .onClick(async () => {
               await this.plugin.updateSettings({ manuallyDeletedTaskIds: [] });
@@ -198,13 +201,16 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async addGoogleTasksSettings(containerElement: HTMLElement) {
+    // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     new Setting(containerElement).setName("Google Tasks").setHeading();
     const setting = new Setting(containerElement);
 
     const settings = await this.plugin.loadSettings();
     const { googleTasks } = settings;
     if (googleTasks === undefined) {
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       setting.setName("No Google Tasks account connected");
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       setting.setDesc("Connect your Google Tasks account to sync tasks.");
       setting.addButton((button) =>
         button.setButtonText("Connect").onClick(async () => {
@@ -213,7 +219,7 @@ export class SettingsTab extends PluginSettingTab {
         }),
       );
     } else {
-      setting.setName("Connected Account");
+      setting.setName("Connected account");
       setting.setDesc(googleTasks.userInfo?.email ?? "");
       setting.addButton((button) =>
         button
@@ -251,9 +257,11 @@ export class SettingsTab extends PluginSettingTab {
         },
       });
 
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       new Notice("Google Tasks account connected successfully.");
     } catch (error) {
-      new Notice(`Failed to connect Google Tasks.`);
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
+      new Notice("Failed to connect Google Tasks.");
       console.error(`Error connecting Google Tasks: [${formatLogError(error)}].`);
     }
   }
@@ -262,6 +270,7 @@ export class SettingsTab extends PluginSettingTab {
     // TODO: Save the lists but grey everything out, so when the user reconnects
     // they get their previous selections back
     await this.plugin.updateSettings({ googleTasks: undefined });
+    // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     new Notice("Google Tasks account disconnected.");
   }
 
@@ -271,7 +280,7 @@ export class SettingsTab extends PluginSettingTab {
       return;
     }
 
-    new Setting(containerElement).setName("Select Task Lists to Sync").setHeading();
+    new Setting(containerElement).setName("Select task lists to sync").setHeading();
 
     let selectedListIds: readonly string[] = [...(googleTasks.selectedListIds ?? [])];
 

@@ -13,9 +13,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
   protected inputEl: HTMLInputElement | HTMLTextAreaElement;
 
   private popper: Popper | undefined;
-  private scope: Scope;
-  private suggestEl: HTMLElement;
-  private suggest: Suggest<T>;
+  private readonly scope: Scope;
+  private readonly suggestEl: HTMLElement;
+  private readonly suggest: Suggest<T>;
 
   /**
    * Constructs a new TextInputSuggest instance.

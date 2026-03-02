@@ -1,10 +1,15 @@
+/* eslint-disable import/no-nodejs-modules -- OAuth flow requires a local HTTP server for the callback */
 import { createServer } from "node:http";
 import type { ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { URLSearchParams } from "node:url";
 import { formatLogError } from "@/utils/error-formatters";
 import type { GoogleCredentials, GoogleUserInfo } from "@/auth/types";
-import { refreshResponseSchema, googleUserInfoResponseSchema } from "@/auth/schemas";
+import {
+  refreshResponseSchema,
+  googleUserInfoResponseSchema,
+  googleErrorResponseSchema,
+} from "@/auth/schemas";
 
 const SUCCESS_MESSAGE = "Authentication successful! Please return to the console.";
 
@@ -85,6 +90,7 @@ const exchangeCodeForTokens = async (
     grant_type: "authorization_code",
   });
 
+  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: {
@@ -272,6 +278,7 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
  *         conform to the expected schema
  */
 export const getUserInfo = async (accessToken: string): Promise<GoogleUserInfo> => {
+  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
   const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -316,6 +323,7 @@ export const refreshAccessToken = async (
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10_000); // 10s timeout
 
+      // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
       const response = await fetch(GOOGLE_TOKEN_URL, {
         method: "POST",
         headers: {
@@ -341,7 +349,8 @@ export const refreshAccessToken = async (
       // Check for invalid_grant error (token expired or revoked)
       if (response.status === 400) {
         try {
-          const errorJson = JSON.parse(text) as { error?: string; error_description?: string };
+          const json: unknown = JSON.parse(text);
+          const errorJson = googleErrorResponseSchema.parse(json);
           if (errorJson.error === "invalid_grant") {
             throw new InvalidGrantError(
               errorJson.error_description ?? "Token has been expired or revoked",

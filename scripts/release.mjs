@@ -125,8 +125,8 @@ const printSuccessMessage = (manifest) => {
   console.log("\n📝 Next steps:");
   console.log("  1. Create a GitHub release:");
   console.log("     - Go to: https://github.com/YOUR_USERNAME/syncer/releases/new");
-  console.log("     - Tag: v" + (manifest?.version || "X.X.X"));
-  console.log("     - Title: v" + (manifest?.version || "X.X.X"));
+  console.log(`     - Tag: v${manifest?.version || "X.X.X"}`);
+  console.log(`     - Title: v${manifest?.version || "X.X.X"}`);
   console.log("     - Attach files: main.js, manifest.json, styles.css");
   console.log("\n  2. Submit to Obsidian Community Plugins:");
   console.log("     - Fork: https://github.com/obsidianmd/obsidian-releases");
@@ -167,7 +167,7 @@ const manifestCheck = validateManifestFields(manifest);
 
 const allChecksPassed = [fileCheck, versionCheck, manifestCheck].every((check) => check.success);
 
-console.log("\n" + "=".repeat(50));
+console.log(`\n${"=".repeat(50)}`);
 
 if (allChecksPassed) {
   printSuccessMessage(manifest);

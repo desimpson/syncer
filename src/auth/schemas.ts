@@ -16,6 +16,14 @@ export const refreshResponseSchema = z.object({
   expires_in: z.number(),
 });
 
+/**
+ * Schema for validating Google OAuth error responses.
+ */
+export const googleErrorResponseSchema = z.object({
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
 export const googleCredentialsSchema = z.object({
   access_token: z.string().nonempty(), // not null/undefined and not empty
   refresh_token: z.string().nonempty(),

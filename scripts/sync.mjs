@@ -52,7 +52,6 @@ const copyPlugin = () => {
   logger.info(`🚀 Copying plugin to vault: ${vaultPluginDirectory}...`);
   mkdirSync(vaultPluginDirectory, { recursive: true });
 
-  // eslint-disable-next-line unicorn/no-array-callback-reference
   ["main.js", "manifest.json", "styles.css"].map(copyFile);
 };
 

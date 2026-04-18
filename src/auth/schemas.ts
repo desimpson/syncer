@@ -30,3 +30,21 @@ export const googleCredentialsSchema = z.object({
   expiry_date: z.number(),
   scope: z.string().nonempty(),
 });
+
+export const microsoftTokenResponseSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string().optional(),
+  expires_in: z.number(),
+  scope: z.string().optional(),
+});
+
+export const microsoftTokenErrorResponseSchema = z.object({
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
+export const microsoftGraphUserResponseSchema = z.object({
+  displayName: z.string().nullable().optional(),
+  mail: z.string().nullable().optional(),
+  userPrincipalName: z.string(),
+});

@@ -22,9 +22,10 @@ export default class SyncerPlugin extends Plugin {
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    const { GOOGLE_CLIENT_ID } = pluginSchema.parse(process.env);
+    const { GOOGLE_CLIENT_ID, MICROSOFT_CLIENT_ID } = pluginSchema.parse(process.env);
     this.config = {
       googleClientId: GOOGLE_CLIENT_ID,
+      microsoftClientId: MICROSOFT_CLIENT_ID.trim(),
     };
   }
 

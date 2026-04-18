@@ -51,6 +51,13 @@ const environmentSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
 });
 
+const getOptionalMicrosoftClientId = (mode) => {
+  const environmentVariableName =
+    mode === "production" ? "MICROSOFT_CLIENT_ID_PROD" : "MICROSOFT_CLIENT_ID_DEV";
+  const clientId = process.env[environmentVariableName];
+  return typeof clientId === "string" ? clientId.trim() : "";
+};
+
 /**
  * Validates and returns the Google Client ID for the current build mode.
  * Production builds require GOOGLE_CLIENT_ID_PROD.
@@ -81,13 +88,14 @@ const getValidatedClientId = (mode) => {
 /**
  * Creates production build options with the validated client ID.
  */
-const createProductionOptions = (clientId) => ({
+const createProductionOptions = (clientId, microsoftClientId) => ({
   ...baseOptions,
   sourcemap: false,
   minify: true,
   define: {
     "process.env": JSON.stringify({
       GOOGLE_CLIENT_ID: clientId,
+      MICROSOFT_CLIENT_ID: microsoftClientId,
     }),
   },
 });
@@ -95,13 +103,14 @@ const createProductionOptions = (clientId) => ({
 /**
  * Creates development build options with the validated client ID.
  */
-const createDevelopmentOptions = (clientId) => ({
+const createDevelopmentOptions = (clientId, microsoftClientId) => ({
   ...baseOptions,
   sourcemap: "inline",
   minify: false,
   define: {
     "process.env": JSON.stringify({
       GOOGLE_CLIENT_ID: clientId,
+      MICROSOFT_CLIENT_ID: microsoftClientId,
     }),
   },
 });
@@ -164,19 +173,30 @@ const run = async () => {
   const clientIdType = mode === "production" ? "PROD" : "DEV";
   console.info(`🔑 Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
 
+  const microsoftClientId = getOptionalMicrosoftClientId(
+    mode === "production" ? "production" : "development",
+  );
+  if (microsoftClientId.length > 0) {
+    console.info(
+      `🔑 Using Microsoft Client ID (${clientIdType}): ${microsoftClientId.slice(0, 8)}...`,
+    );
+  } else {
+    console.info("🔑 Microsoft Client ID not set (Outlook connect disabled until configured).");
+  }
+
   switch (mode) {
     case "production": {
-      const options = createProductionOptions(clientId);
+      const options = createProductionOptions(clientId, microsoftClientId);
       await build(options);
       break;
     }
     case "development": {
-      const options = createDevelopmentOptions(clientId);
+      const options = createDevelopmentOptions(clientId, microsoftClientId);
       await build(options);
       break;
     }
     default: {
-      const options = createDevelopmentOptions(clientId);
+      const options = createDevelopmentOptions(clientId, microsoftClientId);
       await watch(options);
     }
   }

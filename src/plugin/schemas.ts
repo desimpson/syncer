@@ -23,6 +23,8 @@ const h2HeadingRegex = /^##\s.+/;
  */
 export const pluginSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
+  /** Optional at build time; Outlook connect is disabled when empty. */
+  MICROSOFT_CLIENT_ID: z.string().default(""),
 });
 
 /**
@@ -96,6 +98,44 @@ export const googleTasksSettingsSchema = z.object({
   selectedListIds: z.array(z.string()).default([]),
 });
 
+const azureAdTenantGuidRegex =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * Optional directory (tenant) ID when signing in with a work or school account.
+ * Empty means any organization (`organizations` authority).
+ */
+export const microsoftWorkOrSchoolTenantIdSchema = z
+  .string()
+  .trim()
+  .refine((value) => value.length === 0 || azureAdTenantGuidRegex.test(value), {
+    message: "Must be empty or a valid directory (tenant) ID (GUID).",
+  })
+  .default("");
+
+export const microsoftAuthAccountKindSchema = z
+  .enum(["personal", "workSchool"])
+  .default("personal");
+
+export type MicrosoftAuthAccountKind = z.infer<typeof microsoftAuthAccountKindSchema>;
+
+/**
+ * Connected Microsoft Outlook (Graph) account.
+ */
+export const microsoftOutlookSettingsSchema = z.object({
+  userInfo: z.object({
+    email: z.email(),
+    displayName: z.string().optional(),
+  }),
+  credentials: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiryDate: z.number().int(),
+    scope: z.string(),
+    tenantSegment: z.string().min(1),
+  }),
+});
+
 /**
  * Schema for plugin settings with sensible defaults.
  */
@@ -108,4 +148,7 @@ export const pluginSettingsSchema = z.object({
   confirmDeleteSync: z.boolean().default(true),
   manuallyDeletedTaskIds: z.array(z.string()).default([]),
   googleTasks: googleTasksSettingsSchema.optional(),
+  microsoftAuthAccountKind: microsoftAuthAccountKindSchema,
+  microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
+  microsoftOutlook: microsoftOutlookSettingsSchema.optional(),
 });

@@ -3,8 +3,13 @@ import { FileSuggest } from "@/plugin/suggesters/file-suggest";
 import type SyncerPlugin from "@/plugin";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
 import type { PluginSettings, PluginConfig } from "@/plugin/types";
-import { createMarkdownFilePathSchema, headingSchema, syncIntervalSchema } from "./schemas";
-import { GoogleAuth, InvalidGrantError } from "@/auth";
+import {
+  createMarkdownFilePathSchema,
+  headingSchema,
+  microsoftWorkOrSchoolTenantIdSchema,
+  syncIntervalSchema,
+} from "./schemas";
+import { GoogleAuth, InvalidGrantError, MicrosoftAuth } from "@/auth";
 import { GoogleTasksService } from "@/services";
 import type { GoogleTasksList } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
@@ -53,6 +58,7 @@ export class SettingsTab extends PluginSettingTab {
       text: "Configure settings for the external sources you want to sync with Obsidian.",
     });
     await this.addGoogleTasksSettings(containerElement);
+    await this.addMicrosoftOutlookSettings(containerElement);
   }
 
   private async addSyncIntervalSetting(containerElement: HTMLElement, settings: PluginSettings) {
@@ -272,6 +278,153 @@ export class SettingsTab extends PluginSettingTab {
     await this.plugin.updateSettings({ googleTasks: undefined });
     // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     new Notice("Google Tasks account disconnected.");
+  }
+
+  private async addMicrosoftOutlookSettings(containerElement: HTMLElement) {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in Outlook settings */
+
+    new Setting(containerElement).setName("Microsoft Outlook").setHeading();
+
+    const settings = await this.plugin.loadSettings();
+
+    new Setting(containerElement)
+      .setName("Outlook account type")
+      .setDesc(
+        "Personal Microsoft accounts use the consumer sign-in endpoint (`consumers`). Work or school accounts use `organizations` when tenant ID is empty, or your directory tenant ID when provided.",
+      )
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("personal", "Personal (Outlook.com, Hotmail, Live)")
+          .addOption("workSchool", "Work or school")
+          .setValue(settings.microsoftAuthAccountKind)
+          .onChange(async (value) => {
+            const accountKind = value === "workSchool" ? "workSchool" : "personal";
+            await this.plugin.updateSettings({ microsoftAuthAccountKind: accountKind });
+            await this.display();
+          });
+      });
+
+    if (settings.microsoftAuthAccountKind === "workSchool") {
+      const tenantParse = microsoftWorkOrSchoolTenantIdSchema.safeParse(
+        settings.microsoftAuthWorkOrSchoolTenantId,
+      );
+      const { input, errorElement } = this.createTextSetting(
+        containerElement,
+        "Directory (tenant) ID",
+        "Optional. Leave empty to allow any work or school account. Otherwise paste your Microsoft Entra tenant GUID (Directory tenant ID from Azure).",
+        settings.microsoftAuthWorkOrSchoolTenantId,
+        "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      );
+
+      if (!tenantParse.success) {
+        errorElement.setText(tenantParse.error.issues[0]?.message ?? "Invalid tenant ID.");
+      }
+
+      input.onChange(async (value) => {
+        const result = microsoftWorkOrSchoolTenantIdSchema.safeParse(value);
+        if (result.success) {
+          await this.plugin.updateSettings({ microsoftAuthWorkOrSchoolTenantId: result.data });
+          errorElement.setText("");
+        } else {
+          errorElement.setText(result.error.issues[0]?.message ?? "Invalid value.");
+          console.warn(
+            `Invalid Microsoft tenant ID: [${value}]. Error: [${formatLogError(result.error)}].`,
+          );
+        }
+      });
+    }
+
+    const outlookRow = new Setting(containerElement);
+    const { microsoftOutlook } = settings;
+
+    if (microsoftOutlook === undefined) {
+      outlookRow.setName("No Microsoft Outlook account connected");
+      outlookRow.setDesc(
+        this.config.microsoftClientId.length === 0
+          ? "The plugin build does not include a Microsoft application (client) ID. Set MICROSOFT_CLIENT_ID_DEV or MICROSOFT_CLIENT_ID_PROD when building to enable Connect."
+          : "Connect opens your browser to sign in with Microsoft; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
+      );
+      outlookRow.addButton((button) => {
+        if (this.config.microsoftClientId.length === 0) {
+          button.setDisabled(true);
+        }
+        button.setButtonText("Connect").onClick(async () => {
+          await this.connectMicrosoftOutlook();
+          await this.display();
+        });
+      });
+    } else {
+      const display =
+        microsoftOutlook.userInfo.displayName !== undefined &&
+        microsoftOutlook.userInfo.displayName.length > 0
+          ? `${microsoftOutlook.userInfo.displayName} · ${microsoftOutlook.userInfo.email}`
+          : microsoftOutlook.userInfo.email;
+      outlookRow.setName("Connected account");
+      outlookRow.setDesc(
+        `${display} · authority: login.microsoftonline.com/${microsoftOutlook.credentials.tenantSegment}`,
+      );
+      outlookRow.addButton((button) =>
+        button
+          .setButtonText("Disconnect")
+          .setWarning()
+          .onClick(async () => {
+            await this.disconnectMicrosoftOutlook();
+            await this.display();
+          }),
+      );
+    }
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async connectMicrosoftOutlook(): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
+    if (this.config.microsoftClientId.length === 0) {
+      new Notice("Microsoft client ID is not configured for this build.");
+      return;
+    }
+
+    const settings = await this.plugin.loadSettings();
+    const tenantIdCheck = microsoftWorkOrSchoolTenantIdSchema.safeParse(
+      settings.microsoftAuthWorkOrSchoolTenantId,
+    );
+    if (!tenantIdCheck.success) {
+      new Notice("Fix the directory (tenant) ID before connecting.");
+      return;
+    }
+
+    try {
+      const tenantSegment = MicrosoftAuth.microsoftGraphTenantSegmentFromAuthSelection({
+        accountKind: settings.microsoftAuthAccountKind,
+        workOrSchoolTenantId: tenantIdCheck.data,
+      });
+
+      const credentials = await MicrosoftAuth.authenticate({
+        clientId: this.config.microsoftClientId,
+        tenantSegment,
+      });
+
+      const userInfo = await MicrosoftAuth.getUserInfo(credentials.accessToken);
+
+      await this.plugin.updateSettings({
+        microsoftOutlook: {
+          credentials,
+          userInfo,
+        },
+      });
+
+      new Notice("Microsoft Outlook account connected successfully.");
+    } catch (error) {
+      new Notice("Failed to connect Microsoft Outlook.");
+      console.error(`Error connecting Microsoft Outlook: [${formatLogError(error)}].`);
+    }
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async disconnectMicrosoftOutlook(): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
+    await this.plugin.updateSettings({ microsoftOutlook: undefined });
+    new Notice("Microsoft Outlook account disconnected.");
+    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addGoogleTasksListSelector(containerElement: HTMLElement) {

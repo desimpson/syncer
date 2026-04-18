@@ -7,6 +7,7 @@ import {
   pluginSettingsSchema,
   googleTasksSettingsSchema,
   headingSchema,
+  microsoftWorkOrSchoolTenantIdSchema,
 } from "@/plugin/schemas";
 import { describe, it, expect } from "vitest";
 import type { TFile, Vault } from "obsidian";
@@ -43,6 +44,7 @@ describe("pluginSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.GOOGLE_CLIENT_ID).toBe("id-123");
+      expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
     }
   });
 
@@ -210,6 +212,9 @@ describe("pluginSettingsSchema", () => {
       expect(result.data.syncHeading).toBe("## Inbox");
       expect(result.data.syncCompletionStatus).toBe(false);
       expect(result.data.googleTasks).toBeUndefined();
+      expect(result.data.microsoftAuthAccountKind).toBe("personal");
+      expect(result.data.microsoftAuthWorkOrSchoolTenantId).toBe("");
+      expect(result.data.microsoftOutlook).toBeUndefined();
     }
   });
 
@@ -281,6 +286,30 @@ describe("pluginSettingsSchema", () => {
       const messages = result.error.issues.map((index) => index.message).join(" | ");
       expect(messages).toContain("Invalid email address");
     }
+  });
+});
+
+describe("microsoftWorkOrSchoolTenantIdSchema", () => {
+  it("accepts empty string", () => {
+    const result = microsoftWorkOrSchoolTenantIdSchema.safeParse("");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toBe("");
+    }
+  });
+
+  it("accepts a lowercase GUID", () => {
+    const id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    const result = microsoftWorkOrSchoolTenantIdSchema.safeParse(id);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toBe(id);
+    }
+  });
+
+  it("rejects invalid tenant id strings", () => {
+    const result = microsoftWorkOrSchoolTenantIdSchema.safeParse("not-a-guid");
+    expect(result.success).toBe(false);
   });
 });
 

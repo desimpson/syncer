@@ -13,31 +13,31 @@ jobs:
     name: Test & Lint
     runs-on: ubuntu-latest
     steps:
-      - name: ⬇️ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🟢 Set up Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: 🔍 Type check (tsc)
+      - name: Type check (tsc)
         run: npm run typecheck
 
-      - name: 🧹 Lint code (ESLint)
+      - name: Lint code (ESLint)
         run: npm run lint
 
-      - name: 💅 Check formatting (Prettier)
+      - name: Check formatting (Prettier)
         run: npm run format:check
 
-      - name: 🧪 Run unit tests (Vitest)
+      - name: Run unit tests (Vitest)
         run: npm run test:unit
 
-      - name: 🔗 Run integration tests (Vitest)
+      - name: Run integration tests (Vitest)
         run: npm run test:integration
 
   build-dev:
@@ -52,22 +52,22 @@ jobs:
       GOOGLE_CLIENT_ID_DEV: ${{ secrets.GOOGLE_CLIENT_ID_DEV }}
 
     steps:
-      - name: ⬇️ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🟢 Set up Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: 🔧 Build plugin (development)
+      - name: Build plugin (development)
         run: npm run build:dev
 
-      - name: 📁 Upload plugin artifact
+      - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
           name: obsidian-syncer-dev
@@ -88,22 +88,22 @@ jobs:
       GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
 
     steps:
-      - name: ⬇️ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🟢 Set up Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: 🔧 Build plugin (production)
+      - name: Build plugin (production)
         run: npm run build:prod
 
-      - name: 📁 Upload plugin artifact
+      - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
           name: obsidian-syncer-prod

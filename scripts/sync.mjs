@@ -42,36 +42,36 @@ const copyFile = (file) => {
   const source = path.join(pluginDirectory, file);
   const destination = path.join(vaultPluginDirectory, file);
   if (!existsSync(source)) {
-    throw new Error(`⚠️ Source file missing: ${file}. Please run the build before installing.`);
+    throw new Error(`Source file missing: ${file}. Please run the build before installing.`);
   }
   copyFileSync(source, destination);
-  logger.info(`  📄 Copied ${file}.`);
+  logger.info(`  Copied ${file}.`);
 };
 
 const copyPlugin = () => {
-  logger.info(`🚀 Copying plugin to vault: ${vaultPluginDirectory}...`);
+  logger.info(`Copying plugin to vault: ${vaultPluginDirectory}...`);
   mkdirSync(vaultPluginDirectory, { recursive: true });
 
   ["main.js", "manifest.json", "styles.css"].map(copyFile);
 };
 
 const enableHotReload = () => {
-  logger.info("🔁 Creating .hotreload file if it doesn't exist...");
+  logger.info("Creating .hotreload file if it doesn't exist...");
   closeSync(openSync(hotReloadFile, "a"));
-  logger.info("  ✅ .hotreload created (Obsidian will reload plugin).");
+  logger.info("  .hotreload created (Obsidian will reload plugin).");
 };
 
 const main = () => {
   if (vaultPluginDirectory === undefined) {
     logger.warn(
-      "⚠️  Environment variable OBSIDIAN_VAULT_PLUGIN_DIR_DEV not set. Skipping local plugin install.",
+      "Environment variable OBSIDIAN_VAULT_PLUGIN_DIR_DEV not set. Skipping local plugin install.",
     );
     process.exit(0);
   }
   try {
     copyPlugin();
     enableHotReload();
-    logger.info("✅ Install complete.");
+    logger.info("Install complete.");
   } catch (error) {
     logger.error(error.message);
     process.exit(1);

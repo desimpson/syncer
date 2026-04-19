@@ -41,11 +41,11 @@ function readJSON(file) {
 }
 
 const validateFiles = () => {
-  console.log("📁 Checking required files:");
+  console.log("Checking required files:");
   const results = requiredFiles.map((file) => {
     const { exists } = checkFile(file);
-    const status = exists ? "✅" : "❌";
-    console.log(`  ${status} ${file}`);
+    const status = exists ? "OK" : "MISSING";
+    console.log(`  [${status}] ${file}`);
     return { file, exists };
   });
 
@@ -58,10 +58,10 @@ const validateFiles = () => {
  * @param {object | undefined} manifest
  */
 const validateVersions = (packageJson, manifest) => {
-  console.log("\n📦 Checking version consistency:");
+  console.log("\nChecking version consistency:");
 
   if (!packageJson || !manifest) {
-    console.log("  ❌ Could not read package.json or manifest.json");
+    console.log("  [ERROR] Could not read package.json or manifest.json");
     return { success: false, versionsMatch: false, packageJson, manifest };
   }
 
@@ -71,10 +71,10 @@ const validateVersions = (packageJson, manifest) => {
 
   console.log(`  Package version: ${packageVersion}`);
   console.log(`  Manifest version: ${manifestVersion}`);
-  console.log(`  ${versionsMatch ? "✅" : "❌"} Versions match`);
+  console.log(`  [${versionsMatch ? "OK" : "MISMATCH"}] Versions match`);
 
   if (!versionsMatch) {
-    console.log("\n❌ Error: Version mismatch detected!");
+    console.log("\nError: Version mismatch detected!");
     console.log("   Run 'npm run version' to sync versions.");
   }
 
@@ -85,7 +85,7 @@ const validateVersions = (packageJson, manifest) => {
  * @param {object | undefined} manifest
  */
 const validateManifestFields = (manifest) => {
-  console.log("\n📋 Checking manifest.json fields:");
+  console.log("\nChecking manifest.json fields:");
   const requiredManifestFields = [
     "id",
     "name",
@@ -97,21 +97,21 @@ const validateManifestFields = (manifest) => {
   ];
 
   if (!manifest) {
-    console.log("  ❌ Could not read manifest.json");
+    console.log("  [ERROR] Could not read manifest.json");
     return { success: false, allFieldsPresent: false, manifest, fieldResults: [] };
   }
 
   const fieldResults = requiredManifestFields.map((field) => {
     const exists = manifest[field] !== undefined && manifest[field] !== "";
-    const status = exists ? "✅" : "❌";
-    console.log(`  ${status} ${field}: ${manifest[field] || "(missing)"}`);
+    const status = exists ? "OK" : "MISSING";
+    console.log(`  [${status}] ${field}: ${manifest[field] || "(missing)"}`);
     return { field, exists };
   });
 
   const allFieldsPresent = fieldResults.every((r) => r.exists);
 
   if (!allFieldsPresent) {
-    console.log("\n❌ Error: Some required manifest fields are missing!");
+    console.log("\nError: Some required manifest fields are missing!");
   }
 
   return { success: allFieldsPresent, allFieldsPresent, manifest, fieldResults };
@@ -121,8 +121,8 @@ const validateManifestFields = (manifest) => {
  * @param {object | undefined} manifest
  */
 const printSuccessMessage = (manifest) => {
-  console.log("✅ All release checks passed!");
-  console.log("\n📝 Next steps:");
+  console.log("All release checks passed.");
+  console.log("\nNext steps:");
   console.log("  1. Create a GitHub release:");
   console.log("     - Go to: https://github.com/YOUR_USERNAME/syncer/releases/new");
   console.log(`     - Tag: v${manifest?.version || "X.X.X"}`);
@@ -141,22 +141,22 @@ const printSuccessMessage = (manifest) => {
  * @param {object} manifestCheck
  */
 const printErrorMessage = (fileCheck, versionCheck, manifestCheck) => {
-  console.log("❌ Release readiness checks failed!");
+  console.log("Release readiness checks failed.");
   if (!fileCheck.allFilesExist) {
-    console.log("\n💡 Build the plugin first:");
+    console.log("\nHint: Build the plugin first:");
     console.log("   export GOOGLE_CLIENT_ID_PROD='your-client-id'");
     console.log("   npm run build:prod");
   }
   if (versionCheck.packageJson && versionCheck.manifest && !versionCheck.versionsMatch) {
-    console.log("\n💡 Sync versions:");
+    console.log("\nHint: Sync versions:");
     console.log("   npm run version");
   }
   if (manifestCheck.manifest && !manifestCheck.allFieldsPresent) {
-    console.log("\n💡 Update manifest.json with all required fields.");
+    console.log("\nHint: Update manifest.json with all required fields.");
   }
 };
 
-console.log("🔍 Checking release readiness...\n");
+console.log("Checking release readiness...\n");
 
 const packageJson = readJSON("package.json");
 const manifest = readJSON("manifest.json");

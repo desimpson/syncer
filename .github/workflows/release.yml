@@ -17,45 +17,45 @@ jobs:
       GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
 
     steps:
-      - name: ⬇️ Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Fetch all history for tags
 
-      - name: 🟢 Set up Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: 🔍 Type check (tsc)
+      - name: Type check (tsc)
         run: npm run typecheck
 
-      - name: 🧹 Lint code (ESLint)
+      - name: Lint code (ESLint)
         run: npm run lint
 
-      - name: 🧪 Run tests
+      - name: Run tests
         run: npm test
 
-      - name: 🔧 Build plugin (production)
+      - name: Build plugin (production)
         run: npm run build:prod
 
-      - name: ✅ Verify release readiness
+      - name: Verify release readiness
         run: npm run release:check
 
-      - name: 📝 Extract version from tag
+      - name: Extract version from tag
         id: get_version
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=$TAG_NAME
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Building release for version: $VERSION (tag: $TAG_NAME)"
+          echo "Building release for version: $VERSION (tag: $TAG_NAME)"
 
-      - name: 📦 Create Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |

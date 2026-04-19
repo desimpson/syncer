@@ -178,10 +178,10 @@ const run = async () => {
   );
   if (microsoftClientId.length > 0) {
     console.info(
-      `🔑 Using Microsoft Client ID (${clientIdType}): ${microsoftClientId.slice(0, 8)}...`,
+      `Using Microsoft Client ID (${clientIdType}): ${microsoftClientId.slice(0, 8)}...`,
     );
   } else {
-    console.info("🔑 Microsoft Client ID not set (Outlook connect disabled until configured).");
+    console.info("Microsoft Client ID not set (Outlook connect disabled until configured).");
   }
 
   switch (mode) {

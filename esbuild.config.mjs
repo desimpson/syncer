@@ -113,11 +113,11 @@ const createDevelopmentOptions = (clientId) => ({
  * @returns {Promise<void>}
  */
 const build = async (options) => {
-  console.info("🔧 Building...");
+  console.info("Building...");
   const context = await esbuild.context(options);
   try {
     await context.rebuild();
-    console.info("✅ Build succeeded.");
+    console.info("Build succeeded.");
   } finally {
     await context.dispose();
   }
@@ -130,11 +130,11 @@ const build = async (options) => {
  * @returns {Promise<void>}
  */
 const watch = async (options) => {
-  console.info("👀 Watching for changes...");
+  console.info("Watching for changes...");
   const context = await esbuild.context(options);
 
   context.watch().catch((error) => {
-    console.error("❌ Watch failed:", error);
+    console.error("Watch failed:", error);
   });
 };
 
@@ -157,12 +157,12 @@ const getMode = () => {
  */
 const run = async () => {
   const mode = getMode();
-  console.info(`🚀 Starting build script in mode: ${mode}`);
+  console.info(`Starting build script in mode: ${mode}`);
 
   // Get and validate the appropriate client ID for this build mode
   const clientId = getValidatedClientId(mode);
   const clientIdType = mode === "production" ? "PROD" : "DEV";
-  console.info(`🔑 Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
+  console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
 
   switch (mode) {
     case "production": {

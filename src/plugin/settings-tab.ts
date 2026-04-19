@@ -290,7 +290,7 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Outlook account type")
       .setDesc(
-        "Personal Microsoft accounts use the consumer sign-in endpoint (`consumers`). Work or school accounts use `organizations` when tenant ID is empty, or your directory tenant ID when provided.",
+        "Choose the option that matches how you sign in to Microsoft: a personal inbox, or an account from work or school.",
       )
       .addDropdown((dropdown) => {
         dropdown

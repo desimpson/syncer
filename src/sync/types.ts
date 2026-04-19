@@ -27,7 +27,10 @@ export type SyncAction = {
 /**
  * The different supported sync sources.
  */
-export type SyncSource = "google-tasks";
+export type SyncSource = "google-tasks" | "microsoft-outlook";
+
+/** `SyncItem.source` / markdown metadata value for Microsoft Outlook. */
+export const MICROSOFT_OUTLOOK_SOURCE = "microsoft-outlook" satisfies SyncSource;
 
 /**
  * A parsed Markdown line item with sync metadata.

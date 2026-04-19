@@ -66,10 +66,7 @@ const getSyncFileWithRetry = async (
   return retryFile;
 };
 
-/**
- * Maps each incoming message id to a stable "list" key so completion sync can reuse the same
- * `detectCompletionChanges` shape as Google Tasks (id → list id). Outlook has no task list id.
- */
+/** Same completion-sync shape as Google Tasks: each message id maps to a synthetic list key. */
 const buildOutlookMessageIdToListKeyMap = (incoming: readonly SyncItem[]): Map<string, string> =>
   new Map(incoming.map((item) => [item.id, item.id]));
 
@@ -144,20 +141,23 @@ const applyCompletionChangesToGraph = async (
   }));
 };
 
-const handleFailedUpdates = (
+const reportFailedOutlookPatches = (
   updateResults: readonly UpdateResult[],
   notify: (message: string) => void,
 ): void => {
   updateResults.forEach((item, index) => {
     if (item.change === undefined) {
       console.error(`Missing Outlook completion change at index ${index}`);
-    } else if (item.result.status === "rejected") {
-      console.error(
-        `Failed to update Outlook flag for message ${item.change.messageId}:`,
-        item.result.reason,
-      );
-      notify(`Failed to sync Outlook flag for message: ${item.change.messageId}`);
+      return;
     }
+    if (item.result.status !== "rejected") {
+      return;
+    }
+    console.error(
+      `Failed to update Outlook flag for message ${item.change.messageId}:`,
+      item.result.reason,
+    );
+    notify(`Failed to sync Outlook flag for message: ${item.change.messageId}`);
   });
 };
 
@@ -181,7 +181,7 @@ const applyCompletionChangesToOutlook = async (
   }
 
   const updateResults = await applyCompletionChangesToGraph(completionChanges, accessToken);
-  handleFailedUpdates(updateResults, notify);
+  reportFailedOutlookPatches(updateResults, notify);
   return extractSuccessfulChanges(updateResults);
 };
 
@@ -216,6 +216,29 @@ const updateIncomingItemsWithCompletionChanges = (
   return [...updatedIncoming, ...uncompletedMessages];
 };
 
+const mergeCompletionFromMarkdown = async (
+  syncCompletionStatus: boolean,
+  existing: readonly SyncItem[],
+  incoming: readonly SyncItem[],
+  messageIdToListKey: Map<string, string>,
+  accessToken: string,
+  notify: (message: string) => void,
+): Promise<readonly SyncItem[]> => {
+  if (!syncCompletionStatus) {
+    return incoming;
+  }
+  const completionChanges = detectCompletionChanges(existing, incoming, messageIdToListKey);
+  const successfulChanges = await applyCompletionChangesToOutlook(
+    completionChanges,
+    accessToken,
+    notify,
+  );
+  return updateIncomingItemsWithCompletionChanges(incoming, successfulChanges, existing);
+};
+
+const isMissingFileError = (message: string): boolean =>
+  /ENOENT|no such file or directory|not found/i.test(message);
+
 const syncOutlookMessagesToFile = async (
   file: TFile,
   messages: readonly OutlookFlaggedMessage[],
@@ -231,30 +254,22 @@ const syncOutlookMessagesToFile = async (
 
   try {
     const existing = await readMarkdownSyncItems(file, MICROSOFT_OUTLOOK_SOURCE);
-
-    let updatedIncoming: readonly SyncItem[] = incoming;
-    if (syncCompletionStatus) {
-      const completionChanges = detectCompletionChanges(existing, incoming, messageIdToListKey);
-      const successfulChanges = await applyCompletionChangesToOutlook(
-        completionChanges,
-        accessToken,
-        notify,
-      );
-
-      updatedIncoming = updateIncomingItemsWithCompletionChanges(
-        incoming,
-        successfulChanges,
-        existing,
-      );
-    }
-
-    const allActions = generateSyncActions(updatedIncoming, existing);
-    const actions = filterActions(allActions, shouldPreserveCompletedDeletes);
-
+    const updatedIncoming = await mergeCompletionFromMarkdown(
+      syncCompletionStatus,
+      existing,
+      incoming,
+      messageIdToListKey,
+      accessToken,
+      notify,
+    );
+    const actions = filterActions(
+      generateSyncActions(updatedIncoming, existing),
+      shouldPreserveCompletedDeletes,
+    );
     await writeSyncActions(file, actions, syncHeading);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (/ENOENT|no such file or directory|not found/i.test(message)) {
+    if (isMissingFileError(message)) {
       notify(
         `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
       );
@@ -264,6 +279,28 @@ const syncOutlookMessagesToFile = async (
     throw error;
   }
 };
+
+const persistRefreshedToken =
+  (
+    settings: PluginSettings,
+    microsoftOutlook: MicrosoftOutlookSettings,
+    saveSettings: (s: PluginSettings) => Promise<void>,
+  ) =>
+  async ({
+    accessToken,
+    expiryDate,
+  }: {
+    accessToken: string;
+    expiryDate: number;
+  }): Promise<void> => {
+    await saveSettings({
+      ...settings,
+      microsoftOutlook: {
+        ...microsoftOutlook,
+        credentials: { ...microsoftOutlook.credentials, accessToken, expiryDate },
+      },
+    });
+  };
 
 /**
  * Create a job to sync flagged Outlook messages into the Markdown sync note.
@@ -294,16 +331,7 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
       currentAccessToken = await ensureAccessToken(
         microsoftOutlook,
         config,
-        async ({ accessToken, expiryDate }) => {
-          const updatedSettings: PluginSettings = {
-            ...settings,
-            microsoftOutlook: {
-              ...microsoftOutlook,
-              credentials: { ...microsoftOutlook.credentials, accessToken, expiryDate },
-            },
-          };
-          await saveSettings(updatedSettings);
-        },
+        persistRefreshedToken(settings, microsoftOutlook, saveSettings),
       );
     } catch (error) {
       if (error instanceof InvalidGrantError) {

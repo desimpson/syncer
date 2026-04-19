@@ -33,36 +33,62 @@ const buildFlaggedMessagesUrl = (): string => {
   return `${GRAPH_MESSAGES_BASE}?$filter=${filter}&$select=${select}&$top=50`;
 };
 
+const flagPatchBody = (completed: boolean): string =>
+  JSON.stringify({
+    flag: { flagStatus: completed ? "complete" : "flagged" },
+  });
+
+const parseMessagesPage = (responseText: string): z.infer<typeof outlookMessagesPageSchema> =>
+  outlookMessagesPageSchema.parse(JSON.parse(responseText) as unknown);
+
+const fetchMessagesPage = async (
+  accessToken: string,
+  url: string,
+): Promise<{
+  readonly value: readonly OutlookFlaggedMessage[];
+  readonly nextUrl: string | undefined;
+}> => {
+  const response = await requestUrl({
+    url,
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    throw: false,
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`Microsoft Graph list messages failed: ${response.status} ${response.text}`);
+  }
+
+  const page = parseMessagesPage(response.text);
+  return { value: page.value, nextUrl: page["@odata.nextLink"] };
+};
+
+const collectPaginatedMessages = async (
+  accessToken: string,
+  initialUrl: string,
+): Promise<readonly OutlookFlaggedMessage[]> => {
+  const step = async (
+    url: string | undefined,
+    accumulated: readonly OutlookFlaggedMessage[],
+  ): Promise<readonly OutlookFlaggedMessage[]> => {
+    if (url === undefined) {
+      return accumulated;
+    }
+    const { value, nextUrl } = await fetchMessagesPage(accessToken, url);
+    return step(nextUrl, [...accumulated, ...value]);
+  };
+
+  return step(initialUrl, []);
+};
+
 /**
  * Fetches all messages whose Outlook follow-up flag is `flagged` (not yet complete),
  * following Graph `@odata.nextLink` pagination.
  */
-export const fetchFlaggedMessages = async (
+export const fetchFlaggedMessages = (
   accessToken: string,
-): Promise<readonly OutlookFlaggedMessage[]> => {
-  const collected: OutlookFlaggedMessage[] = [];
-  let url: string | undefined = buildFlaggedMessagesUrl();
-
-  while (url !== undefined) {
-    const response = await requestUrl({
-      url,
-      method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      throw: false,
-    });
-
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Microsoft Graph list messages failed: ${response.status} ${response.text}`);
-    }
-
-    const json: unknown = JSON.parse(response.text);
-    const page = outlookMessagesPageSchema.parse(json);
-    collected.push(...page.value);
-    url = page["@odata.nextLink"];
-  }
-
-  return collected;
-};
+): Promise<readonly OutlookFlaggedMessage[]> =>
+  collectPaginatedMessages(accessToken, buildFlaggedMessagesUrl());
 
 /**
  * Updates the Outlook flag on a message (`complete` vs `flagged`) for Obsidian completion sync.
@@ -73,10 +99,6 @@ export const updateOutlookMessageFlag = async (
   completed: boolean,
 ): Promise<void> => {
   const url = `${GRAPH_MESSAGES_BASE}/${encodeURIComponent(messageId)}`;
-  const body = JSON.stringify({
-    flag: { flagStatus: completed ? "complete" : "flagged" },
-  });
-
   const response = await requestUrl({
     url,
     method: "PATCH",
@@ -84,7 +106,7 @@ export const updateOutlookMessageFlag = async (
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body,
+    body: flagPatchBody(completed),
     throw: false,
   });
 

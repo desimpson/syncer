@@ -2,37 +2,26 @@ import type { SyncAdaptor } from "./types";
 import type { OutlookFlaggedMessage } from "@/services/outlook-mail";
 import { MICROSOFT_OUTLOOK_SOURCE } from "@/sync/types";
 
-const formatSender = (message: OutlookFlaggedMessage): string => {
-  const address = message.from?.emailAddress;
-  const name = address?.name;
-  if (typeof name === "string" && name.length > 0) {
-    return name;
+const nonEmptyTrimmed = (value: string | null | undefined): string | undefined => {
+  if (value === undefined || value === null) {
+    return undefined;
   }
-  const addr = address?.address;
-  if (typeof addr === "string" && addr.length > 0) {
-    return addr;
-  }
-  return "Unknown sender";
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const formatSender = (message: OutlookFlaggedMessage): string =>
+  nonEmptyTrimmed(message.from?.emailAddress?.name) ??
+  nonEmptyTrimmed(message.from?.emailAddress?.address) ??
+  "Unknown sender";
+
 const messageTitle = (message: OutlookFlaggedMessage): string => {
-  const subject =
-    message.subject !== undefined && message.subject !== null && message.subject.trim().length > 0
-      ? message.subject.trim()
-      : "(No subject)";
+  const subject = nonEmptyTrimmed(message.subject) ?? "(No subject)";
   return `${subject} (${formatSender(message)})`;
 };
 
-const messageLink = (message: OutlookFlaggedMessage): string => {
-  if (
-    message.webLink !== undefined &&
-    message.webLink !== null &&
-    message.webLink.trim().length > 0
-  ) {
-    return message.webLink.trim();
-  }
-  return "https://outlook.office.com/mail/";
-};
+const messageLink = (message: OutlookFlaggedMessage): string =>
+  nonEmptyTrimmed(message.webLink) ?? "https://outlook.office.com/mail/";
 
 /**
  * Maps a flagged Graph message to a `SyncItem` for Markdown sync.

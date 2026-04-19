@@ -96,6 +96,13 @@ export default defineConfig([
     },
   },
   {
+    files: ["vitest.config.ts", "vitest.*.config.ts"],
+    rules: {
+      // Vitest configs run in Node and resolve paths to mocks (e.g. obsidian stub).
+      "import/no-nodejs-modules": "off",
+    },
+  },
+  {
     files: ["tests/**/*.ts"],
     rules: {
       // Tests legitimately import Node.js modules for mocking HTTP servers, etc.

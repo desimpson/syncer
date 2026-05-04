@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile, Vault } from "obsidian";
-import type * as AuthModule from "@/auth";
 import { createMicrosoftOutlookJob } from "@/jobs/microsoft-outlook";
 import type { OutlookFlaggedMessage } from "@/services/outlook-mail";
 import type { SyncAction, SyncItem } from "@/sync/types";
@@ -52,7 +51,8 @@ vi.mock("@/services/outlook-mail", () => {
 });
 
 vi.mock("@/auth", async () => {
-  const actual = await vi.importActual<AuthModule>("@/auth");
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Vitest generic needs module object type
+  const actual = await vi.importActual<typeof import("@/auth")>("@/auth");
   const refreshAccessToken = vi.fn() as unknown as (
     clientId: string,
     token: { refreshToken: string; tenantSegment: string },

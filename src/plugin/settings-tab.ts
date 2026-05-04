@@ -50,6 +50,7 @@ export class SettingsTab extends PluginSettingTab {
     await this.addSyncIntervalSetting(containerElement, settings);
     await this.addSyncDocumentSetting(containerElement, settings);
     this.addSyncHeadingSetting(containerElement, settings);
+    this.addSyncCompletionStatusSetting(containerElement, settings);
   }
 
   private async renderExternalSourceSettings(containerElement: HTMLElement) {
@@ -149,7 +150,7 @@ export class SettingsTab extends PluginSettingTab {
       .setName("Sync completion status")
       .setDesc(
         // eslint-disable-next-line obsidianmd/ui/sentence-case -- product names
-        "When enabled, completing or uncompleting tasks in Obsidian will update their status in Google Tasks.",
+        "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks and Microsoft Outlook (email flags) on the next sync.",
       )
       .addToggle((toggle) => {
         toggle.setValue(settings.syncCompletionStatus).onChange(async (value) => {
@@ -238,8 +239,6 @@ export class SettingsTab extends PluginSettingTab {
       );
     }
 
-    // Add completion status sync setting
-    this.addSyncCompletionStatusSetting(containerElement, settings);
     this.addDeleteSyncSettings(containerElement, settings);
 
     await this.addGoogleTasksListSelector(containerElement);

@@ -66,9 +66,16 @@ const getSyncFileWithRetry = async (
   return retryFile;
 };
 
-/** Same completion-sync shape as Google Tasks: each message id maps to a synthetic list key. */
-const buildOutlookMessageIdToListKeyMap = (incoming: readonly SyncItem[]): Map<string, string> =>
-  new Map(incoming.map((item) => [item.id, item.id]));
+/**
+ * Pure identity index for Outlook completion reconciliation.
+ * Duplicate IDs: later entries win — pass existing before incoming so remote state takes precedence.
+ */
+const buildOutlookMessageIdToListKeyMap = (items: readonly SyncItem[]): Map<string, string> =>
+  new Map(
+    items
+      .filter((item) => item.source === MICROSOFT_OUTLOOK_SOURCE)
+      .map((item) => [item.id, item.id]),
+  );
 
 const detectChangeForTaskInBoth = (
   existingItem: SyncItem,
@@ -250,10 +257,10 @@ const syncOutlookMessagesToFile = async (
 ) => {
   const adaptor = mapOutlookMessageToSyncItem(syncHeading);
   const incoming = messages.map(adaptor);
-  const messageIdToListKey = buildOutlookMessageIdToListKeyMap(incoming);
 
   try {
     const existing = await readMarkdownSyncItems(file, MICROSOFT_OUTLOOK_SOURCE);
+    const messageIdToListKey = buildOutlookMessageIdToListKeyMap([...existing, ...incoming]);
     const updatedIncoming = await mergeCompletionFromMarkdown(
       syncCompletionStatus,
       existing,

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile, Vault } from "obsidian";
 import { createMicrosoftOutlookJob } from "@/jobs/microsoft-outlook";
 import type { OutlookFlaggedMessage } from "@/services/outlook-mail";
+import type * as SyncActionsModule from "@/sync/actions";
 import type { SyncAction, SyncItem } from "@/sync/types";
 
 vi.mock("@/sync/reader", () => {
@@ -64,7 +65,7 @@ vi.mock("@/auth", async () => {
 });
 
 import { readMarkdownSyncItems } from "@/sync/reader";
-import { generateSyncActions } from "@/sync/actions";
+import { generateSyncActions, shouldPreserveCompletedDeletes, filterActions } from "@/sync/actions";
 import { writeSyncActions } from "@/sync/writer";
 import { fetchFlaggedMessages, updateOutlookMessageFlag } from "@/services/outlook-mail";
 
@@ -287,5 +288,169 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     const failed = capturedIncoming.find((item) => item.id === "msg-fail");
     expect(successful?.completed).toBe(true);
     expect(failed?.completed).toBe(false);
+  });
+
+  it("re-flags Outlook message when user unchecks item absent from flagged fetch", async () => {
+    const settings = {
+      microsoftOutlook: makeOutlookSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: true,
+    };
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+    const notify = vi.fn();
+
+    vi.mocked(fetchFlaggedMessages).mockResolvedValue([]);
+
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([
+      {
+        id: "msg-1",
+        source: "microsoft-outlook",
+        title: "Message 1 (Ada)",
+        link: "https://outlook.office.com/mail/msg-1",
+        heading: "## Inbox",
+        completed: false,
+      },
+    ]);
+
+    vi.mocked(updateOutlookMessageFlag).mockResolvedValue();
+
+    const actualActions = await vi.importActual<typeof SyncActionsModule>("@/sync/actions");
+    vi.mocked(generateSyncActions).mockImplementation(actualActions.generateSyncActions);
+    vi.mocked(filterActions).mockImplementation(actualActions.filterActions);
+    vi.mocked(shouldPreserveCompletedDeletes).mockImplementation(
+      actualActions.shouldPreserveCompletedDeletes,
+    );
+
+    let capturedActions: SyncAction[] = [];
+    vi.mocked(writeSyncActions).mockImplementation((_file, actions, _heading) => {
+      capturedActions = [...actions];
+      return Promise.resolve();
+    });
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
+
+    await job.task();
+
+    expect(updateOutlookMessageFlag).toHaveBeenCalledWith("outlook-token", "msg-1", false);
+
+    const deleteActions = capturedActions.filter((action) => action.operation === "delete");
+    expect(deleteActions.find((action) => action.item.id === "msg-1")).toBeUndefined();
+  });
+
+  it("does not falsely reconcile uncheck when re-flag PATCH fails", async () => {
+    const settings = {
+      microsoftOutlook: makeOutlookSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: true,
+    };
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+    const notify = vi.fn();
+
+    vi.mocked(fetchFlaggedMessages).mockResolvedValue([]);
+
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([
+      {
+        id: "msg-fail",
+        source: "microsoft-outlook",
+        title: "Will fail (Ada)",
+        link: "https://outlook.office.com/mail/msg-fail",
+        heading: "## Inbox",
+        completed: false,
+      },
+    ]);
+
+    vi.mocked(updateOutlookMessageFlag).mockRejectedValue(new Error("Graph patch failed"));
+
+    let capturedIncoming: SyncItem[] = [];
+    vi.mocked(generateSyncActions).mockImplementation((incoming) => {
+      capturedIncoming = [...incoming];
+      return [];
+    });
+    vi.mocked(writeSyncActions).mockResolvedValue();
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
+
+    await job.task();
+
+    expect(notify).toHaveBeenCalledWith("Failed to sync Outlook flag for message: msg-fail");
+    expect(updateOutlookMessageFlag).toHaveBeenCalledWith("outlook-token", "msg-fail", false);
+    expect(capturedIncoming.find((item) => item.id === "msg-fail")).toBeUndefined();
+  });
+
+  it("deletes unchecked items absent from flagged fetch when completion sync is disabled", async () => {
+    const settings = {
+      microsoftOutlook: makeOutlookSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: false,
+    };
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(fetchFlaggedMessages).mockResolvedValue([]);
+
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([
+      {
+        id: "msg-gone",
+        source: "microsoft-outlook",
+        title: "Gone (Ada)",
+        link: "https://outlook.office.com/mail/msg-gone",
+        heading: "## Inbox",
+        completed: false,
+      },
+    ]);
+
+    const actualActions = await vi.importActual<typeof SyncActionsModule>("@/sync/actions");
+    vi.mocked(generateSyncActions).mockImplementation(actualActions.generateSyncActions);
+    vi.mocked(filterActions).mockImplementation(actualActions.filterActions);
+    vi.mocked(shouldPreserveCompletedDeletes).mockImplementation(
+      actualActions.shouldPreserveCompletedDeletes,
+    );
+
+    let capturedActions: SyncAction[] = [];
+    vi.mocked(writeSyncActions).mockImplementation((_file, actions, _heading) => {
+      capturedActions = [...actions];
+      return Promise.resolve();
+    });
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
+
+    await job.task();
+
+    expect(updateOutlookMessageFlag).not.toHaveBeenCalled();
+
+    const deleteActions = capturedActions.filter((action) => action.operation === "delete");
+    expect(deleteActions.find((action) => action.item.id === "msg-gone")).toBeDefined();
   });
 });

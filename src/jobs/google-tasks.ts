@@ -373,7 +373,6 @@ export const createGoogleTasksJob: SyncJobCreator = (
 ) => ({
   name: "google-tasks",
   task: async () => {
-    // TODO: Test settings freshness?
     const settings = await loadSettings();
     const {
       googleTasks,

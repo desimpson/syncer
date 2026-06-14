@@ -125,4 +125,33 @@ describe("readMarkdownSyncItems", () => {
       expect(items).toEqual(expected);
     });
   });
+
+  it("reads from persisted disk snapshot via vault.read", async () => {
+    // Arrange
+    const readContent = `- [x] [Disk item](https://tasks.google.com/task/1) <!-- {"id":"1","source":"google-tasks","title":"Disk item","link":"https://tasks.google.com/task/1","heading":"# Tasks"} -->`;
+    const cachedContent = `- [ ] [Cached item](https://tasks.google.com/task/2) <!-- {"id":"2","source":"google-tasks","title":"Cached item","link":"https://tasks.google.com/task/2","heading":"# Tasks"} -->`;
+    const file = {
+      path: "Tasks.md",
+      name: "Tasks.md",
+      vault: {
+        read: async () => readContent,
+        cachedRead: async () => cachedContent,
+      },
+    } as unknown as TFile;
+
+    // Act
+    const items = await readMarkdownSyncItems(file, "google-tasks");
+
+    // Assert
+    expect(items).toEqual([
+      {
+        id: "1",
+        title: "Disk item",
+        source: "google-tasks",
+        heading: "# Tasks",
+        link: "https://tasks.google.com/task/1",
+        completed: true,
+      },
+    ]);
+  });
 });

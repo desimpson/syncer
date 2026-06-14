@@ -89,7 +89,7 @@ export class SettingsTab extends PluginSettingTab {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
       "Sync markdown file path",
-      "Path to the markdown file you want to sync external data to.",
+      "Path to the markdown file you want to sync external data to. Sync reads the saved file on disk, so save changes before running Manual sync.",
       settings.syncDocument,
       "e.g., GTD.md",
     );

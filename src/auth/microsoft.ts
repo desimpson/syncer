@@ -17,6 +17,7 @@ const GRAPH_SCOPES =
   "openid profile offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/User.Read";
 
 const SUCCESS_MESSAGE = "Authentication successful. You can close this tab and return to Obsidian.";
+const AUTH_CONNECT_TIMEOUT_MS = 5 * 60 * 1000;
 
 const authorizeEndpoint = (tenantSegment: string): string =>
   `https://login.microsoftonline.com/${tenantSegment}/oauth2/v2.0/authorize`;
@@ -291,10 +292,21 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
     const redirectPath = "/";
     const { codeVerifier, codeChallenge } = generatePkcePair();
     const oauthState = base64UrlEncode(randomBytes(16));
+    let didSettle = false;
 
     let serverPort: number;
 
     const getRedirectUri = (): string => createRedirectUri(serverPort);
+
+    const settleWith = (callback: () => void): void => {
+      if (didSettle) {
+        return;
+      }
+      didSettle = true;
+      clearTimeout(connectTimeout);
+      server.close();
+      callback();
+    };
 
     const server = createAuthServer(
       tenantSegment,
@@ -304,20 +316,24 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
       codeVerifier,
       getRedirectUri,
       (credentials) => {
-        server.close();
-        resolve(credentials);
+        settleWith(() => resolve(credentials));
       },
       (error: Error) => {
-        server.close();
-        reject(error);
+        settleWith(() => reject(error));
       },
     );
+
+    const connectTimeout = setTimeout(() => {
+      settleWith(() =>
+        reject(new Error("Microsoft sign-in timed out. Please try connecting again.")),
+      );
+    }, AUTH_CONNECT_TIMEOUT_MS);
 
     server.listen(0, () => {
       const address = server.address();
 
       if (!isAddressInfo(address)) {
-        reject(new Error("Unexpected server address type."));
+        settleWith(() => reject(new Error("Unexpected server address type.")));
         return;
       }
 

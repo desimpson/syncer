@@ -64,7 +64,7 @@ export const readMarkdownSyncItems = async (
   file: TFile,
   syncSource: SyncSource,
 ): Promise<SyncItem[]> => {
-  const content = await file.vault.cachedRead(file);
+  const content = await file.vault.read(file);
   const lines = content.split("\n");
   return parseMarkdownLines(lines).filter((item) => item.source === syncSource);
 };

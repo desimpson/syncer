@@ -1,0 +1,140 @@
+import { requestUrl } from "obsidian";
+import { z } from "zod";
+
+const GRAPH_MESSAGES_BASE = "https://graph.microsoft.com/v1.0/me/messages";
+
+const outlookMessageSchema = z.object({
+  id: z.string(),
+  subject: z.string().nullable().optional(),
+  webLink: z.string().nullable().optional(),
+  from: z
+    .object({
+      emailAddress: z
+        .object({
+          name: z.string().nullable().optional(),
+          address: z.string().nullable().optional(),
+        })
+        .optional(),
+    })
+    .nullable()
+    .optional(),
+});
+
+const outlookMessagesPageSchema = z.object({
+  value: z.array(outlookMessageSchema),
+  "@odata.nextLink": z.string().optional(),
+});
+
+export type OutlookFlaggedMessage = z.infer<typeof outlookMessageSchema>;
+
+export class GraphAuthorizationError extends Error {
+  public readonly status: number;
+
+  public constructor(status: number, message: string) {
+    super(message);
+    this.name = "GraphAuthorizationError";
+    this.status = status;
+  }
+}
+
+const isGraphAuthorizationStatus = (status: number): boolean => status === 401 || status === 403;
+
+const throwGraphResponseError = (
+  operation: string,
+  status: number,
+  responseText: string,
+): never => {
+  const message = `Microsoft Graph ${operation} failed: ${status} ${responseText}`;
+  if (isGraphAuthorizationStatus(status)) {
+    throw new GraphAuthorizationError(status, message);
+  }
+  throw new Error(message);
+};
+
+const buildFlaggedMessagesUrl = (): string => {
+  const filter = encodeURIComponent("flag/flagStatus eq 'flagged'");
+  const select = encodeURIComponent("id,subject,from,webLink,flag");
+  return `${GRAPH_MESSAGES_BASE}?$filter=${filter}&$select=${select}&$top=50`;
+};
+
+const flagPatchBody = (completed: boolean): string =>
+  JSON.stringify({
+    flag: { flagStatus: completed ? "complete" : "flagged" },
+  });
+
+const parseMessagesPage = (responseText: string): z.infer<typeof outlookMessagesPageSchema> =>
+  outlookMessagesPageSchema.parse(JSON.parse(responseText) as unknown);
+
+const fetchMessagesPage = async (
+  accessToken: string,
+  url: string,
+): Promise<{
+  readonly value: readonly OutlookFlaggedMessage[];
+  readonly nextUrl: string | undefined;
+}> => {
+  const response = await requestUrl({
+    url,
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    throw: false,
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    throwGraphResponseError("list messages", response.status, response.text);
+  }
+
+  const page = parseMessagesPage(response.text);
+  return { value: page.value, nextUrl: page["@odata.nextLink"] };
+};
+
+const collectPaginatedMessages = async (
+  accessToken: string,
+  initialUrl: string,
+): Promise<readonly OutlookFlaggedMessage[]> => {
+  const step = async (
+    url: string | undefined,
+    accumulated: readonly OutlookFlaggedMessage[],
+  ): Promise<readonly OutlookFlaggedMessage[]> => {
+    if (url === undefined) {
+      return accumulated;
+    }
+    const { value, nextUrl } = await fetchMessagesPage(accessToken, url);
+    return step(nextUrl, [...accumulated, ...value]);
+  };
+
+  return step(initialUrl, []);
+};
+
+/**
+ * Fetches all messages whose Outlook follow-up flag is `flagged` (not yet complete),
+ * following Graph `@odata.nextLink` pagination.
+ */
+export const fetchFlaggedMessages = (
+  accessToken: string,
+): Promise<readonly OutlookFlaggedMessage[]> =>
+  collectPaginatedMessages(accessToken, buildFlaggedMessagesUrl());
+
+/**
+ * Updates the Outlook flag on a message (`complete` vs `flagged`) for Obsidian completion sync.
+ */
+export const updateOutlookMessageFlag = async (
+  accessToken: string,
+  messageId: string,
+  completed: boolean,
+): Promise<void> => {
+  const url = `${GRAPH_MESSAGES_BASE}/${encodeURIComponent(messageId)}`;
+  const response = await requestUrl({
+    url,
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: flagPatchBody(completed),
+    throw: false,
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    throwGraphResponseError("PATCH message", response.status, response.text);
+  }
+};

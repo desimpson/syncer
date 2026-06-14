@@ -26,3 +26,4 @@
 - [ ] Fix metadata bug which makes HTML comment visible in Kanban plugin view if Tasks URL includes HTML comment "--" characters (escape them?)
 - [ ] Fix issue when deselecting lists triggers Tasks deletion sync prompt (should just remove them from Obsidian but not Google)
 - [ ] Replace removed info console logging with dev-only file logging?
+- [ ] Migrate from vitest to Node.js native test runner

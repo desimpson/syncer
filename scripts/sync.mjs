@@ -7,22 +7,31 @@ import process from "node:process";
 import console from "node:console";
 
 const colours = {
-  blue: "\u001B[1;34m",
-  red: "\u001B[1;31m",
-  yellow: "\u001B[1;33m",
+  dim: "\u001B[2m",
+  red: "\u001B[31m",
+  yellow: "\u001B[33m",
   reset: "\u001B[0m",
 };
 
+const timestamp = () =>
+  `${colours.dim}${new Date().toLocaleTimeString("en-AU", { hour12: false })}${colours.reset}`;
+
+const joinArguments = (arguments_) =>
+  arguments_.map((value) => (typeof value === "string" ? value : String(value))).join(" ");
+
 const logger = {
-  _timePrefix: () => `[${new Date().toLocaleTimeString("en-AU", { hour12: false })}]`,
   info(...arguments_) {
-    console.info(this._timePrefix(), colours.blue, ...arguments_, colours.reset);
-  },
-  error(...arguments_) {
-    console.error(this._timePrefix(), colours.red, ...arguments_, colours.reset);
+    console.info(`${timestamp()} [INFO] ${joinArguments(arguments_)}`);
   },
   warn(...arguments_) {
-    console.warn(this._timePrefix(), colours.yellow, ...arguments_, colours.reset);
+    console.warn(
+      `${timestamp()} ${colours.yellow}[WARN]${colours.reset} ${joinArguments(arguments_)}`,
+    );
+  },
+  error(...arguments_) {
+    console.error(
+      `${timestamp()} ${colours.red}[ERROR]${colours.reset} ${joinArguments(arguments_)}`,
+    );
   },
 };
 
@@ -45,7 +54,7 @@ const copyFile = (file) => {
     throw new Error(`Source file missing: ${file}. Please run the build before installing.`);
   }
   copyFileSync(source, destination);
-  logger.info(`  Copied ${file}.`);
+  logger.info(`Copied ${file}.`);
 };
 
 const copyPlugin = () => {
@@ -58,7 +67,7 @@ const copyPlugin = () => {
 const enableHotReload = () => {
   logger.info("Creating .hotreload file if it doesn't exist...");
   closeSync(openSync(hotReloadFile, "a"));
-  logger.info("  .hotreload created (Obsidian will reload plugin).");
+  logger.info(".hotreload created (Obsidian will reload plugin).");
 };
 
 const main = () => {
@@ -73,7 +82,7 @@ const main = () => {
     enableHotReload();
     logger.info("Install complete.");
   } catch (error) {
-    logger.error(error.message);
+    logger.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 };

@@ -85,6 +85,7 @@ import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-task
 
 const baseConfig = {
   googleClientId: "id",
+  microsoftClientId: "",
 } as const;
 
 const makeVault = (file: TFile | null) =>

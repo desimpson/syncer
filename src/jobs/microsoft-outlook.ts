@@ -1,0 +1,454 @@
+import { mapOutlookMessageToSyncItem } from "@/adaptors/microsoft-outlook";
+import type { SyncJobCreator } from "@/jobs/types";
+import { MicrosoftAuth, InvalidGrantError } from "@/auth";
+import type { PluginConfig, MicrosoftOutlookSettings, PluginSettings } from "@/plugin/types";
+import {
+  fetchFlaggedMessages,
+  updateOutlookMessageFlag,
+  GraphAuthorizationError,
+  type OutlookFlaggedMessage,
+} from "@/services/outlook-mail";
+import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } from "@/sync/actions";
+import { readMarkdownSyncItems } from "@/sync/reader";
+import { MICROSOFT_OUTLOOK_SOURCE, type SyncItem } from "@/sync/types";
+import { writeSyncActions } from "@/sync/writer";
+import type { TFile, Vault } from "obsidian";
+import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
+
+const VAULT_INIT_RETRY_DELAY_MS = 500;
+
+type CompletionChange = {
+  messageId: string;
+  completed: boolean;
+};
+
+class OutlookDisconnectedError extends Error {
+  public constructor() {
+    super("Microsoft Outlook disconnected during sync");
+    this.name = "OutlookDisconnectedError";
+  }
+}
+
+const ensureAccessToken = async (
+  outlook: MicrosoftOutlookSettings,
+  config: PluginConfig,
+  persist: (update: {
+    accessToken: string;
+    expiryDate: number;
+    refreshToken?: string;
+  }) => Promise<void>,
+): Promise<string> => {
+  const { credentials: token } = outlook;
+
+  if (token.expiryDate < Date.now()) {
+    const { accessToken, expiryDate, refreshToken } = await MicrosoftAuth.refreshAccessToken(
+      config.microsoftClientId,
+      {
+        refreshToken: token.refreshToken,
+        tenantSegment: token.tenantSegment,
+      },
+    );
+
+    await persist({
+      accessToken,
+      expiryDate,
+      ...(refreshToken === undefined ? {} : { refreshToken }),
+    });
+    return accessToken;
+  }
+
+  return token.accessToken;
+};
+
+const getSyncFileWithRetry = async (
+  vault: Vault,
+  syncDocument: string,
+  notify: (message: string) => void,
+): Promise<TFile | undefined> => {
+  const file = vault.getFileByPath(syncDocument);
+  if (file !== null) {
+    return file;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
+  const retryFile = vault.getFileByPath(syncDocument);
+
+  if (retryFile === null) {
+    notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
+    console.warn(`Sync document [${syncDocument}] not found. Aborting Outlook sync.`);
+    return undefined;
+  }
+
+  return retryFile;
+};
+
+/**
+ * Pure identity index for Outlook completion reconciliation.
+ * Duplicate IDs: later entries win — pass existing before incoming so remote state takes precedence.
+ */
+const buildOutlookMessageIdToListKeyMap = (items: readonly SyncItem[]): Map<string, string> =>
+  new Map(
+    items
+      .filter((item) => item.source === MICROSOFT_OUTLOOK_SOURCE)
+      .map((item) => [item.id, item.id]),
+  );
+
+const detectChangeForTaskInBoth = (
+  existingItem: SyncItem,
+  incomingItem: SyncItem,
+  messageKey: string | undefined,
+): CompletionChange | undefined => {
+  if (existingItem.completed === incomingItem.completed || messageKey === undefined) {
+    return undefined;
+  }
+
+  return {
+    messageId: existingItem.id,
+    completed: existingItem.completed,
+  };
+};
+
+const detectChangeForUncompletedTask = (
+  existingItem: SyncItem,
+  messageKey: string | undefined,
+): CompletionChange | undefined => {
+  if (existingItem.completed || messageKey === undefined) {
+    return undefined;
+  }
+
+  return {
+    messageId: existingItem.id,
+    completed: false,
+  };
+};
+
+const detectCompletionChanges = (
+  existing: readonly SyncItem[],
+  incoming: readonly SyncItem[],
+  messageIdToListKey: Map<string, string>,
+): readonly CompletionChange[] => {
+  const incomingMap = new Map(incoming.map((item) => [item.id, item]));
+
+  return existing
+    .map((existingItem) => {
+      const incomingItem = incomingMap.get(existingItem.id);
+      const messageKey = messageIdToListKey.get(existingItem.id);
+
+      if (incomingItem !== undefined) {
+        return detectChangeForTaskInBoth(existingItem, incomingItem, messageKey);
+      }
+
+      return detectChangeForUncompletedTask(existingItem, messageKey);
+    })
+    .filter((change): change is CompletionChange => change !== undefined);
+};
+
+type UpdateResult = {
+  result: PromiseSettledResult<void>;
+  change: CompletionChange | undefined;
+};
+
+const applyCompletionChangesToGraph = async (
+  completionChanges: readonly CompletionChange[],
+  accessToken: string,
+): Promise<readonly UpdateResult[]> => {
+  const results = await Promise.allSettled(
+    completionChanges.map(({ messageId, completed }) =>
+      updateOutlookMessageFlag(accessToken, messageId, completed),
+    ),
+  );
+
+  return results.map((result, index) => ({
+    result,
+    change: completionChanges[index],
+  }));
+};
+
+const reportFailedOutlookPatches = (
+  updateResults: readonly UpdateResult[],
+  notify: (message: string) => void,
+): void => {
+  updateResults.forEach((item, index) => {
+    if (item.change === undefined) {
+      console.error(`Missing Outlook completion change at index ${index}`);
+      return;
+    }
+    if (item.result.status !== "rejected") {
+      return;
+    }
+    console.error(
+      `Failed to update Outlook flag for message ${item.change.messageId}:`,
+      item.result.reason,
+    );
+    notify(`Failed to sync Outlook flag for message: ${item.change.messageId}`);
+  });
+};
+
+const extractSuccessfulChanges = (
+  updateResults: readonly UpdateResult[],
+): readonly CompletionChange[] =>
+  updateResults
+    .filter(
+      (item): item is { result: PromiseFulfilledResult<void>; change: CompletionChange } =>
+        item.result.status === "fulfilled" && item.change !== undefined,
+    )
+    .map(({ change }) => change);
+
+const findGraphAuthorizationFailure = (
+  updateResults: readonly UpdateResult[],
+): GraphAuthorizationError | undefined => {
+  for (const item of updateResults) {
+    if (
+      item.result.status === "rejected" &&
+      item.result.reason instanceof GraphAuthorizationError
+    ) {
+      return item.result.reason;
+    }
+  }
+  return undefined;
+};
+
+const applyCompletionChangesToOutlook = async (
+  completionChanges: readonly CompletionChange[],
+  accessToken: string,
+  notify: (message: string) => void,
+): Promise<readonly CompletionChange[]> => {
+  if (completionChanges.length === 0) {
+    return [];
+  }
+
+  const updateResults = await applyCompletionChangesToGraph(completionChanges, accessToken);
+  const authFailure = findGraphAuthorizationFailure(updateResults);
+  if (authFailure !== undefined) {
+    throw authFailure;
+  }
+
+  reportFailedOutlookPatches(updateResults, notify);
+  return extractSuccessfulChanges(updateResults);
+};
+
+const updateIncomingItemsWithCompletionChanges = (
+  incoming: readonly SyncItem[],
+  completionChanges: readonly CompletionChange[],
+  existing: readonly SyncItem[],
+): readonly SyncItem[] => {
+  if (completionChanges.length === 0) {
+    return incoming;
+  }
+
+  const changesMap = new Map(
+    completionChanges.map((change) => [change.messageId, change.completed]),
+  );
+  const incomingIds = new Set(incoming.map((item) => item.id));
+
+  const updatedIncoming = incoming.map((item) => {
+    const updatedCompleted = changesMap.get(item.id);
+    return updatedCompleted === undefined ? item : { ...item, completed: updatedCompleted };
+  });
+
+  const existingMap = new Map(existing.map((item) => [item.id, item]));
+  const uncompletedMessages = completionChanges
+    .filter((change) => !change.completed && !incomingIds.has(change.messageId))
+    .map((change) => {
+      const existingItem = existingMap.get(change.messageId);
+      return existingItem === undefined ? undefined : { ...existingItem, completed: false };
+    })
+    .filter((item): item is SyncItem => item !== undefined);
+
+  return [...updatedIncoming, ...uncompletedMessages];
+};
+
+const mergeCompletionFromMarkdown = async (
+  syncCompletionStatus: boolean,
+  existing: readonly SyncItem[],
+  incoming: readonly SyncItem[],
+  messageIdToListKey: Map<string, string>,
+  accessToken: string,
+  notify: (message: string) => void,
+): Promise<readonly SyncItem[]> => {
+  if (!syncCompletionStatus) {
+    return incoming;
+  }
+  const completionChanges = detectCompletionChanges(existing, incoming, messageIdToListKey);
+  const successfulChanges = await applyCompletionChangesToOutlook(
+    completionChanges,
+    accessToken,
+    notify,
+  );
+  return updateIncomingItemsWithCompletionChanges(incoming, successfulChanges, existing);
+};
+
+const isMissingFileError = (message: string): boolean =>
+  /ENOENT|no such file or directory|not found/i.test(message);
+
+const syncOutlookMessagesToFile = async (
+  file: TFile,
+  messages: readonly OutlookFlaggedMessage[],
+  accessToken: string,
+  syncHeading: string,
+  syncDocument: string,
+  syncCompletionStatus: boolean,
+  notify: (message: string) => void,
+) => {
+  const adaptor = mapOutlookMessageToSyncItem(syncHeading);
+  const incoming = messages.map(adaptor);
+
+  try {
+    const existing = await readMarkdownSyncItems(file, MICROSOFT_OUTLOOK_SOURCE);
+    const messageIdToListKey = buildOutlookMessageIdToListKeyMap([...existing, ...incoming]);
+    const updatedIncoming = await mergeCompletionFromMarkdown(
+      syncCompletionStatus,
+      existing,
+      incoming,
+      messageIdToListKey,
+      accessToken,
+      notify,
+    );
+    const actions = filterActions(
+      generateSyncActions(updatedIncoming, existing),
+      shouldPreserveCompletedDeletes,
+    );
+    await writeSyncActions(file, actions, syncHeading);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (isMissingFileError(message)) {
+      notify(
+        `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
+      );
+      console.error(`File missing during Outlook sync: [${message}]. Aborting sync.`);
+      return;
+    }
+    throw error;
+  }
+};
+
+const persistRefreshedToken =
+  (
+    loadSettings: () => Promise<PluginSettings>,
+    saveSettings: (s: PluginSettings) => Promise<void>,
+  ) =>
+  async ({
+    accessToken,
+    expiryDate,
+    refreshToken,
+  }: {
+    accessToken: string;
+    expiryDate: number;
+    refreshToken?: string;
+  }): Promise<void> => {
+    const freshSettings = await loadSettings();
+    const { microsoftOutlook } = freshSettings;
+    if (microsoftOutlook === undefined) {
+      throw new OutlookDisconnectedError();
+    }
+
+    await saveSettings({
+      ...freshSettings,
+      microsoftOutlook: {
+        ...microsoftOutlook,
+        credentials: {
+          ...microsoftOutlook.credentials,
+          accessToken,
+          expiryDate,
+          ...(refreshToken === undefined ? {} : { refreshToken }),
+        },
+      },
+    });
+  };
+
+const clearOutlookCredentials = async (
+  loadSettings: () => Promise<PluginSettings>,
+  saveSettings: (s: PluginSettings) => Promise<void>,
+  app: Parameters<SyncJobCreator>[5],
+): Promise<void> => {
+  const freshSettings = await loadSettings();
+  await saveSettings({ ...freshSettings, microsoftOutlook: undefined });
+  new AuthorizationExpiredModal(app).open();
+};
+
+/**
+ * Create a job to sync flagged Outlook messages into the Markdown sync note.
+ */
+export const createMicrosoftOutlookJob: SyncJobCreator = (
+  loadSettings,
+  saveSettings,
+  config,
+  vault,
+  notify,
+  app,
+) => ({
+  name: "microsoft-outlook",
+  task: async () => {
+    const settings = await loadSettings();
+    const { microsoftOutlook, syncDocument, syncHeading, syncCompletionStatus } = settings;
+
+    if (microsoftOutlook === undefined) {
+      return;
+    }
+
+    if (config.microsoftClientId.length === 0) {
+      return;
+    }
+
+    let currentAccessToken: string;
+    try {
+      currentAccessToken = await ensureAccessToken(
+        microsoftOutlook,
+        config,
+        persistRefreshedToken(loadSettings, saveSettings),
+      );
+    } catch (error) {
+      if (error instanceof OutlookDisconnectedError) {
+        return;
+      }
+      if (error instanceof InvalidGrantError) {
+        console.warn(
+          "Microsoft Outlook refresh token has been expired or revoked. Clearing credentials...",
+        );
+        await clearOutlookCredentials(loadSettings, saveSettings, app);
+        return;
+      }
+      throw error;
+    }
+
+    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
+    if (file === undefined) {
+      return;
+    }
+
+    let messages: readonly OutlookFlaggedMessage[];
+    try {
+      messages = await fetchFlaggedMessages(currentAccessToken);
+    } catch (error) {
+      if (error instanceof GraphAuthorizationError) {
+        console.warn(
+          `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
+        );
+        await clearOutlookCredentials(loadSettings, saveSettings, app);
+        return;
+      }
+      throw error;
+    }
+
+    try {
+      await syncOutlookMessagesToFile(
+        file,
+        messages,
+        currentAccessToken,
+        syncHeading,
+        syncDocument,
+        syncCompletionStatus,
+        notify,
+      );
+    } catch (error) {
+      if (error instanceof GraphAuthorizationError) {
+        console.warn(
+          `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
+        );
+        await clearOutlookCredentials(loadSettings, saveSettings, app);
+        return;
+      }
+      throw error;
+    }
+  },
+});

@@ -373,7 +373,6 @@ export const createGoogleTasksJob: SyncJobCreator = (
 ) => ({
   name: "google-tasks",
   task: async () => {
-    // TODO: Test settings freshness?
     const settings = await loadSettings();
     const {
       googleTasks,
@@ -396,14 +395,21 @@ export const createGoogleTasksJob: SyncJobCreator = (
         googleTasks,
         config,
         async ({ accessToken, expiryDate }) => {
-          const updatedSettings: PluginSettings = {
-            ...settings,
+          const freshSettings = await loadSettings();
+          if (freshSettings.googleTasks === undefined) {
+            return;
+          }
+          await saveSettings({
+            ...freshSettings,
             googleTasks: {
-              ...googleTasks,
-              credentials: { ...googleTasks.credentials, accessToken, expiryDate },
+              ...freshSettings.googleTasks,
+              credentials: {
+                ...freshSettings.googleTasks.credentials,
+                accessToken,
+                expiryDate,
+              },
             },
-          };
-          await saveSettings(updatedSettings);
+          });
         },
       );
     } catch (error) {

@@ -5,7 +5,7 @@ import type { TFile, Vault } from "obsidian";
 
 const mockVault = (content = ""): Vault =>
   ({
-    cachedRead: async () => content,
+    read: async () => content,
   }) as unknown as Vault;
 
 const mockTFile = (path: string, content: string): TFile =>

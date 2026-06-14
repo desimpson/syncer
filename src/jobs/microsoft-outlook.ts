@@ -5,6 +5,7 @@ import type { PluginConfig, MicrosoftOutlookSettings, PluginSettings } from "@/p
 import {
   fetchFlaggedMessages,
   updateOutlookMessageFlag,
+  GraphAuthorizationError,
   type OutlookFlaggedMessage,
 } from "@/services/outlook-mail";
 import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } from "@/sync/actions";
@@ -21,15 +22,26 @@ type CompletionChange = {
   completed: boolean;
 };
 
+class OutlookDisconnectedError extends Error {
+  public constructor() {
+    super("Microsoft Outlook disconnected during sync");
+    this.name = "OutlookDisconnectedError";
+  }
+}
+
 const ensureAccessToken = async (
   outlook: MicrosoftOutlookSettings,
   config: PluginConfig,
-  persist: (update: { accessToken: string; expiryDate: number }) => Promise<void>,
+  persist: (update: {
+    accessToken: string;
+    expiryDate: number;
+    refreshToken?: string;
+  }) => Promise<void>,
 ): Promise<string> => {
   const { credentials: token } = outlook;
 
   if (token.expiryDate < Date.now()) {
-    const { accessToken, expiryDate } = await MicrosoftAuth.refreshAccessToken(
+    const { accessToken, expiryDate, refreshToken } = await MicrosoftAuth.refreshAccessToken(
       config.microsoftClientId,
       {
         refreshToken: token.refreshToken,
@@ -37,7 +49,11 @@ const ensureAccessToken = async (
       },
     );
 
-    await persist({ accessToken, expiryDate });
+    await persist({
+      accessToken,
+      expiryDate,
+      ...(refreshToken === undefined ? {} : { refreshToken }),
+    });
     return accessToken;
   }
 
@@ -80,9 +96,9 @@ const buildOutlookMessageIdToListKeyMap = (items: readonly SyncItem[]): Map<stri
 const detectChangeForTaskInBoth = (
   existingItem: SyncItem,
   incomingItem: SyncItem,
-  listId: string | undefined,
+  messageKey: string | undefined,
 ): CompletionChange | undefined => {
-  if (existingItem.completed === incomingItem.completed || listId === undefined) {
+  if (existingItem.completed === incomingItem.completed || messageKey === undefined) {
     return undefined;
   }
 
@@ -94,9 +110,9 @@ const detectChangeForTaskInBoth = (
 
 const detectChangeForUncompletedTask = (
   existingItem: SyncItem,
-  listId: string | undefined,
+  messageKey: string | undefined,
 ): CompletionChange | undefined => {
-  if (existingItem.completed || listId === undefined) {
+  if (existingItem.completed || messageKey === undefined) {
     return undefined;
   }
 
@@ -116,13 +132,13 @@ const detectCompletionChanges = (
   return existing
     .map((existingItem) => {
       const incomingItem = incomingMap.get(existingItem.id);
-      const listKey = messageIdToListKey.get(existingItem.id);
+      const messageKey = messageIdToListKey.get(existingItem.id);
 
       if (incomingItem !== undefined) {
-        return detectChangeForTaskInBoth(existingItem, incomingItem, listKey);
+        return detectChangeForTaskInBoth(existingItem, incomingItem, messageKey);
       }
 
-      return detectChangeForUncompletedTask(existingItem, listKey);
+      return detectChangeForUncompletedTask(existingItem, messageKey);
     })
     .filter((change): change is CompletionChange => change !== undefined);
 };
@@ -178,6 +194,20 @@ const extractSuccessfulChanges = (
     )
     .map(({ change }) => change);
 
+const findGraphAuthorizationFailure = (
+  updateResults: readonly UpdateResult[],
+): GraphAuthorizationError | undefined => {
+  for (const item of updateResults) {
+    if (
+      item.result.status === "rejected" &&
+      item.result.reason instanceof GraphAuthorizationError
+    ) {
+      return item.result.reason;
+    }
+  }
+  return undefined;
+};
+
 const applyCompletionChangesToOutlook = async (
   completionChanges: readonly CompletionChange[],
   accessToken: string,
@@ -188,6 +218,11 @@ const applyCompletionChangesToOutlook = async (
   }
 
   const updateResults = await applyCompletionChangesToGraph(completionChanges, accessToken);
+  const authFailure = findGraphAuthorizationFailure(updateResults);
+  if (authFailure !== undefined) {
+    throw authFailure;
+  }
+
   reportFailedOutlookPatches(updateResults, notify);
   return extractSuccessfulChanges(updateResults);
 };
@@ -289,25 +324,47 @@ const syncOutlookMessagesToFile = async (
 
 const persistRefreshedToken =
   (
-    settings: PluginSettings,
-    microsoftOutlook: MicrosoftOutlookSettings,
+    loadSettings: () => Promise<PluginSettings>,
     saveSettings: (s: PluginSettings) => Promise<void>,
   ) =>
   async ({
     accessToken,
     expiryDate,
+    refreshToken,
   }: {
     accessToken: string;
     expiryDate: number;
+    refreshToken?: string;
   }): Promise<void> => {
+    const freshSettings = await loadSettings();
+    const { microsoftOutlook } = freshSettings;
+    if (microsoftOutlook === undefined) {
+      throw new OutlookDisconnectedError();
+    }
+
     await saveSettings({
-      ...settings,
+      ...freshSettings,
       microsoftOutlook: {
         ...microsoftOutlook,
-        credentials: { ...microsoftOutlook.credentials, accessToken, expiryDate },
+        credentials: {
+          ...microsoftOutlook.credentials,
+          accessToken,
+          expiryDate,
+          ...(refreshToken === undefined ? {} : { refreshToken }),
+        },
       },
     });
   };
+
+const clearOutlookCredentials = async (
+  loadSettings: () => Promise<PluginSettings>,
+  saveSettings: (s: PluginSettings) => Promise<void>,
+  app: Parameters<SyncJobCreator>[5],
+): Promise<void> => {
+  const freshSettings = await loadSettings();
+  await saveSettings({ ...freshSettings, microsoftOutlook: undefined });
+  new AuthorizationExpiredModal(app).open();
+};
 
 /**
  * Create a job to sync flagged Outlook messages into the Markdown sync note.
@@ -338,16 +395,17 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
       currentAccessToken = await ensureAccessToken(
         microsoftOutlook,
         config,
-        persistRefreshedToken(settings, microsoftOutlook, saveSettings),
+        persistRefreshedToken(loadSettings, saveSettings),
       );
     } catch (error) {
+      if (error instanceof OutlookDisconnectedError) {
+        return;
+      }
       if (error instanceof InvalidGrantError) {
         console.warn(
           "Microsoft Outlook refresh token has been expired or revoked. Clearing credentials...",
         );
-        const freshSettings = await loadSettings();
-        await saveSettings({ ...freshSettings, microsoftOutlook: undefined });
-        new AuthorizationExpiredModal(app).open();
+        await clearOutlookCredentials(loadSettings, saveSettings, app);
         return;
       }
       throw error;
@@ -358,16 +416,39 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
       return;
     }
 
-    const messages = await fetchFlaggedMessages(currentAccessToken);
+    let messages: readonly OutlookFlaggedMessage[];
+    try {
+      messages = await fetchFlaggedMessages(currentAccessToken);
+    } catch (error) {
+      if (error instanceof GraphAuthorizationError) {
+        console.warn(
+          `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
+        );
+        await clearOutlookCredentials(loadSettings, saveSettings, app);
+        return;
+      }
+      throw error;
+    }
 
-    await syncOutlookMessagesToFile(
-      file,
-      messages,
-      currentAccessToken,
-      syncHeading,
-      syncDocument,
-      syncCompletionStatus,
-      notify,
-    );
+    try {
+      await syncOutlookMessagesToFile(
+        file,
+        messages,
+        currentAccessToken,
+        syncHeading,
+        syncDocument,
+        syncCompletionStatus,
+        notify,
+      );
+    } catch (error) {
+      if (error instanceof GraphAuthorizationError) {
+        console.warn(
+          `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
+        );
+        await clearOutlookCredentials(loadSettings, saveSettings, app);
+        return;
+      }
+      throw error;
+    }
   },
 });

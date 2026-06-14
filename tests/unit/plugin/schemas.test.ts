@@ -291,7 +291,10 @@ describe("pluginSettingsSchema", () => {
 
 describe("microsoftWorkOrSchoolTenantIdSchema", () => {
   it("accepts empty string", () => {
+    // Act
     const result = microsoftWorkOrSchoolTenantIdSchema.safeParse("");
+
+    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data).toBe("");
@@ -299,8 +302,13 @@ describe("microsoftWorkOrSchoolTenantIdSchema", () => {
   });
 
   it("accepts a lowercase GUID", () => {
+    // Arrange
     const id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+    // Act
     const result = microsoftWorkOrSchoolTenantIdSchema.safeParse(id);
+
+    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data).toBe(id);
@@ -308,7 +316,10 @@ describe("microsoftWorkOrSchoolTenantIdSchema", () => {
   });
 
   it("rejects invalid tenant id strings", () => {
+    // Act
     const result = microsoftWorkOrSchoolTenantIdSchema.safeParse("not-a-guid");
+
+    // Assert
     expect(result.success).toBe(false);
   });
 });

@@ -27,6 +27,30 @@ const outlookMessagesPageSchema = z.object({
 
 export type OutlookFlaggedMessage = z.infer<typeof outlookMessageSchema>;
 
+export class GraphAuthorizationError extends Error {
+  public readonly status: number;
+
+  public constructor(status: number, message: string) {
+    super(message);
+    this.name = "GraphAuthorizationError";
+    this.status = status;
+  }
+}
+
+const isGraphAuthorizationStatus = (status: number): boolean => status === 401 || status === 403;
+
+const throwGraphResponseError = (
+  operation: string,
+  status: number,
+  responseText: string,
+): never => {
+  const message = `Microsoft Graph ${operation} failed: ${status} ${responseText}`;
+  if (isGraphAuthorizationStatus(status)) {
+    throw new GraphAuthorizationError(status, message);
+  }
+  throw new Error(message);
+};
+
 const buildFlaggedMessagesUrl = (): string => {
   const filter = encodeURIComponent("flag/flagStatus eq 'flagged'");
   const select = encodeURIComponent("id,subject,from,webLink,flag");
@@ -56,7 +80,7 @@ const fetchMessagesPage = async (
   });
 
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(`Microsoft Graph list messages failed: ${response.status} ${response.text}`);
+    throwGraphResponseError("list messages", response.status, response.text);
   }
 
   const page = parseMessagesPage(response.text);
@@ -111,6 +135,6 @@ export const updateOutlookMessageFlag = async (
   });
 
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(`Microsoft Graph PATCH message failed: ${response.status} ${response.text}`);
+    throwGraphResponseError("PATCH message", response.status, response.text);
   }
 };

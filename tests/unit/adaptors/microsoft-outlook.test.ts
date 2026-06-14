@@ -7,6 +7,7 @@ describe("mapOutlookMessageToSyncItem", () => {
   const heading = "## Inbox";
 
   it("maps subject, sender, link, and id", () => {
+    // Arrange
     const message: OutlookFlaggedMessage = {
       id: "msg-1",
       subject: "Hello",
@@ -14,8 +15,10 @@ describe("mapOutlookMessageToSyncItem", () => {
       from: { emailAddress: { name: "Ada", address: "ada@example.com" } },
     };
 
+    // Act
     const item = mapOutlookMessageToSyncItem(heading)(message);
 
+    // Assert
     expect(item).toEqual({
       source: MICROSOFT_OUTLOOK_SOURCE,
       id: "msg-1",
@@ -27,6 +30,7 @@ describe("mapOutlookMessageToSyncItem", () => {
   });
 
   it("uses address when name is missing", () => {
+    // Arrange
     const message: OutlookFlaggedMessage = {
       id: "msg-2",
       subject: "Ping",
@@ -34,11 +38,15 @@ describe("mapOutlookMessageToSyncItem", () => {
       from: { emailAddress: { address: "bob@example.com" } },
     };
 
+    // Act
     const item = mapOutlookMessageToSyncItem(heading)(message);
+
+    // Assert
     expect(item.title).toBe("Ping (bob@example.com)");
   });
 
   it("falls back when subject and webLink are missing", () => {
+    // Arrange
     const message: OutlookFlaggedMessage = {
       id: "msg-3",
       subject: undefined,
@@ -46,7 +54,10 @@ describe("mapOutlookMessageToSyncItem", () => {
       from: undefined,
     };
 
+    // Act
     const item = mapOutlookMessageToSyncItem(heading)(message);
+
+    // Assert
     expect(item.title).toBe("(No subject) (Unknown sender)");
     expect(item.link).toBe("https://outlook.office.com/mail/");
   });

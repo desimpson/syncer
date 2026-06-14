@@ -188,7 +188,7 @@ const buildAuthorizeUrl = (
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
     state,
-    prompt: "consent",
+    prompt: "consent", // Force refresh token on (re)connect; required for offline_access
   });
 
   return `${authorizeEndpoint(tenantSegment)}?${parameters.toString()}`;
@@ -370,7 +370,7 @@ export const refreshAccessToken = async (
   clientId: string,
   credentials: Pick<MicrosoftCredentials, "refreshToken" | "tenantSegment">,
   retries = 2,
-): Promise<{ accessToken: string; expiryDate: number }> => {
+): Promise<{ accessToken: string; expiryDate: number; refreshToken?: string }> => {
   const tenantSegment = credentials.tenantSegment.trim();
   const parameters = new URLSearchParams({
     client_id: clientId,
@@ -380,7 +380,7 @@ export const refreshAccessToken = async (
 
   const attempt = async (
     remainingRetries: number,
-  ): Promise<{ accessToken: string; expiryDate: number }> => {
+  ): Promise<{ accessToken: string; expiryDate: number; refreshToken?: string }> => {
     try {
       const formBody = parameters.toString();
       const response = await Promise.race([
@@ -398,6 +398,9 @@ export const refreshAccessToken = async (
         return {
           accessToken: data.access_token,
           expiryDate: Date.now() + data.expires_in * 1000,
+          ...(typeof data.refresh_token === "string" && data.refresh_token.length > 0
+            ? { refreshToken: data.refresh_token }
+            : {}),
         };
       }
 

@@ -3,6 +3,7 @@ import { microsoftGraphTenantSegmentFromAuthSelection } from "@/auth/microsoft";
 
 describe("microsoftGraphTenantSegmentFromAuthSelection", () => {
   it("returns consumers for personal accounts", () => {
+    // Act & Assert
     expect(
       microsoftGraphTenantSegmentFromAuthSelection({
         accountKind: "personal",
@@ -19,6 +20,7 @@ describe("microsoftGraphTenantSegmentFromAuthSelection", () => {
   });
 
   it("returns organizations for work or school when tenant id is empty", () => {
+    // Act & Assert
     expect(
       microsoftGraphTenantSegmentFromAuthSelection({
         accountKind: "workSchool",
@@ -35,7 +37,10 @@ describe("microsoftGraphTenantSegmentFromAuthSelection", () => {
   });
 
   it("returns the tenant GUID for work or school when provided", () => {
+    // Arrange
     const tenant = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+    // Act & Assert
     expect(
       microsoftGraphTenantSegmentFromAuthSelection({
         accountKind: "workSchool",

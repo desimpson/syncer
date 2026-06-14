@@ -39,7 +39,10 @@ vi.mock("@/sync/writer", () => {
   return { writeSyncActions };
 });
 
-vi.mock("@/services/outlook-mail", () => {
+vi.mock("@/services/outlook-mail", async () => {
+  const actual =
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Vitest generic needs module object type
+    await vi.importActual<typeof import("@/services/outlook-mail")>("@/services/outlook-mail");
   const fetchFlaggedMessages = vi.fn() as unknown as (
     accessToken: string,
   ) => Promise<readonly OutlookFlaggedMessage[]>;
@@ -48,7 +51,7 @@ vi.mock("@/services/outlook-mail", () => {
     messageId: string,
     completed: boolean,
   ) => Promise<void>;
-  return { fetchFlaggedMessages, updateOutlookMessageFlag };
+  return { ...actual, fetchFlaggedMessages, updateOutlookMessageFlag };
 });
 
 vi.mock("@/auth", async () => {
@@ -64,10 +67,25 @@ vi.mock("@/auth", async () => {
   };
 });
 
+const { modalOpen } = vi.hoisted(() => ({
+  modalOpen: vi.fn(),
+}));
+
+vi.mock("@/plugin/modals/authorization-expired-modal", () => ({
+  AuthorizationExpiredModal: class {
+    public open = modalOpen;
+  },
+}));
+
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { generateSyncActions, shouldPreserveCompletedDeletes, filterActions } from "@/sync/actions";
 import { writeSyncActions } from "@/sync/writer";
-import { fetchFlaggedMessages, updateOutlookMessageFlag } from "@/services/outlook-mail";
+import {
+  fetchFlaggedMessages,
+  updateOutlookMessageFlag,
+  GraphAuthorizationError,
+} from "@/services/outlook-mail";
+import { MicrosoftAuth } from "@/auth";
 
 const baseConfig = {
   googleClientId: "",
@@ -98,6 +116,7 @@ const makeOutlookSettings = () => ({
 describe("createMicrosoftOutlookJob completion sync", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    modalOpen.mockReset();
   });
 
   it("marks Outlook message complete when markdown item is checked", async () => {
@@ -291,6 +310,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
   });
 
   it("re-flags Outlook message when user unchecks item absent from flagged fetch", async () => {
+    // Arrange
     const settings = {
       microsoftOutlook: makeOutlookSettings(),
       syncDocument: "GTD.md",
@@ -340,8 +360,10 @@ describe("createMicrosoftOutlookJob completion sync", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(updateOutlookMessageFlag).toHaveBeenCalledWith("outlook-token", "msg-1", false);
 
     const deleteActions = capturedActions.filter((action) => action.operation === "delete");
@@ -349,6 +371,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
   });
 
   it("does not falsely reconcile uncheck when re-flag PATCH fails", async () => {
+    // Arrange
     const settings = {
       microsoftOutlook: makeOutlookSettings(),
       syncDocument: "GTD.md",
@@ -392,14 +415,17 @@ describe("createMicrosoftOutlookJob completion sync", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(notify).toHaveBeenCalledWith("Failed to sync Outlook flag for message: msg-fail");
     expect(updateOutlookMessageFlag).toHaveBeenCalledWith("outlook-token", "msg-fail", false);
     expect(capturedIncoming.find((item) => item.id === "msg-fail")).toBeUndefined();
   });
 
   it("deletes unchecked items absent from flagged fetch when completion sync is disabled", async () => {
+    // Arrange
     const settings = {
       microsoftOutlook: makeOutlookSettings(),
       syncDocument: "GTD.md",
@@ -446,11 +472,210 @@ describe("createMicrosoftOutlookJob completion sync", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(updateOutlookMessageFlag).not.toHaveBeenCalled();
 
     const deleteActions = capturedActions.filter((action) => action.operation === "delete");
     expect(deleteActions.find((action) => action.item.id === "msg-gone")).toBeDefined();
+  });
+
+  it("reloads settings before persisting a refreshed access token", async () => {
+    // Arrange
+    const outlookSettings = makeOutlookSettings();
+    outlookSettings.credentials.expiryDate = Date.now() - 1;
+
+    const settings = {
+      microsoftOutlook: outlookSettings,
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: false,
+    };
+    const loadSettings = vi
+      .fn()
+      .mockResolvedValueOnce(settings)
+      .mockResolvedValueOnce({ ...settings, microsoftOutlook: outlookSettings });
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(MicrosoftAuth.refreshAccessToken).mockResolvedValue({
+      accessToken: "new-token",
+      expiryDate: Date.now() + 60_000,
+      refreshToken: "rotated-refresh",
+    });
+    vi.mocked(fetchFlaggedMessages).mockResolvedValue([]);
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
+    vi.mocked(generateSyncActions).mockReturnValue([]);
+    vi.mocked(writeSyncActions).mockResolvedValue();
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(loadSettings).toHaveBeenCalledTimes(2);
+    expect(saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        microsoftOutlook: expect.objectContaining({
+          credentials: expect.objectContaining({
+            accessToken: "new-token",
+            refreshToken: "rotated-refresh",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("does not restore credentials when disconnected during token refresh", async () => {
+    // Arrange
+    const outlookSettings = makeOutlookSettings();
+    outlookSettings.credentials.expiryDate = Date.now() - 1;
+
+    const settings = {
+      microsoftOutlook: outlookSettings,
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: false,
+    };
+    const loadSettings = vi
+      .fn()
+      .mockResolvedValueOnce(settings)
+      .mockResolvedValueOnce({ ...settings, microsoftOutlook: undefined });
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(MicrosoftAuth.refreshAccessToken).mockResolvedValue({
+      accessToken: "new-token",
+      expiryDate: Date.now() + 60_000,
+    });
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(fetchFlaggedMessages).not.toHaveBeenCalled();
+    expect(modalOpen).not.toHaveBeenCalled();
+  });
+
+  it("clears credentials and opens modal when Graph fetch returns 401", async () => {
+    // Arrange
+    const settings = {
+      microsoftOutlook: makeOutlookSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: false,
+    };
+    const loadSettings = vi
+      .fn()
+      .mockResolvedValueOnce(settings)
+      .mockResolvedValueOnce({ ...settings, microsoftOutlook: undefined });
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(fetchFlaggedMessages).mockRejectedValue(
+      new GraphAuthorizationError(401, "Microsoft Graph list messages failed: 401 Unauthorized"),
+    );
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ microsoftOutlook: undefined }),
+    );
+    expect(modalOpen).toHaveBeenCalled();
+    expect(writeSyncActions).not.toHaveBeenCalled();
+  });
+
+  it("clears credentials when completion PATCH returns 401", async () => {
+    // Arrange
+    const settings = {
+      microsoftOutlook: makeOutlookSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: true,
+    };
+    const loadSettings = vi
+      .fn()
+      .mockResolvedValueOnce(settings)
+      .mockResolvedValueOnce({ ...settings, microsoftOutlook: undefined });
+    const saveSettings = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(fetchFlaggedMessages).mockResolvedValue([
+      {
+        id: "msg-1",
+        subject: "Message 1",
+        webLink: "https://outlook.office.com/mail/msg-1",
+        from: { emailAddress: { name: "Ada" } },
+      },
+    ]);
+
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([
+      {
+        id: "msg-1",
+        source: "microsoft-outlook",
+        title: "Message 1 (Ada)",
+        link: "https://outlook.office.com/mail/msg-1",
+        heading: "## Inbox",
+        completed: true,
+      },
+    ]);
+
+    vi.mocked(updateOutlookMessageFlag).mockRejectedValue(
+      new GraphAuthorizationError(401, "Microsoft Graph PATCH message failed: 401 Unauthorized"),
+    );
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ microsoftOutlook: undefined }),
+    );
+    expect(modalOpen).toHaveBeenCalled();
+    expect(writeSyncActions).not.toHaveBeenCalled();
   });
 });

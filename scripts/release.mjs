@@ -11,6 +11,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import process from "node:process";
 import console from "node:console";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +84,34 @@ const validateVersions = (packageJson, manifest) => {
 
 /**
  * @param {object | undefined} manifest
+ * @param {Record<string, string> | undefined} versionsJson
+ */
+const validateVersionsJson = (manifest, versionsJson) => {
+  console.log("\nChecking versions.json:");
+
+  if (!manifest || !versionsJson) {
+    console.log("  [ERROR] Could not read manifest.json or versions.json");
+    return { success: false, versionsEntryMatch: false, manifest, versionsJson };
+  }
+
+  const expectedMinAppVersion = manifest.minAppVersion;
+  const actualMinAppVersion = versionsJson[manifest.version];
+  const versionsEntryMatch = actualMinAppVersion === expectedMinAppVersion;
+
+  console.log(`  versions.json["${manifest.version}"]: ${actualMinAppVersion ?? "(missing)"}`);
+  console.log(`  manifest minAppVersion: ${expectedMinAppVersion}`);
+  console.log(`  [${versionsEntryMatch ? "OK" : "MISMATCH"}] versions.json entry matches`);
+
+  if (!versionsEntryMatch) {
+    console.log("\nError: versions.json is out of sync!");
+    console.log("   Run 'npm run version' to sync versions.");
+  }
+
+  return { success: versionsEntryMatch, versionsEntryMatch, manifest, versionsJson };
+};
+
+/**
+ * @param {object | undefined} manifest
  */
 const validateManifestFields = (manifest) => {
   console.log("\nChecking manifest.json fields:");
@@ -124,9 +153,9 @@ const printSuccessMessage = (manifest) => {
   console.log("All release checks passed.");
   console.log("\nNext steps:");
   console.log("  1. Create a GitHub release:");
-  console.log("     - Go to: https://github.com/YOUR_USERNAME/syncer/releases/new");
-  console.log(`     - Tag: v${manifest?.version || "X.X.X"}`);
-  console.log(`     - Title: v${manifest?.version || "X.X.X"}`);
+  console.log("     - Go to: https://github.com/desimpson/syncer/releases/new");
+  console.log(`     - Tag: ${manifest?.version || "X.X.X"}`);
+  console.log(`     - Title: ${manifest?.version || "X.X.X"}`);
   console.log("     - Attach files: main.js, manifest.json, styles.css");
   console.log("\n  2. Submit to Obsidian Community Plugins:");
   console.log("     - Fork: https://github.com/obsidianmd/obsidian-releases");
@@ -138,9 +167,10 @@ const printSuccessMessage = (manifest) => {
 /**
  * @param {object} fileCheck
  * @param {object} versionCheck
+ * @param {object} versionsJsonCheck
  * @param {object} manifestCheck
  */
-const printErrorMessage = (fileCheck, versionCheck, manifestCheck) => {
+const printErrorMessage = (fileCheck, versionCheck, versionsJsonCheck, manifestCheck) => {
   console.log("Release readiness checks failed.");
   if (!fileCheck.allFilesExist) {
     console.log("\nHint: Build the plugin first:");
@@ -149,6 +179,10 @@ const printErrorMessage = (fileCheck, versionCheck, manifestCheck) => {
   }
   if (versionCheck.packageJson && versionCheck.manifest && !versionCheck.versionsMatch) {
     console.log("\nHint: Sync versions:");
+    console.log("   npm run version");
+  }
+  if (versionsJsonCheck.manifest && !versionsJsonCheck.versionsEntryMatch) {
+    console.log("\nHint: Sync versions.json:");
     console.log("   npm run version");
   }
   if (manifestCheck.manifest && !manifestCheck.allFieldsPresent) {
@@ -160,12 +194,16 @@ console.log("Checking release readiness...\n");
 
 const packageJson = readJSON("package.json");
 const manifest = readJSON("manifest.json");
+const versionsJson = readJSON("versions.json");
 
 const fileCheck = validateFiles();
 const versionCheck = validateVersions(packageJson, manifest);
+const versionsJsonCheck = validateVersionsJson(manifest, versionsJson);
 const manifestCheck = validateManifestFields(manifest);
 
-const allChecksPassed = [fileCheck, versionCheck, manifestCheck].every((check) => check.success);
+const allChecksPassed = [fileCheck, versionCheck, versionsJsonCheck, manifestCheck].every(
+  (check) => check.success,
+);
 
 console.log(`\n${"=".repeat(50)}`);
 
@@ -173,9 +211,7 @@ if (allChecksPassed) {
   printSuccessMessage(manifest);
   console.log("=".repeat(50));
 } else {
-  printErrorMessage(fileCheck, versionCheck, manifestCheck);
+  printErrorMessage(fileCheck, versionCheck, versionsJsonCheck, manifestCheck);
   console.log("=".repeat(50));
-
-  // Use globalThis.process for ESM compatibility and to avoid 'process is not defined' errors
-  globalThis.process?.exit(1);
+  process.exit(1);
 }

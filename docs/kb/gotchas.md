@@ -5,7 +5,7 @@
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
 - Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` optional (Outlook Connect disabled if omitted)
 - Prod: `GOOGLE_CLIENT_ID_PROD` / `MICROSOFT_CLIENT_ID_PROD`
-- See [`.env.example`](../../.env.example) for dev client IDs; prod vars (`GOOGLE_CLIENT_ID_PROD`, `MICROSOFT_CLIENT_ID_PROD`) are in README / build scripts
+- See [`.env.example`](../../.env.example) for dev client IDs; prod vars (`GOOGLE_CLIENT_ID_PROD`, `MICROSOFT_CLIENT_ID_PROD`) are in README / build scripts / GitHub Actions (`development` / `production` environment secrets)
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`)
 
 ## Auth realities

@@ -1,8 +1,31 @@
 import esbuild from "esbuild";
 import console from "node:console";
+import path from "node:path";
+import { copyFileSync } from "node:fs";
 import { builtinModules } from "node:module";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
+
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const sqlWasmSourcePath = path.join(currentDirectory, "node_modules/sql.js/dist/sql-wasm.wasm");
+
+/**
+ * Copies sql.js WASM next to main.js so the plugin can load it without a remote fetch.
+ */
+const copySqlWasmPlugin = {
+  name: "copy-sql-wasm",
+  setup(build) {
+    build.onEnd((result) => {
+      if (result.errors.length > 0) {
+        return;
+      }
+      const outputDirectory = path.dirname(baseOptions.outfile);
+      copyFileSync(sqlWasmSourcePath, path.join(outputDirectory, "sql-wasm.wasm"));
+      console.info("Copied sql-wasm.wasm to plugin output directory.");
+    });
+  },
+};
 
 // Load environment variables from .env (if present)
 try {
@@ -43,6 +66,7 @@ const baseOptions = {
   outfile: "main.js",
   banner: { js: banner },
   external: externalDependencies,
+  plugins: [copySqlWasmPlugin],
   logLevel: "info",
   treeShaking: true,
 };

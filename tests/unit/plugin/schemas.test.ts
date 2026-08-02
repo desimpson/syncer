@@ -6,6 +6,7 @@ import {
   syncIntervalSchema,
   pluginSettingsSchema,
   googleTasksSettingsSchema,
+  firefoxBookmarksSettingsSchema,
   headingSchema,
   microsoftWorkOrSchoolTenantIdSchema,
 } from "@/plugin/schemas";
@@ -388,6 +389,32 @@ describe("pluginSettingsSchema with heading", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.syncHeading).toBe("## Inbox");
+    }
+  });
+});
+
+describe("firefoxBookmarksSettingsSchema", () => {
+  it("applies defaults for partial objects", () => {
+    const result = firefoxBookmarksSettingsSchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.profilePath).toBe("");
+      expect(result.data.availableFolders).toEqual([]);
+      expect(result.data.selectedFolderGuids).toEqual([]);
+    }
+  });
+
+  it("accepts folder metadata with guid, title, and path", () => {
+    const result = firefoxBookmarksSettingsSchema.safeParse({
+      profilePath: "/profile",
+      resolvedProfilePath: "/profile/abc.default",
+      availableFolders: [{ guid: "folder-1", title: "Reading", path: "Toolbar / Reading" }],
+      selectedFolderGuids: ["folder-1"],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.availableFolders[0]?.path).toBe("Toolbar / Reading");
     }
   });
 });

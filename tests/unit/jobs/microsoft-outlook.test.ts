@@ -90,6 +90,7 @@ import { MicrosoftAuth } from "@/auth";
 const baseConfig = {
   googleClientId: "",
   microsoftClientId: "microsoft-client-id",
+  pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 
 const makeVault = (file: TFile | null) =>

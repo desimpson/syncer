@@ -1,4 +1,4 @@
-import { Notice, PluginSettingTab, Setting, TextComponent, type App } from "obsidian";
+import { Notice, Platform, PluginSettingTab, Setting, TextComponent, type App } from "obsidian";
 import { FileSuggest } from "@/plugin/suggesters/file-suggest";
 import type SyncerPlugin from "@/plugin";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
@@ -13,6 +13,11 @@ import { GoogleAuth, InvalidGrantError, MicrosoftAuth } from "@/auth";
 import { GoogleTasksService } from "@/services";
 import type { GoogleTasksList } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
+import {
+  fetchFirefoxBookmarkFolders,
+  FirefoxBookmarksError,
+  type FirefoxBookmarkFolder,
+} from "@/services/firefox-bookmarks";
 
 /**
  * Settings tab for the Syncer plugin.
@@ -60,6 +65,7 @@ export class SettingsTab extends PluginSettingTab {
     });
     await this.addGoogleTasksSettings(containerElement);
     await this.addMicrosoftOutlookSettings(containerElement);
+    await this.addFirefoxBookmarksSettings(containerElement);
   }
 
   private async addSyncIntervalSetting(containerElement: HTMLElement, settings: PluginSettings) {
@@ -423,6 +429,226 @@ export class SettingsTab extends PluginSettingTab {
     /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
     await this.plugin.updateSettings({ microsoftOutlook: undefined });
     new Notice("Microsoft Outlook account disconnected.");
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async addFirefoxBookmarksSettings(containerElement: HTMLElement): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Firefox product names in settings */
+    new Setting(containerElement).setName("Firefox Bookmarks").setHeading();
+
+    if (!Platform.isDesktopApp) {
+      containerElement.createEl("p", {
+        text: "Firefox Bookmarks sync is available on Obsidian desktop only.",
+        cls: "setting-item-description",
+      });
+      return;
+    }
+
+    const settings = await this.plugin.loadSettings();
+    const { firefoxBookmarks } = settings;
+
+    const enableSetting = new Setting(containerElement);
+    if (firefoxBookmarks === undefined) {
+      enableSetting
+        .setName("Firefox Bookmarks sync disabled")
+        .setDesc("Enable syncing bookmarks from a local Firefox profile into your vault.")
+        .addButton((button) =>
+          button.setButtonText("Enable").onClick(async () => {
+            await this.plugin.updateSettings({
+              firefoxBookmarks: {
+                profilePath: "",
+                resolvedProfilePath: "",
+                availableFolders: [],
+                selectedFolderGuids: [],
+              },
+            });
+            await this.display();
+          }),
+        );
+      return;
+    }
+
+    enableSetting
+      .setName("Firefox Bookmarks sync enabled")
+      .setDesc("Disable to stop syncing Firefox bookmarks.")
+      .addButton((button) =>
+        button
+          .setButtonText("Disable")
+          .setWarning()
+          .onClick(async () => {
+            await this.plugin.updateSettings({ firefoxBookmarks: undefined });
+            new Notice("Firefox Bookmarks sync disabled.");
+            await this.display();
+          }),
+      );
+
+    const profilePathSetting = this.createTextSetting(
+      containerElement,
+      "Firefox profile path",
+      "Optional manual path to a Firefox profile directory. Leave empty to auto-detect the default profile.",
+      firefoxBookmarks.profilePath,
+      "e.g., /home/user/.mozilla/firefox/abc123.default-release",
+    );
+
+    profilePathSetting.input.onChange(async (value) => {
+      const freshSettings = await this.plugin.loadSettings();
+      if (freshSettings.firefoxBookmarks === undefined) {
+        return;
+      }
+      await this.plugin.updateSettings({
+        firefoxBookmarks: {
+          ...freshSettings.firefoxBookmarks,
+          profilePath: value.trim(),
+        },
+      });
+    });
+
+    if (firefoxBookmarks.resolvedProfilePath.length > 0) {
+      new Setting(containerElement)
+        .setName("Resolved profile path")
+        .setDesc(firefoxBookmarks.resolvedProfilePath)
+        .setDisabled(true);
+    }
+
+    new Setting(containerElement)
+      .setName("Refresh bookmark folders")
+      .setDesc("Load bookmark folders from the selected Firefox profile.")
+      .addButton((button) =>
+        button.setButtonText("Refresh folders").onClick(async () => {
+          await this.refreshFirefoxBookmarkFolders(containerElement);
+        }),
+      );
+
+    await this.addFirefoxBookmarkFolderSelector(containerElement, firefoxBookmarks);
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async refreshFirefoxBookmarkFolders(_containerElement: HTMLElement): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Firefox product names in notices */
+    const settings = await this.plugin.loadSettings();
+    const { firefoxBookmarks } = settings;
+    if (firefoxBookmarks === undefined) {
+      return;
+    }
+
+    try {
+      const { profileDirectory, folders } = await fetchFirefoxBookmarkFolders(
+        firefoxBookmarks.profilePath,
+        this.plugin.manifest.dir ?? "",
+      );
+
+      const availableGuids = new Set(folders.map((folder) => folder.guid));
+      const cleanedSelectedGuids = firefoxBookmarks.selectedFolderGuids.filter((guid) =>
+        availableGuids.has(guid),
+      );
+
+      await this.plugin.updateSettings({
+        firefoxBookmarks: {
+          ...firefoxBookmarks,
+          resolvedProfilePath: profileDirectory,
+          availableFolders: folders,
+          selectedFolderGuids: cleanedSelectedGuids,
+        },
+      });
+
+      new Notice(`Loaded ${folders.length} bookmark folder(s) from Firefox.`);
+      await this.display();
+    } catch (error) {
+      if (error instanceof FirefoxBookmarksError) {
+        new Notice(error.userMessage);
+        return;
+      }
+      console.error(`Failed to refresh Firefox bookmark folders: ${formatLogError(error)}`);
+      new Notice("Failed to load Firefox bookmark folders.");
+    }
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async addFirefoxBookmarkFolderSelector(
+    containerElement: HTMLElement,
+    firefoxBookmarks: NonNullable<PluginSettings["firefoxBookmarks"]>,
+  ): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Firefox folder picker UI */
+    new Setting(containerElement).setName("Select bookmark folders to sync").setHeading();
+
+    let selectedFolderGuids = [...firefoxBookmarks.selectedFolderGuids];
+    const folderContainer = containerElement.createDiv({
+      cls: "firefox-bookmarks-folder-selector",
+    });
+
+    const staleGuids = selectedFolderGuids.filter(
+      (guid) => !firefoxBookmarks.availableFolders.some((folder) => folder.guid === guid),
+    );
+    if (staleGuids.length > 0) {
+      folderContainer.createEl("p", {
+        text: `${staleGuids.length} selected folder(s) were not found. Refresh folders or reselect.`,
+        cls: "setting-item-description mod-warning",
+      });
+    }
+
+    const updateSelected = async (newSelected: readonly string[]) => {
+      selectedFolderGuids = [...newSelected];
+      const freshSettings = await this.plugin.loadSettings();
+      if (freshSettings.firefoxBookmarks === undefined) {
+        return;
+      }
+      await this.plugin.updateSettings({
+        firefoxBookmarks: {
+          ...freshSettings.firefoxBookmarks,
+          selectedFolderGuids: [...selectedFolderGuids],
+        },
+      });
+    };
+
+    const createFolderDropdown = (
+      folders: readonly FirefoxBookmarkFolder[],
+      currentSelection: readonly string[],
+    ) => {
+      folderContainer.empty();
+
+      if (folders.length === 0) {
+        folderContainer.createEl("p", {
+          text: "No bookmark folders loaded. Click Refresh folders above.",
+          cls: "setting-item-description",
+        });
+        return;
+      }
+
+      folderContainer.createEl("p", {
+        text: "Click folders to include them in sync (subfolders are included recursively):",
+        cls: "setting-item-description",
+      });
+
+      const toggleContainer = folderContainer.createDiv("firefox-bookmarks-toggle-container");
+
+      folders.forEach((folder) => {
+        const isSelected = currentSelection.includes(folder.guid);
+        const label = folder.path.length > 0 ? folder.path : folder.title;
+
+        const button = toggleContainer.createEl("button", {
+          text: label,
+          cls: `firefox-bookmarks-toggle-button${isSelected ? " is-selected" : ""}`,
+        });
+
+        button.addEventListener("click", async () => {
+          const wasSelected = selectedFolderGuids.includes(folder.guid);
+          const newSelection = wasSelected
+            ? selectedFolderGuids.filter((guid) => guid !== folder.guid)
+            : [...selectedFolderGuids, folder.guid];
+
+          button.toggleClass("is-selected", !wasSelected);
+          countElement.setText(`${newSelection.length} of ${folders.length} folders selected`);
+          await updateSelected(newSelection);
+        });
+      });
+
+      const countElement = folderContainer.createEl("p", {
+        text: `${currentSelection.length} of ${folders.length} folders selected`,
+        cls: "setting-item-description firefox-bookmarks-selection-count",
+      });
+    };
+
+    createFolderDropdown(firefoxBookmarks.availableFolders, selectedFolderGuids);
     /* eslint-enable obsidianmd/ui/sentence-case */
   }
 

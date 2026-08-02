@@ -136,6 +136,22 @@ export const microsoftOutlookSettingsSchema = z.object({
   }),
 });
 
+export const firefoxBookmarkFolderSettingsSchema = z.object({
+  guid: z.string(),
+  title: z.string(),
+  path: z.string(),
+});
+
+/**
+ * Firefox Bookmarks integration settings stored inside plugin settings.
+ */
+export const firefoxBookmarksSettingsSchema = z.object({
+  profilePath: z.string().default(""),
+  resolvedProfilePath: z.string().default(""),
+  availableFolders: z.array(firefoxBookmarkFolderSettingsSchema).default([]),
+  selectedFolderGuids: z.array(z.string()).default([]),
+});
+
 /**
  * Schema for plugin settings with sensible defaults.
  */
@@ -151,4 +167,5 @@ export const pluginSettingsSchema = z.object({
   microsoftAuthAccountKind: microsoftAuthAccountKindSchema,
   microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
   microsoftOutlook: microsoftOutlookSettingsSchema.optional(),
+  firefoxBookmarks: firefoxBookmarksSettingsSchema.optional(),
 });

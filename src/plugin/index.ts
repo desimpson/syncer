@@ -4,6 +4,7 @@ import { createScheduler, type Scheduler } from "@/sync/scheduler";
 import { SyncGuard } from "@/sync/sync-guard";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import { createMicrosoftOutlookJob } from "@/jobs/microsoft-outlook";
+import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
 import { pluginSchema, pluginSettingsSchema } from "./schemas";
 import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation-modal";
@@ -27,6 +28,7 @@ export default class SyncerPlugin extends Plugin {
     this.config = {
       googleClientId: GOOGLE_CLIENT_ID,
       microsoftClientId: MICROSOFT_CLIENT_ID.trim(),
+      pluginDirectory: manifest.dir ?? "",
     };
   }
 
@@ -41,6 +43,14 @@ export default class SyncerPlugin extends Plugin {
         this.app,
       ),
       createMicrosoftOutlookJob(
+        this.loadSettings,
+        this.saveSettings,
+        this.config,
+        this.app.vault,
+        (message) => new Notice(message),
+        this.app,
+      ),
+      createFirefoxBookmarksJob(
         this.loadSettings,
         this.saveSettings,
         this.config,

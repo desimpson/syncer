@@ -86,6 +86,7 @@ import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-task
 const baseConfig = {
   googleClientId: "id",
   microsoftClientId: "",
+  pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 
 const makeVault = (file: TFile | null) =>

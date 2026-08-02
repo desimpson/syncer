@@ -24,6 +24,14 @@
   - HTML `--` inside task URLs can break Kanban metadata comments
   - Incomplete barrels / inconsistent import style
 
+## Firefox Bookmarks
+
+- Copy `sql-wasm.wasm` alongside `main.js` when installing manually (esbuild copies it on build)
+- sql.js loader: [`src/services/sql-js-loader.ts`](../../src/services/sql-js-loader.ts) resolves WASM from `manifest.dir` (no remote fetch)
+- Profile auto-detect scans standard paths plus Snap/Flatpak on Linux; manual profile path always wins
+- Copy-on-read of `places.sqlite` (+ `-wal`/`-shm` when present) into a unique temp dir; cleaned in `finally`
+- Stale selected folder GUIDs → soft warning; valid folders still sync
+
 ## Agent pitfalls
 
 - Do not assume every integration is exported from barrel `index.ts` files

@@ -23,6 +23,12 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Syncs messages with an Outlook follow-up flag set to flagged
   - Personal (Outlook.com / Hotmail / Live) or work/school accounts (optional Entra tenant ID)
   - When completion status sync is enabled, checking/unchecking items in Obsidian updates the Outlook flag on the next sync
+- Firefox Bookmarks integration (desktop only):
+  - Sync bookmarks from a local Firefox profile into your vault
+  - Auto-detect default profile or set a manual profile path
+  - Select one or more bookmark folders (subfolders included recursively)
+  - One-way sync: Firefox → Obsidian only; checking items in Obsidian does not change Firefox
+  - While Firefox is open, bookmark data may lag a few seconds behind the browser
 
 ## Requirements
 
@@ -39,6 +45,7 @@ Manual install into a vault:
 1. Copy these files to your vault: `Vault/.obsidian/plugins/syncer/`
    - `manifest.json`
    - `main.js`
+   - `sql-wasm.wasm`
    - `styles.css`
 1. Enable “Syncer” in Obsidian → Settings → Community plugins
 
@@ -66,6 +73,16 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - Choose **Outlook account type** (personal or work/school); for work/school you may optionally set a Directory (tenant) ID
 - Connect your Microsoft account using the **Connect** button (requires the plugin to be built with a Microsoft application client ID)
 - Flagged messages are synced into the target note under the sync heading
+
+### Firefox Bookmarks (desktop only)
+
+- Enable **Firefox Bookmarks** in the plugin settings
+- Optionally set a **Firefox profile path**; leave empty to auto-detect the default profile from `profiles.ini`
+- Click **Refresh folders**, then select bookmark folders to include (subfolders are synced recursively)
+- Typical profile locations:
+  - Linux: `~/.mozilla/firefox/<profile>/`
+  - macOS: `~/Library/Application Support/Firefox/Profiles/<profile>/`
+  - Windows: `%APPDATA%\Mozilla\Firefox\Profiles\<profile>\`
 
 ## Commands
 

@@ -4,15 +4,15 @@ Obsidian plugin that pulls external items into a target Markdown note under a co
 
 ## Layers (`src/`)
 
-| Layer       | Owns                                            | Key entry points                                                        |
-| ----------- | ----------------------------------------------- | ----------------------------------------------------------------------- |
-| `plugin/`   | Lifecycle, settings UI, vault delete-detection  | `plugin/index.ts`, `settings-tab.ts`, `schemas.ts`                      |
-| `sync/`     | Generic reconcile + file I/O (no provider APIs) | `scheduler.ts`, `actions.ts`, `reader.ts`, `writer.ts`, `sync-guard.ts` |
-| `jobs/`     | Per-integration orchestration                   | `google-tasks.ts`, `microsoft-outlook.ts`                               |
-| `services/` | Provider HTTP clients                           | `google-tasks.ts`, `outlook-mail.ts`                                    |
-| `adaptors/` | Source DTO → `SyncItem`                         | `google-tasks.ts`, `microsoft-outlook.ts`                               |
-| `auth/`     | OAuth connect + token refresh                   | `google.ts`, `microsoft.ts`                                             |
-| `utils/`    | Pure helpers / UI popper                        | `error-formatters.ts`, `heading-formatters.ts`, …                       |
+| Layer       | Owns                                            | Key entry points                                                                 |
+| ----------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| `plugin/`   | Lifecycle, settings UI, vault delete-detection  | `plugin/index.ts`, `settings-tab.ts`, `schemas.ts`                               |
+| `sync/`     | Generic reconcile + file I/O (no provider APIs) | `scheduler.ts`, `actions.ts`, `reader.ts`, `writer.ts`, `sync-guard.ts`          |
+| `jobs/`     | Per-integration orchestration                   | `google-tasks.ts`, `microsoft-outlook.ts`, `firefox-bookmarks.ts`                |
+| `services/` | Provider HTTP clients + local SQLite (Firefox)  | `google-tasks.ts`, `outlook-mail.ts`, `firefox-bookmarks.ts`, `sql-js-loader.ts` |
+| `adaptors/` | Source DTO → `SyncItem`                         | `google-tasks.ts`, `microsoft-outlook.ts`, `firefox-bookmarks.ts`                |
+| `auth/`     | OAuth connect + token refresh                   | `google.ts`, `microsoft.ts`                                                      |
+| `utils/`    | Pure helpers / UI popper                        | `error-formatters.ts`, `heading-formatters.ts`, …                                |
 
 Path alias: `@/*` → `src/*`. Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js`.
 
@@ -20,7 +20,7 @@ Path alias: `@/*` → `src/*`. Bundle entry: `esbuild.config.mjs` → `src/plugi
 
 ```
 onload (plugin/index.ts)
-  → createGoogleTasksJob / createMicrosoftOutlookJob
+  → createGoogleTasksJob / createMicrosoftOutlookJob / createFirefoxBookmarksJob
   → wrap each job in SyncGuard (suppress delete-detection during writes)
   → createScheduler(jobs).start(syncIntervalMinutes)
        │
@@ -40,10 +40,10 @@ onload (plugin/index.ts)
 8. **Actions** `generateSyncActions` → create/update/delete (with preserve filters)
 9. **Writer** apply actions; append creates under target heading (Kanban-aware)
 
-Side path (Google Tasks only): vault `modify` listener in `plugin/index.ts` may delete Google Tasks remotely when lines disappear (`enableDeleteSync`). `handleFileModification` filters `source === "google-tasks"` — Outlook has no equivalent delete-sync path today.
+Side path (Google Tasks only): vault `modify` listener in `plugin/index.ts` may delete Google Tasks remotely when lines disappear (`enableDeleteSync`). `handleFileModification` filters `source === "google-tasks"` — Outlook and Firefox have no equivalent delete-sync path today.
 
 ## Core types
 
 - `SyncItem` / `SyncAction` / `SyncSource` — [`src/sync/types.ts`](../../src/sync/types.ts)
 - `SyncJob` / `SyncJobCreator` — [`src/jobs/types.ts`](../../src/jobs/types.ts)
-- Sources today: `"google-tasks"`, `"microsoft-outlook"` (`MICROSOFT_OUTLOOK_SOURCE`)
+- Sources today: `"google-tasks"`, `"microsoft-outlook"`, `"firefox-bookmarks"`

@@ -41,6 +41,19 @@ Owning job: [`src/jobs/microsoft-outlook.ts`](../../src/jobs/microsoft-outlook.t
 - `syncCompletionStatus`: checking/unchecking in Obsidian updates the Outlook flag on the next sync
 - Account kind + optional Entra tenant ID → tenant segment for Graph auth
 
+## Firefox Bookmarks
+
+Owning job: [`src/jobs/firefox-bookmarks.ts`](../../src/jobs/firefox-bookmarks.ts).
+
+- Incoming feed = bookmarks in selected folder(s), **recursively** including subfolders
+- Filters: separators, `place:` URIs, tag-root duplicates
+- Identity: `moz_bookmarks.guid` → `source: firefox-bookmarks`
+- One-way sync only; Obsidian checkbox is local-only (no write-back to Firefox)
+- Removing a bookmark from a selected folder removes its line on next sync unless the Obsidian line is already `[x]` (completed-preserve)
+- Reads `places.sqlite` via copy-on-read + **sql.js** (WASM bundled as `sql-wasm.wasm` next to `main.js`)
+- While Firefox is open (`-wal`/`-shm` present), sync may use slightly stale data — non-blocking notice only
+- Desktop only (`Platform.isDesktopApp`); settings hidden on mobile
+
 ## SyncGuard
 
 [`src/sync/sync-guard.ts`](../../src/sync/sync-guard.ts), wired in [`plugin/index.ts`](../../src/plugin/index.ts):

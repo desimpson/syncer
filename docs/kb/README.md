@@ -1,0 +1,28 @@
+# Syncer knowledge base
+
+Short, living notes for agents and contributors. Prefer links into `src/` over copying README marketing text.
+
+## Pages
+
+| Page                                   | When to read / update                             |
+| -------------------------------------- | ------------------------------------------------- |
+| [architecture.md](architecture.md)     | Module layers and sync pipeline wiring            |
+| [sync-semantics.md](sync-semantics.md) | Product rules for reconcile, completion, deletion |
+| [conventions.md](conventions.md)       | Naming, Zod, errors, spelling                     |
+| [gotchas.md](gotchas.md)               | Footguns, env gaps, known traps                   |
+
+Also see [docs/testing.md](../testing.md) for unit vs integration layout (do not duplicate here).
+
+## When to update
+
+Treat KB updates as part of the same task when behavior changes:
+
+| Change type                        | Update                           |
+| ---------------------------------- | -------------------------------- |
+| New/changed sync product rule      | `sync-semantics.md`              |
+| New module / layer / wiring        | `architecture.md`                |
+| New convention or pattern decision | `conventions.md`                 |
+| Footgun / env / known trap         | `gotchas.md`                     |
+| Test layout change                 | [docs/testing.md](../testing.md) |
+
+**Sizing:** keep each page under ~80 lines. Never invent features — cite paths. Use the `update-knowledge-base` project skill after meaningful code changes.

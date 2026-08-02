@@ -1,0 +1,25 @@
+---
+description: Syncer project map — KB, skills, and hard constraints for agents
+alwaysApply: true
+---
+
+# Syncer
+
+Obsidian plugin that syncs Google Tasks and Outlook flagged mail into a target Markdown note under a configurable heading.
+
+## Start here
+
+When changing behavior, read [`docs/kb/README.md`](docs/kb/README.md) and the relevant KB page before editing. Prefer code + KB over guessing sync rules.
+
+## Project skills
+
+- `update-knowledge-base` — keep `docs/kb/` aligned after meaningful changes
+- `code-quality` — layering, Zod, tests, project conventions
+- `sync-feature` — add or change a job/service/adaptor/auth integration
+
+## Hard constraints
+
+- Respect layers: no provider HTTP in `sync/`; no Obsidian APIs in `services/`
+- Match existing conventions (Zod schemas, naming, British spelling)
+- No new dependencies without explicit approval
+- When sync semantics, architecture, conventions, or footguns change, update the matching `docs/kb/` page in the same task

@@ -4,11 +4,12 @@ Match existing patterns; do not invent a second style.
 
 ## Layering
 
-| Allowed                                                 | Forbidden                                   |
-| ------------------------------------------------------- | ------------------------------------------- |
-| Provider HTTP in `services/`                            | Provider HTTP in `sync/`                    |
-| Obsidian APIs in `plugin/`, `jobs/`, sync reader/writer | Obsidian APIs in `services/` or `adaptors/` |
-| DTO → `SyncItem` in `adaptors/`                         | Business reconcile in adaptors              |
+| Allowed                                                     | Forbidden                                   |
+| ----------------------------------------------------------- | ------------------------------------------- |
+| Provider HTTP in `services/`                                | Provider HTTP in `sync/`                    |
+| Obsidian vault/file types in `jobs/` and sync reader/writer | Obsidian APIs in `services/` or `adaptors/` |
+| UI, modals, settings in `plugin/` only                      | Business reconcile in adaptors              |
+| DTO → `SyncItem` in `adaptors/`                             | —                                           |
 
 Jobs glue auth + services + adaptors + sync. Plugin owns lifecycle, settings, and delete-detection UI.
 

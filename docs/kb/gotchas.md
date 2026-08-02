@@ -5,7 +5,7 @@
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
 - Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` optional (Outlook Connect disabled if omitted)
 - Prod: `GOOGLE_CLIENT_ID_PROD` / `MICROSOFT_CLIENT_ID_PROD`
-- [`.env.example`](../../.env.example) currently documents Google only — Microsoft vars are in README / build scripts
+- See [`.env.example`](../../.env.example) for dev client IDs; prod vars (`GOOGLE_CLIENT_ID_PROD`, `MICROSOFT_CLIENT_ID_PROD`) are in README / build scripts
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`)
 
 ## Auth realities
@@ -28,4 +28,4 @@
 
 - Do not assume every integration is exported from barrel `index.ts` files
 - Product rules live in job comments and `sync-semantics.md` — README is user-facing, not the reconcile oracle
-- `manifest.json` / desktop assumptions: OAuth localhost flow implies desktop use even if manifest fields vary
+- OAuth uses a localhost redirect (desktop-oriented in practice); `manifest.json` currently has `"isDesktopOnly": false`

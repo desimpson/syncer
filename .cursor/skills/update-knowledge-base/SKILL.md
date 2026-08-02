@@ -17,19 +17,19 @@ Skip for pure formatting, typo-only, or test-only changes that do not alter prod
 2. Read the owning module before writing — never invent features.
 3. Update only stale pages; keep each page under ~80 lines.
 4. Prefer bullets and links into `src/` over narrative duplication of README.
-5. Do not copy test commands into the KB — link [`docs/testing.md`](../../../docs/testing.md).
+5. Do not copy test commands into the KB — link [`docs/testing.md`](docs/testing.md).
 
 ## Where content goes
 
-| Change                                                         | Page                                                              |
-| -------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Product sync rules (completion, delete, preserve, item format) | [`docs/kb/sync-semantics.md`](../../../docs/kb/sync-semantics.md) |
-| Modules, pipeline wiring, types                                | [`docs/kb/architecture.md`](../../../docs/kb/architecture.md)     |
-| Naming, Zod, errors, layering norms                            | [`docs/kb/conventions.md`](../../../docs/kb/conventions.md)       |
-| Env, auth traps, known footguns                                | [`docs/kb/gotchas.md`](../../../docs/kb/gotchas.md)               |
-| Index / update policy                                          | [`docs/kb/README.md`](../../../docs/kb/README.md)                 |
+| Change                                                         | Page                                                     |
+| -------------------------------------------------------------- | -------------------------------------------------------- |
+| Product sync rules (completion, delete, preserve, item format) | [`docs/kb/sync-semantics.md`](docs/kb/sync-semantics.md) |
+| Modules, pipeline wiring, types                                | [`docs/kb/architecture.md`](docs/kb/architecture.md)     |
+| Naming, Zod, errors, layering norms                            | [`docs/kb/conventions.md`](docs/kb/conventions.md)       |
+| Env, auth traps, known footguns                                | [`docs/kb/gotchas.md`](docs/kb/gotchas.md)               |
+| Index / update policy                                          | [`docs/kb/README.md`](docs/kb/README.md)                 |
 
-Backlog items stay in [`TODO.md`](../../../TODO.md). Mention in `gotchas.md` only when they actively trip agents.
+Backlog items stay in [`TODO.md`](TODO.md). Mention in `gotchas.md` only when they actively trip agents.
 
 ## Done when
 

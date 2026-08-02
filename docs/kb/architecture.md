@@ -40,7 +40,7 @@ onload (plugin/index.ts)
 8. **Actions** `generateSyncActions` → create/update/delete (with preserve filters)
 9. **Writer** apply actions; append creates under target heading (Kanban-aware)
 
-Side path: vault `modify` listener in `plugin/index.ts` may delete Google Tasks remotely when lines disappear (`enableDeleteSync`).
+Side path (Google Tasks only): vault `modify` listener in `plugin/index.ts` may delete Google Tasks remotely when lines disappear (`enableDeleteSync`). `handleFileModification` filters `source === "google-tasks"` — Outlook has no equivalent delete-sync path today.
 
 ## Core types
 

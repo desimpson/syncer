@@ -5,10 +5,11 @@ description: Maintain Syncer code quality using project layering, Zod schemas, n
 
 # Code quality
 
-Project-specific checklist. Read [`docs/kb/conventions.md`](../../../docs/kb/conventions.md) for detail.
+Project-specific checklist. Read [`docs/kb/conventions.md`](docs/kb/conventions.md) for detail.
 
 ## Layers
 
+- `auth/` — OAuth connect + token refresh (no reconcile or file I/O)
 - `services/` — HTTP / provider APIs only
 - `adaptors/` — DTO → `SyncItem` mapping only
 - `sync/` — reconcile + Markdown I/O; no provider APIs
@@ -25,7 +26,7 @@ Project-specific checklist. Read [`docs/kb/conventions.md`](../../../docs/kb/con
 
 ## Tests
 
-Follow [`docs/testing.md`](../../../docs/testing.md):
+Follow [`docs/testing.md`](docs/testing.md):
 
 - Pure logic → `tests/unit/…`
 - Vault/HTTP/DOM/timer mocks → `tests/integration/…`

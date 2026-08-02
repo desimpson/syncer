@@ -15,6 +15,8 @@ Also see [docs/testing.md](../testing.md) for unit vs integration layout (do not
 
 ## When to update
 
+This index is the policy source of truth. [`.cursor/rules/project.mdc`](../../.cursor/rules/project.mdc) and the [`update-knowledge-base`](../../.cursor/skills/update-knowledge-base/SKILL.md) skill link back here rather than duplicating the table.
+
 Treat KB updates as part of the same task when behavior changes:
 
 | Change type                        | Update                           |
@@ -25,4 +27,4 @@ Treat KB updates as part of the same task when behavior changes:
 | Footgun / env / known trap         | `gotchas.md`                     |
 | Test layout change                 | [docs/testing.md](../testing.md) |
 
-**Sizing:** keep each page under ~80 lines. Never invent features — cite paths. Use the `update-knowledge-base` project skill after meaningful code changes.
+**Sizing:** keep each page under ~80 lines. Never invent features — cite paths. Use the [`update-knowledge-base`](../../.cursor/skills/update-knowledge-base/SKILL.md) project skill after meaningful code changes.

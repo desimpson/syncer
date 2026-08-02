@@ -13,9 +13,11 @@ When changing behavior, read [`docs/kb/README.md`](docs/kb/README.md) and the re
 
 ## Project skills
 
-- `update-knowledge-base` — keep `docs/kb/` aligned after meaningful changes
-- `code-quality` — layering, Zod, tests, project conventions
-- `sync-feature` — add or change a job/service/adaptor/auth integration
+Skills live under `.cursor/skills/<name>/`:
+
+- [`update-knowledge-base`](.cursor/skills/update-knowledge-base/SKILL.md) — keep `docs/kb/` aligned after meaningful changes
+- [`code-quality`](.cursor/skills/code-quality/SKILL.md) — layering, Zod, tests, project conventions
+- [`sync-feature`](.cursor/skills/sync-feature/SKILL.md) — add or change a job/service/adaptor/auth integration
 
 ## Hard constraints
 

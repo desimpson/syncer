@@ -39,8 +39,9 @@ const __dirname = path.resolve(fileURLToPath(import.meta.url), "..");
 
 const pluginDirectory = path.resolve(__dirname, "..");
 
-const vaultPluginDirectory = process.env.OBSIDIAN_VAULT_PLUGIN_DIR_DEV
-  ? path.resolve(process.env.OBSIDIAN_VAULT_PLUGIN_DIR_DEV)
+const vaultPluginDirectoryRaw = process.env.OBSIDIAN_VAULT_PLUGIN_DIR_DEV?.trim();
+const vaultPluginDirectory = vaultPluginDirectoryRaw
+  ? path.resolve(vaultPluginDirectoryRaw)
   : undefined;
 
 const hotReloadFile = vaultPluginDirectory
@@ -61,7 +62,7 @@ const copyPlugin = () => {
   logger.info(`Copying plugin to vault: ${vaultPluginDirectory}...`);
   mkdirSync(vaultPluginDirectory, { recursive: true });
 
-  ["main.js", "manifest.json", "styles.css"].map(copyFile);
+  ["main.js", "manifest.json", "styles.css"].forEach(copyFile);
 };
 
 const enableHotReload = () => {

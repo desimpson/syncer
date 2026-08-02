@@ -51,11 +51,24 @@ const environmentSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
 });
 
-const getOptionalMicrosoftClientId = (mode) => {
+/**
+ * Returns the Microsoft client ID for the current build mode.
+ * Production builds require MICROSOFT_CLIENT_ID_PROD (Outlook is a shipped feature).
+ * Development builds treat MICROSOFT_CLIENT_ID_DEV as optional (Outlook Connect disabled if omitted).
+ */
+const getMicrosoftClientId = (mode) => {
   const environmentVariableName =
     mode === "production" ? "MICROSOFT_CLIENT_ID_PROD" : "MICROSOFT_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
-  return typeof clientId === "string" ? clientId.trim() : "";
+  const trimmed = typeof clientId === "string" ? clientId.trim() : "";
+
+  if (mode === "production" && trimmed.length === 0) {
+    throw new Error(
+      `Microsoft Client ID is required for production builds. Set ${environmentVariableName} environment variable.`,
+    );
+  }
+
+  return trimmed;
 };
 
 /**
@@ -173,7 +186,7 @@ const run = async () => {
   const clientIdType = mode === "production" ? "PROD" : "DEV";
   console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
 
-  const microsoftClientId = getOptionalMicrosoftClientId(
+  const microsoftClientId = getMicrosoftClientId(
     mode === "production" ? "production" : "development",
   );
   if (microsoftClientId.length > 0) {

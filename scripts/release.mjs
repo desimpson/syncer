@@ -175,6 +175,7 @@ const printErrorMessage = (fileCheck, versionCheck, versionsJsonCheck, manifestC
   if (!fileCheck.allFilesExist) {
     console.log("\nHint: Build the plugin first:");
     console.log("   export GOOGLE_CLIENT_ID_PROD='your-client-id'");
+    console.log("   export MICROSOFT_CLIENT_ID_PROD='your-client-id'");
     console.log("   npm run build:prod");
   }
   if (versionCheck.packageJson && versionCheck.manifest && !versionCheck.versionsMatch) {

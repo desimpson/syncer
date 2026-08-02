@@ -106,7 +106,7 @@ This plugin includes code adapted from the following projects:
 ## Releasing
 
 1. Update version: `npm run version` (or `npm version patch|minor|major`)
-2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (`MICROSOFT_CLIENT_ID_PROD` is optional; Outlook Connect is disabled when omitted)
+2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (both client IDs required for production builds)
 3. Verify: `npm run release:check`
 4. Create release:
    - **Automated**: `git tag 1.0.0 && git push origin 1.0.0` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.1.0` or `1.0.0`, not `v1.0.0`)

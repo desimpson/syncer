@@ -73,6 +73,8 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 ## Development
 
+Contributor/agent notes for architecture and sync rules live in [docs/kb/](docs/kb/).
+
 Install dependencies, then build with esbuild.
 
 ```sh

@@ -62,7 +62,7 @@ const copyPlugin = () => {
   logger.info(`Copying plugin to vault: ${vaultPluginDirectory}...`);
   mkdirSync(vaultPluginDirectory, { recursive: true });
 
-  ["main.js", "manifest.json", "styles.css"].forEach(copyFile);
+  ["main.js", "manifest.json", "styles.css", "sql-wasm.wasm"].forEach(copyFile);
 };
 
 const enableHotReload = () => {

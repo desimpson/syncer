@@ -15,6 +15,7 @@ jobs:
       name: production
     env:
       GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
+      MICROSOFT_CLIENT_ID_PROD: ${{ secrets.MICROSOFT_CLIENT_ID_PROD }}
 
     steps:
       - name: Checkout repository

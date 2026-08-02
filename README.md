@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks to your vault.
+Obsidian plugin to sync external sources like Google Tasks and Microsoft Outlook to your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. The first supported source is Google Tasks, with more integrations planned. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks and Microsoft Outlook (flagged mail). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -12,11 +12,17 @@ This plugin fetches data from external sources and syncs them to a target Markdo
 - Manual sync command from the Command Palette
 - Configurable target Markdown file to write to
 - Configurable target heading under which items will be inserted
+- Optional sync of completion status from Obsidian back to connected sources (off by default)
 - Google Tasks integration:
   - OAuth 2.0 (Authorization Code with PKCE)
   - Select which task lists to sync
   - Only incomplete Google Tasks are synced into Obsidian; when you complete a task in Google it drops out of the incoming feed and the corresponding line is removed from the items under the target heading in the Obsidian note on the next sync
-  - Basic bidirectional completion status sync for active tasks: checking/unchecking tasks in Obsidian syncs completion status back to Google Tasks
+  - Optional deletion sync: deleting a synced Google task in Obsidian can also delete it in Google Tasks (with optional confirmation)
+- Microsoft Outlook integration:
+  - OAuth 2.0 (Authorization Code with PKCE) via Microsoft identity platform
+  - Syncs messages with an Outlook follow-up flag set to flagged
+  - Personal (Outlook.com / Hotmail / Live) or work/school accounts (optional Entra tenant ID)
+  - When completion status sync is enabled, checking/unchecking items in Obsidian updates the Outlook flag on the next sync
 
 ## Requirements
 
@@ -29,7 +35,7 @@ This plugin fetches data from external sources and syncs them to a target Markdo
 
 Manual install into a vault:
 
-1. Build the plugin (see [Development](##-development) below)
+1. Build the plugin (see [Development](#development) below)
 1. Copy these files to your vault: `Vault/.obsidian/plugins/syncer/`
    - `manifest.json`
    - `main.js`
@@ -42,14 +48,28 @@ Open Obsidian settings and navigate to **Community plugins** → **Syncer**.
 
 GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md` as the target file and `## Inbox` as the heading. You can keep these for a classic capture inbox, or change them to suit your workflow.
 
-### Google Tasks:
+### General
+
+- **Sync interval (minutes)**: How often background sync runs
+- **Sync markdown file path**: Target note for synced items (sync reads the saved file on disk—save changes before running Manual sync)
+- **Sync heading**: H2 heading under which new items are inserted (input is normalised to `## …`)
+- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks and Microsoft Outlook (email flags) on the next sync
+
+### Google Tasks
 
 - Connect your Google account using the **Connect** button in the plugin's settings tab
 - Select task lists to sync via the multi-select input
+- Optionally enable **Sync task deletions** (and confirmation) so deleting a Google Tasks item in Obsidian also deletes it in Google Tasks
 
-## Commands:
+### Microsoft Outlook
 
-- `Manual Sync`: Triggers a once-off sync and restarts the scheduler
+- Choose **Outlook account type** (personal or work/school); for work/school you may optionally set a Directory (tenant) ID
+- Connect your Microsoft account using the **Connect** button (requires the plugin to be built with a Microsoft application client ID)
+- Flagged messages are synced into the target note under the sync heading
+
+## Commands
+
+- `Manual sync`: Triggers a once-off sync and restarts the scheduler
 
 ## Development
 
@@ -63,13 +83,15 @@ npm clean-install
 npm run build:dev
 ```
 
+Development builds require `GOOGLE_CLIENT_ID_DEV` (see `.env.example`). Optionally set `MICROSOFT_CLIENT_ID_DEV` to enable Outlook Connect in local builds.
+
 Sync to your vault with:
 
 ```sh
 npm run sync
 ```
 
-You will need to create a dev Obsidian vault and set the `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` variable in a [`.envrc`](https://direnv.net/) file to use the `sync` script. See `envrc.example` for an example.
+You will need to create a dev Obsidian vault and set the `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` variable in a [`.envrc`](https://direnv.net/) file to use the `sync` script. See [`.envrc.example`](.envrc.example) for an example.
 
 It is also recommended to install the [Hot-Reload plugin](https://github.com/pjeby/hot-reload) for automatic reloads.
 
@@ -82,9 +104,9 @@ This plugin includes code adapted from the following projects:
 ## Releasing
 
 1. Update version: `npm run version` (or `npm version patch|minor|major`)
-2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id npm run build:prod`
+2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (`MICROSOFT_CLIENT_ID_PROD` is optional; Outlook Connect is disabled when omitted)
 3. Verify: `npm run release:check`
 4. Create release:
-   - **Automated**: `git tag v1.0.0 && git push origin v1.0.0` (triggers release workflow)
+   - **Automated**: `git tag 1.0.0 && git push origin 1.0.0` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.1.0` or `1.0.0`, not `v1.0.0`)
    - **Manual**: Create GitHub release with `main.js`, `manifest.json`, `styles.css`
 5. Submit to [Obsidian Community Plugins](https://github.com/obsidianmd/obsidian-releases)

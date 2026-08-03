@@ -78,7 +78,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 - Enable **Firefox Bookmarks** in the plugin settings
 - Optionally set a **Firefox profile path**; leave empty to auto-detect the default profile from `profiles.ini`
-- Click **Refresh folders**, then select bookmark folders to include (subfolders are synced recursively)
+- Click **Refresh folders**, then search for bookmark folders and select the ones to include (subfolders are synced recursively)
 - Typical profile locations:
   - Linux: `~/.mozilla/firefox/<profile>/`
   - macOS: `~/Library/Application Support/Firefox/Profiles/<profile>/`

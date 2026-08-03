@@ -15,6 +15,42 @@ export const firefoxBookmarkSchema = z.object({
 export type FirefoxBookmarkFolder = z.infer<typeof firefoxBookmarkFolderSchema>;
 export type FirefoxBookmark = z.infer<typeof firefoxBookmarkSchema>;
 
+/** Max folder matches shown in the settings search results. */
+export const FIREFOX_FOLDER_SEARCH_RESULT_LIMIT = 40;
+
+export type FirefoxFolderSearchResult = {
+  matches: readonly FirefoxBookmarkFolder[];
+  totalMatches: number;
+  truncated: boolean;
+};
+
+/**
+ * Filters bookmark folders by title/path query for the settings picker.
+ * Empty query returns no matches — callers should show selected folders separately.
+ */
+export const searchFirefoxBookmarkFolders = (
+  folders: readonly FirefoxBookmarkFolder[],
+  query: string,
+  limit: number = FIREFOX_FOLDER_SEARCH_RESULT_LIMIT,
+): FirefoxFolderSearchResult => {
+  const normalised = query.trim().toLowerCase();
+  if (normalised.length === 0) {
+    return { matches: [], totalMatches: 0, truncated: false };
+  }
+
+  const allMatches = folders.filter((folder) => {
+    const title = folder.title.toLowerCase();
+    const path = folder.path.toLowerCase();
+    return title.includes(normalised) || path.includes(normalised);
+  });
+
+  return {
+    matches: allMatches.slice(0, limit),
+    totalMatches: allMatches.length,
+    truncated: allMatches.length > limit,
+  };
+};
+
 export type FirefoxProfileCandidate = {
   name: string;
   path: string;

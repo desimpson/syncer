@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getFirefoxProfilesIniRoots,
   parseProfilesIni,
+  searchFirefoxBookmarkFolders,
   selectDefaultProfile,
 } from "@/services/firefox-profiles";
 
@@ -101,5 +102,29 @@ describe("getFirefoxProfilesIniRoots", () => {
   it("returns macOS root", () => {
     const roots = getFirefoxProfilesIniRoots("/Users/me", "darwin");
     expect(roots).toContain("/Users/me/Library/Application Support/Firefox");
+  });
+});
+
+describe("searchFirefoxBookmarkFolders", () => {
+  const folders = [
+    { guid: "1", title: "Reading", path: "toolbar / Reading" },
+    { guid: "2", title: "Uni", path: "menu / Uni" },
+    { guid: "3", title: "A2", path: "menu / Uni / MATH2301 / A2" },
+  ];
+
+  it("returns no matches for an empty query", () => {
+    expect(searchFirefoxBookmarkFolders(folders, "   ")).toEqual({
+      matches: [],
+      totalMatches: 0,
+      truncated: false,
+    });
+  });
+
+  it("matches title or path and truncates results", () => {
+    const result = searchFirefoxBookmarkFolders(folders, "uni", 1);
+    expect(result.totalMatches).toBe(2);
+    expect(result.truncated).toBe(true);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]?.guid).toBe("2");
   });
 });

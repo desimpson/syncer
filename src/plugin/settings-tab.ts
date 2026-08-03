@@ -19,6 +19,7 @@ import {
   type FirefoxBookmarkFolder,
 } from "@/services/firefox-bookmarks";
 import { getPluginDirectory } from "@/plugin/plugin-directory";
+import { logPluginDirectoryDiagnostics } from "@/services/firefox-debug";
 
 /**
  * Settings tab for the Syncer plugin.
@@ -533,9 +534,16 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     try {
+      const pluginDirectory = getPluginDirectory();
+      logPluginDirectoryDiagnostics({
+        label: "refreshFirefoxBookmarkFolders",
+        pluginDirectoryFromDirname: pluginDirectory,
+        manifestDir: this.plugin.manifest.dir,
+      });
+
       const { profileDirectory, folders } = await fetchFirefoxBookmarkFolders(
         firefoxBookmarks.profilePath,
-        getPluginDirectory(),
+        pluginDirectory,
       );
 
       const availableGuids = new Set(folders.map((folder) => folder.guid));
@@ -556,6 +564,9 @@ export class SettingsTab extends PluginSettingTab {
       await this.display();
     } catch (error) {
       if (error instanceof FirefoxBookmarksError) {
+        console.error("[Syncer Firefox debug] refresh failed:", error.userMessage, {
+          cause: error.cause,
+        });
         new Notice(error.userMessage);
         return;
       }

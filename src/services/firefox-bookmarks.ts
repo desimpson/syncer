@@ -2,6 +2,12 @@ import { z } from "zod";
 import { getDesktopNodeModules } from "@/utils/desktop-fs";
 import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 import {
+  firefoxDebugError,
+  firefoxDebugLog,
+  logPlacesDatabaseAttempt,
+  logPlacesDatabaseFailure,
+} from "@/services/firefox-debug";
+import {
   getFirefoxProfilesIniRoots,
   parseProfilesIni,
   selectDefaultProfile,
@@ -291,8 +297,11 @@ const withPlacesDatabase = async <T>(
   wasmDirectory: string,
   operation: (database: Database, walSidecarsPresent: boolean) => T,
 ): Promise<T> => {
+  firefoxDebugLog("withPlacesDatabase: start", { profileDirectory, wasmDirectory });
+
   const nodeModules = getDesktopNodeModules();
   if (nodeModules === undefined) {
+    firefoxDebugError("withPlacesDatabase: getDesktopNodeModules() returned undefined");
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.couldNotOpenDatabase);
   }
 
@@ -304,18 +313,36 @@ const withPlacesDatabase = async <T>(
     const copyResult = copyPlacesDatabase(fs, path, os, profileDirectory);
     buffer = copyResult.buffer;
     walSidecarsPresent = copyResult.walSidecarsPresent;
+    firefoxDebugLog("withPlacesDatabase: copied places.sqlite", {
+      profileDirectory,
+      bufferByteLength: buffer.byteLength,
+      walSidecarsPresent,
+    });
   } catch (error) {
+    firefoxDebugError("withPlacesDatabase: copy failed", {
+      profileDirectory,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     if (error instanceof FirefoxBookmarksError) {
       throw error;
     }
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.placesMissingOrUnreadable, error);
   }
 
+  logPlacesDatabaseAttempt({
+    profileDirectory,
+    wasmDirectory,
+    bufferByteLength: buffer.byteLength,
+    walSidecarsPresent,
+  });
+
   let database: Database | undefined;
   try {
     database = await openPlacesDatabase(buffer, wasmDirectory);
+    firefoxDebugLog("withPlacesDatabase: sql.js open succeeded");
     return operation(database, walSidecarsPresent);
   } catch (error) {
+    logPlacesDatabaseFailure({ wasmDirectory, error });
     if (error instanceof Error && error.message.includes("sql-wasm.wasm")) {
       throw new FirefoxBookmarksError(FIREFOX_NOTICE.wasmNotFound, error);
     }

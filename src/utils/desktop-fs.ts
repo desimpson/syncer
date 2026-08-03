@@ -13,6 +13,7 @@ export type NodeOs = {
 
 export type NodePath = {
   join: (...segments: string[]) => string;
+  isAbsolute: (filePath: string) => boolean;
 };
 
 type DesktopNodeModules = {

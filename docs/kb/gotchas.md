@@ -27,7 +27,7 @@
 ## Firefox Bookmarks
 
 - Copy `sql-wasm.wasm` alongside `main.js` when installing manually (esbuild copies it on build)
-- sql.js loader: [`src/services/sql-js-loader.ts`](../../src/services/sql-js-loader.ts) resolves WASM from the plugin directory via `__dirname` in [`plugin-directory.ts`](../../src/plugin/plugin-directory.ts) (not `manifest.dir`, which may be empty)
+- sql.js loader: [`src/services/sql-js-loader.ts`](../../src/services/sql-js-loader.ts) resolves WASM via [`plugin-directory.ts`](../../src/plugin/plugin-directory.ts) — join vault `FileSystemAdapter.getBasePath()` with vault-relative `manifest.dir`. Do **not** use `__dirname` (points at Electron asar in Obsidian)
 - Profile auto-detect scans standard paths plus Snap/Flatpak on Linux; manual profile path always wins
 - Copy-on-read of `places.sqlite` (+ `-wal`/`-shm` when present) into a unique temp dir; cleaned in `finally`
 - Stale selected folder GUIDs → soft warning; valid folders still sync

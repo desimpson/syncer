@@ -18,7 +18,7 @@ import {
   FirefoxBookmarksError,
   type FirefoxBookmarkFolder,
 } from "@/services/firefox-bookmarks";
-import { getPluginDirectory } from "@/plugin/plugin-directory";
+import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 import { logPluginDirectoryDiagnostics } from "@/services/firefox-debug";
 
 /**
@@ -534,11 +534,14 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     try {
-      const pluginDirectory = getPluginDirectory();
+      const pluginDirectory = resolvePluginDirectory(this.app, this.plugin.manifest);
+      const adapter = this.app.vault.adapter as { getBasePath?: () => string };
       logPluginDirectoryDiagnostics({
         label: "refreshFirefoxBookmarkFolders",
-        pluginDirectoryFromDirname: pluginDirectory,
+        resolvedPluginDirectory: pluginDirectory,
         manifestDir: this.plugin.manifest.dir,
+        vaultBasePath:
+          typeof adapter.getBasePath === "function" ? adapter.getBasePath() : undefined,
       });
 
       const { profileDirectory, folders } = await fetchFirefoxBookmarkFolders(

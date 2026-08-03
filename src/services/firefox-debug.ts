@@ -51,25 +51,25 @@ const getFsWithReaddir = ():
 /** Logs plugin directory candidates and directory listing when Node fs is available. */
 export const logPluginDirectoryDiagnostics = (context: {
   label: string;
-  pluginDirectoryFromDirname: string;
+  resolvedPluginDirectory: string;
   manifestDir?: string | undefined;
+  vaultBasePath?: string | undefined;
 }): void => {
-  const { label, pluginDirectoryFromDirname, manifestDir } = context;
+  const { label, resolvedPluginDirectory, manifestDir, vaultBasePath } = context;
   const fs = getFsWithReaddir();
 
   firefoxDebugLog(`${label}: path resolution`, {
-    pluginDirectoryFromDirname,
+    resolvedPluginDirectory,
     manifestDir: manifestDir ?? "(undefined)",
-    typeofDirname: typeof pluginDirectoryFromDirname,
-    dirnameLength: pluginDirectoryFromDirname.length,
+    vaultBasePath: vaultBasePath ?? "(undefined)",
     desktopNodeModulesAvailable: getDesktopNodeModules() !== undefined,
     windowRequireAvailable: typeof (globalThis as { require?: unknown }).require === "function",
   });
 
   const directoriesToInspect = [
-    { label: "__dirname", path: pluginDirectoryFromDirname },
+    { label: "resolvedPluginDirectory", path: resolvedPluginDirectory },
     ...(manifestDir !== undefined && manifestDir.length > 0
-      ? [{ label: "manifest.dir", path: manifestDir }]
+      ? [{ label: "manifest.dir (raw)", path: manifestDir }]
       : []),
   ];
 

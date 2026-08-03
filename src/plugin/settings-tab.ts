@@ -608,8 +608,12 @@ export class SettingsTab extends PluginSettingTab {
       return;
     }
 
+    // DOM order: selected → search → results → count (search Setting must not append after results).
     const selectedContainer = folderContainer.createDiv({
       cls: "firefox-bookmarks-selected-section",
+    });
+    const searchContainer = folderContainer.createDiv({
+      cls: "firefox-bookmarks-search-section",
     });
     const searchResultsContainer = folderContainer.createDiv({
       cls: "firefox-bookmarks-results-section",
@@ -653,12 +657,12 @@ export class SettingsTab extends PluginSettingTab {
               : firefoxFolderLabel(folder),
           cls:
             folder === undefined
-              ? "firefox-bookmarks-selected-label mod-warning"
+              ? "firefox-bookmarks-selected-label is-missing"
               : "firefox-bookmarks-selected-label",
         });
         const removeButton = row.createEl("button", {
           text: "Remove",
-          cls: "firefox-bookmarks-remove-button",
+          cls: "mod-warning firefox-bookmarks-remove-button",
         });
         removeButton.addEventListener("click", async () => {
           await updateSelected(selectedFolderGuids.filter((selectedGuid) => selectedGuid !== guid));
@@ -701,15 +705,29 @@ export class SettingsTab extends PluginSettingTab {
       });
       for (const folder of matches) {
         const isSelected = selectedFolderGuids.includes(folder.guid);
-        const button = resultsList.createEl("button", {
-          text: firefoxFolderLabel(folder),
-          cls: `firefox-bookmarks-result-button${isSelected ? " is-selected" : ""}`,
+        // Use a div row — Obsidian button styles squash full-width text in settings.
+        const row = resultsList.createDiv({
+          cls: `firefox-bookmarks-result-row${isSelected ? " is-selected" : ""}`,
+          attr: { role: "button", tabindex: "0" },
         });
-        button.addEventListener("click", async () => {
+        row.createSpan({
+          text: firefoxFolderLabel(folder),
+          cls: "firefox-bookmarks-result-label",
+        });
+        const toggleSelection = async () => {
           const newSelection = isSelected
             ? selectedFolderGuids.filter((guid) => guid !== folder.guid)
             : [...selectedFolderGuids, folder.guid];
           await updateSelected(newSelection);
+        };
+        row.addEventListener("click", () => {
+          void toggleSelection();
+        });
+        row.addEventListener("keydown", (event: KeyboardEvent) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            void toggleSelection();
+          }
         });
       }
     };
@@ -739,12 +757,13 @@ export class SettingsTab extends PluginSettingTab {
 
     renderSelectedFolders();
 
-    new Setting(folderContainer)
+    new Setting(searchContainer)
       .setName("Search folders")
       .setDesc("Filter by folder name or path breadcrumb.")
       .addText((text) => {
         text.setPlaceholder("For example: toolbar, reading, uni");
         text.setValue(searchQuery);
+        text.inputEl.addClass("firefox-bookmarks-search-input");
         text.onChange((value) => {
           searchQuery = value;
           renderSearchResults();

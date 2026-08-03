@@ -16,7 +16,7 @@ export type FirefoxBookmarkFolder = z.infer<typeof firefoxBookmarkFolderSchema>;
 export type FirefoxBookmark = z.infer<typeof firefoxBookmarkSchema>;
 
 /** Max folder matches shown in the settings search results. */
-export const FIREFOX_FOLDER_SEARCH_RESULT_LIMIT = 40;
+export const FIREFOX_FOLDER_SEARCH_RESULT_LIMIT = 25;
 
 export type FirefoxFolderSearchResult = {
   matches: readonly FirefoxBookmarkFolder[];

@@ -5,6 +5,7 @@ declare module "sql.js/dist/sql-wasm.js" {
 
   export interface InitSqlJsConfig {
     locateFile?: (file: string) => string;
+    wasmBinary?: ArrayLike<number> | Buffer;
   }
 
   export default function initSqlJs(config?: InitSqlJsConfig): Promise<SqlJsStatic>;

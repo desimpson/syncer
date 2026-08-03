@@ -47,6 +47,46 @@ const readFileToBuffer = (fs: NodeFs, filePath: string): Buffer => {
   return Buffer.isBuffer(contents) ? contents : Buffer.from(contents);
 };
 
+const tryMergeWalDatabaseCopy = (
+  fs: NodeFs,
+  path: NodePath,
+  temporaryDirectory: string,
+): Uint8Array | undefined => {
+  const globalWindow = globalThis as typeof globalThis & {
+    require?: (moduleId: string) => unknown;
+  };
+  type ChildProcessModule = {
+    execFileSync: (
+      file: string,
+      arguments_: readonly string[],
+      options: { stdio: "pipe" },
+    ) => Buffer;
+  };
+  const childProcess = globalWindow.require?.("node:child_process") as
+    | ChildProcessModule
+    | undefined;
+  if (childProcess === undefined) {
+    return undefined;
+  }
+
+  const sourcePath = path.join(temporaryDirectory, "places.sqlite");
+  const mergedPath = path.join(temporaryDirectory, "merged.sqlite");
+
+  try {
+    childProcess.execFileSync("sqlite3", [sourcePath, `.backup ${mergedPath}`], {
+      stdio: "pipe",
+    });
+  } catch {
+    return undefined;
+  }
+
+  if (!fs.existsSync(mergedPath)) {
+    return undefined;
+  }
+
+  return new Uint8Array(readFileToBuffer(fs, mergedPath));
+};
+
 const copyPlacesDatabase = (
   fs: NodeFs,
   path: NodePath,
@@ -70,6 +110,13 @@ const copyPlacesDatabase = (
     }
     if (fs.existsSync(shmPath)) {
       fs.copyFileSync(shmPath, path.join(temporaryDirectory, "places.sqlite-shm"));
+    }
+
+    if (walSidecarsPresent) {
+      const mergedBuffer = tryMergeWalDatabaseCopy(fs, path, temporaryDirectory);
+      if (mergedBuffer !== undefined) {
+        return { buffer: mergedBuffer, walSidecarsPresent: true };
+      }
     }
 
     const copiedPlacesPath = path.join(temporaryDirectory, "places.sqlite");
@@ -269,6 +316,10 @@ const withPlacesDatabase = async <T>(
     database = await openPlacesDatabase(buffer, wasmDirectory);
     return operation(database, walSidecarsPresent);
   } catch (error) {
+    if (error instanceof Error && error.message.includes("sql-wasm.wasm")) {
+      throw new FirefoxBookmarksError(FIREFOX_NOTICE.wasmNotFound, error);
+    }
+    console.error("Failed to open Firefox places database:", error);
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.couldNotOpenDatabase, error);
   } finally {
     database?.close();

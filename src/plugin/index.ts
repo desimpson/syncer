@@ -11,6 +11,7 @@ import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation
 import { deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
 import { parsedLineSchema } from "@/sync/schemas";
+import { getPluginDirectory } from "@/plugin/plugin-directory";
 
 /**
  * Syncer plugin.
@@ -28,7 +29,7 @@ export default class SyncerPlugin extends Plugin {
     this.config = {
       googleClientId: GOOGLE_CLIENT_ID,
       microsoftClientId: MICROSOFT_CLIENT_ID.trim(),
-      pluginDirectory: manifest.dir ?? "",
+      pluginDirectory: getPluginDirectory(),
     };
   }
 

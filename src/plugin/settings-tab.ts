@@ -18,6 +18,7 @@ import {
   FirefoxBookmarksError,
   type FirefoxBookmarkFolder,
 } from "@/services/firefox-bookmarks";
+import { getPluginDirectory } from "@/plugin/plugin-directory";
 
 /**
  * Settings tab for the Syncer plugin.
@@ -534,7 +535,7 @@ export class SettingsTab extends PluginSettingTab {
     try {
       const { profileDirectory, folders } = await fetchFirefoxBookmarkFolders(
         firefoxBookmarks.profilePath,
-        this.plugin.manifest.dir ?? "",
+        getPluginDirectory(),
       );
 
       const availableGuids = new Set(folders.map((folder) => folder.guid));

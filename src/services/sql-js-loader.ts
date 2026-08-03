@@ -1,5 +1,4 @@
 import initSqlJs, { type Database, type SqlJsStatic } from "sql.js/dist/sql-wasm.js";
-import { firefoxDebugLog, logWasmLoadAttempt } from "@/services/firefox-debug";
 import { getDesktopNodeModules, type NodeFs, type NodePath } from "@/utils/desktop-fs";
 
 let sqlJsPromise: Promise<SqlJsStatic> | undefined;
@@ -12,7 +11,6 @@ const readFileToBuffer = (fs: NodeFs, filePath: string): Buffer => {
 const getNodeModules = (): { fs: NodeFs; path: NodePath } => {
   const desktop = getDesktopNodeModules();
   if (desktop !== undefined) {
-    firefoxDebugLog("getNodeModules: using getDesktopNodeModules()");
     return desktop;
   }
 
@@ -20,11 +18,9 @@ const getNodeModules = (): { fs: NodeFs; path: NodePath } => {
     require?: (moduleId: string) => unknown;
   };
   if (typeof globalWindow.require !== "function") {
-    firefoxDebugLog("getNodeModules: window.require unavailable");
     throw new TypeError("Node modules unavailable; cannot read sql-wasm.wasm");
   }
 
-  firefoxDebugLog("getNodeModules: using window.require fallback");
   return {
     fs: globalWindow.require("node:fs") as NodeFs,
     path: globalWindow.require("node:path") as NodePath,
@@ -32,26 +28,18 @@ const getNodeModules = (): { fs: NodeFs; path: NodePath } => {
 };
 
 const readWasmBinary = (wasmDirectory: string): Uint8Array => {
-  logWasmLoadAttempt(wasmDirectory);
-
   const trimmedDirectory = wasmDirectory.trim();
   if (trimmedDirectory.length === 0) {
-    firefoxDebugLog("readWasmBinary: plugin directory is empty");
     throw new Error("Plugin directory is empty; cannot locate sql-wasm.wasm");
   }
 
   const { fs, path } = getNodeModules();
   const wasmPath = path.join(trimmedDirectory, "sql-wasm.wasm");
-  const wasmExists = fs.existsSync(wasmPath);
-  firefoxDebugLog("readWasmBinary: existsSync result", { wasmPath, wasmExists });
-
-  if (!wasmExists) {
+  if (!fs.existsSync(wasmPath)) {
     throw new Error(`sql-wasm.wasm not found at ${wasmPath}`);
   }
 
-  const wasmBinary = new Uint8Array(readFileToBuffer(fs, wasmPath));
-  firefoxDebugLog("readWasmBinary: loaded WASM", { wasmPath, byteLength: wasmBinary.byteLength });
-  return wasmBinary;
+  return new Uint8Array(readFileToBuffer(fs, wasmPath));
 };
 
 /**

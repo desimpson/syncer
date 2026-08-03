@@ -8,7 +8,8 @@ export const FIREFOX_NOTICE = {
     "Could not open Firefox database. Try closing Firefox, then refresh folders again.",
   staleFolders: "Some selected bookmark folders were not found in the current profile.",
   noValidFolders: "No valid bookmark folders selected for Firefox sync.",
-  firefoxMayBeOpen: "Firefox may be open — bookmark data may lag a few seconds behind the browser.",
+  firefoxWalNotMerged:
+    "Firefox is open; newest bookmarks may be missing. Close Firefox briefly, then sync again.",
   syncDocumentMissing: (path: string) =>
     `Sync document "${path}" not found. Please update settings or create the file.`,
   syncDocumentMissingOnDisk: (path: string) =>

@@ -35,7 +35,6 @@ vi.mock("@/services/firefox-bookmarks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/firefox-bookmarks")>();
   return {
     ...actual,
-    fetchFirefoxBookmarkFolders: vi.fn(),
     fetchFirefoxBookmarks: vi.fn(),
   };
 });
@@ -43,11 +42,8 @@ vi.mock("@/services/firefox-bookmarks", async (importOriginal) => {
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { generateSyncActions } from "@/sync/actions";
 import { writeSyncActions } from "@/sync/writer";
-import {
-  fetchFirefoxBookmarkFolders,
-  fetchFirefoxBookmarks,
-  FirefoxBookmarksError,
-} from "@/services/firefox-bookmarks";
+import { fetchFirefoxBookmarks, FirefoxBookmarksError } from "@/services/firefox-bookmarks";
+import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 
 const baseConfig = {
   googleClientId: "",
@@ -102,14 +98,11 @@ describe("createFirefoxBookmarksJob", () => {
     const notify = vi.fn();
     const file = makeFile();
 
-    vi.mocked(fetchFirefoxBookmarkFolders).mockResolvedValue({
-      profileDirectory: "/profile",
-      folders: [{ guid: "folder-1", title: "Reading", path: "Toolbar / Reading" }],
-    });
     vi.mocked(fetchFirefoxBookmarks).mockResolvedValue({
       profileDirectory: "/profile",
       bookmarks: [{ guid: "bm-1", title: "Example", url: "https://example.com" }],
       walSidecarsPresent: true,
+      walMerged: true,
     });
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
     vi.mocked(generateSyncActions).mockReturnValue([]);
@@ -131,10 +124,46 @@ describe("createFirefoxBookmarksJob", () => {
       ["folder-1"],
       baseConfig.pluginDirectory,
     );
-    expect(notify).toHaveBeenCalledWith(
-      "Firefox may be open — bookmark data may lag a few seconds behind the browser.",
-    );
+    expect(notify).not.toHaveBeenCalledWith(FIREFOX_NOTICE.firefoxWalNotMerged);
     expect(writeSyncActions).toHaveBeenCalled();
+  });
+
+  it("warns when Firefox WAL could not be merged", async () => {
+    const loadSettings = vi.fn().mockResolvedValue({
+      firefoxBookmarks: {
+        profilePath: "",
+        resolvedProfilePath: "/profile",
+        availableFolders: [{ guid: "folder-1", title: "Reading", path: "Toolbar / Reading" }],
+        selectedFolderGuids: ["folder-1"],
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    });
+    const notify = vi.fn();
+    const file = makeFile();
+
+    vi.mocked(fetchFirefoxBookmarks).mockResolvedValue({
+      profileDirectory: "/profile",
+      bookmarks: [{ guid: "bm-1", title: "Example", url: "https://example.com" }],
+      walSidecarsPresent: true,
+      walMerged: false,
+    });
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
+    vi.mocked(generateSyncActions).mockReturnValue([]);
+    vi.mocked(writeSyncActions).mockResolvedValue();
+
+    const job = createFirefoxBookmarksJob(
+      loadSettings,
+      vi.fn(),
+      baseConfig,
+      makeVault(file),
+      notify,
+      {} as never,
+    );
+
+    await job.task();
+
+    expect(notify).toHaveBeenCalledWith(FIREFOX_NOTICE.firefoxWalNotMerged);
   });
 
   it("warns and no-ops when selected folders are stale", async () => {
@@ -142,18 +171,13 @@ describe("createFirefoxBookmarksJob", () => {
       firefoxBookmarks: {
         profilePath: "",
         resolvedProfilePath: "/profile",
-        availableFolders: [],
+        availableFolders: [{ guid: "folder-1", title: "Reading", path: "Toolbar / Reading" }],
         selectedFolderGuids: ["missing-folder"],
       },
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
     });
     const notify = vi.fn();
-
-    vi.mocked(fetchFirefoxBookmarkFolders).mockResolvedValue({
-      profileDirectory: "/profile",
-      folders: [{ guid: "folder-1", title: "Reading", path: "Toolbar / Reading" }],
-    });
 
     const job = createFirefoxBookmarksJob(
       loadSettings,
@@ -178,7 +202,7 @@ describe("createFirefoxBookmarksJob", () => {
       firefoxBookmarks: {
         profilePath: "/missing",
         resolvedProfilePath: "",
-        availableFolders: [],
+        availableFolders: [{ guid: "folder-1", title: "Reading", path: "Toolbar / Reading" }],
         selectedFolderGuids: ["folder-1"],
       },
       syncDocument: "GTD.md",
@@ -186,7 +210,7 @@ describe("createFirefoxBookmarksJob", () => {
     });
     const notify = vi.fn();
 
-    vi.mocked(fetchFirefoxBookmarkFolders).mockRejectedValue(
+    vi.mocked(fetchFirefoxBookmarks).mockRejectedValue(
       new FirefoxBookmarksError("Firefox profile path not found."),
     );
 

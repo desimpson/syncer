@@ -20,8 +20,6 @@ import {
 } from "@/services/firefox-bookmarks";
 import { searchFirefoxBookmarkFolders } from "@/services/firefox-profiles";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
-import { logPluginDirectoryDiagnostics } from "@/services/firefox-debug";
-
 const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
   folder.path.length > 0 ? folder.path : folder.title;
 
@@ -539,15 +537,6 @@ export class SettingsTab extends PluginSettingTab {
 
     try {
       const pluginDirectory = resolvePluginDirectory(this.app, this.plugin.manifest);
-      const adapter = this.app.vault.adapter as { getBasePath?: () => string };
-      logPluginDirectoryDiagnostics({
-        label: "refreshFirefoxBookmarkFolders",
-        resolvedPluginDirectory: pluginDirectory,
-        manifestDir: this.plugin.manifest.dir,
-        vaultBasePath:
-          typeof adapter.getBasePath === "function" ? adapter.getBasePath() : undefined,
-      });
-
       const { profileDirectory, folders } = await fetchFirefoxBookmarkFolders(
         firefoxBookmarks.profilePath,
         pluginDirectory,
@@ -571,13 +560,14 @@ export class SettingsTab extends PluginSettingTab {
       await this.display();
     } catch (error) {
       if (error instanceof FirefoxBookmarksError) {
-        console.error("[Syncer Firefox debug] refresh failed:", error.userMessage, {
-          cause: error.cause,
-        });
+        console.error(
+          `Failed to refresh Firefox bookmark folders: [${error.userMessage}].`,
+          error.cause,
+        );
         new Notice(error.userMessage);
         return;
       }
-      console.error(`Failed to refresh Firefox bookmark folders: ${formatLogError(error)}`);
+      console.error(`Failed to refresh Firefox bookmark folders: [${formatLogError(error)}].`);
       new Notice("Failed to load Firefox bookmark folders.");
     }
     /* eslint-enable obsidianmd/ui/sentence-case */
@@ -588,7 +578,7 @@ export class SettingsTab extends PluginSettingTab {
     firefoxBookmarks: NonNullable<PluginSettings["firefoxBookmarks"]>,
   ): Promise<void> {
     /* eslint-disable obsidianmd/ui/sentence-case -- Firefox folder picker UI */
-    new Setting(containerElement).setName("Select bookmark folders to sync").setHeading();
+    this.addSettingsSubheading(containerElement, "Select bookmark folders to sync");
 
     let selectedFolderGuids = [...firefoxBookmarks.selectedFolderGuids];
     let searchQuery = "";
@@ -604,174 +594,195 @@ export class SettingsTab extends PluginSettingTab {
         text: "No bookmark folders loaded. Click Refresh folders above.",
         cls: "setting-item-description",
       });
-      /* eslint-enable obsidianmd/ui/sentence-case */
-      return;
-    }
+    } else {
+      // DOM order: selected → search → results → count (search Setting must not append after results).
+      const selectedContainer = folderContainer.createDiv({
+        cls: "firefox-bookmarks-selected-section",
+      });
+      const searchContainer = folderContainer.createDiv({
+        cls: "firefox-bookmarks-search-section",
+      });
+      const searchResultsContainer = folderContainer.createDiv({
+        cls: "firefox-bookmarks-results-section",
+      });
+      const countElement = folderContainer.createEl("p", {
+        cls: "setting-item-description firefox-bookmarks-selection-count",
+      });
 
-    // DOM order: selected → search → results → count (search Setting must not append after results).
-    const selectedContainer = folderContainer.createDiv({
-      cls: "firefox-bookmarks-selected-section",
-    });
-    const searchContainer = folderContainer.createDiv({
-      cls: "firefox-bookmarks-search-section",
-    });
-    const searchResultsContainer = folderContainer.createDiv({
-      cls: "firefox-bookmarks-results-section",
-    });
-    const countElement = folderContainer.createEl("p", {
-      cls: "setting-item-description firefox-bookmarks-selection-count",
-    });
+      const renderSelectedFolders = () => {
+        selectedContainer.empty();
 
-    const renderSelectedFolders = () => {
-      selectedContainer.empty();
+        const staleCount = selectedFolderGuids.filter((guid) => !folderByGuid.has(guid)).length;
+        if (staleCount > 0) {
+          selectedContainer.createEl("p", {
+            text: `${staleCount} selected folder(s) were not found. Refresh folders or remove them.`,
+            cls: "setting-item-description mod-warning",
+          });
+        }
 
-      const staleCount = selectedFolderGuids.filter((guid) => !folderByGuid.has(guid)).length;
-      if (staleCount > 0) {
         selectedContainer.createEl("p", {
-          text: `${staleCount} selected folder(s) were not found. Refresh folders or remove them.`,
-          cls: "setting-item-description mod-warning",
-        });
-      }
-
-      selectedContainer.createEl("p", {
-        text: "Selected folders (subfolders are included recursively):",
-        cls: "setting-item-description",
-      });
-
-      if (selectedFolderGuids.length === 0) {
-        selectedContainer.createEl("p", {
-          text: "None selected yet. Search below to add folders.",
+          text: "Selected folders (subfolders are included recursively):",
           cls: "setting-item-description",
         });
-        return;
-      }
 
-      const selectedList = selectedContainer.createDiv({ cls: "firefox-bookmarks-selected-list" });
-      for (const guid of selectedFolderGuids) {
-        const folder = folderByGuid.get(guid);
-        const row = selectedList.createDiv({ cls: "firefox-bookmarks-selected-row" });
-        row.createSpan({
-          text:
-            folder === undefined
-              ? `${guid} (not found — refresh folders)`
-              : firefoxFolderLabel(folder),
-          cls:
-            folder === undefined
-              ? "firefox-bookmarks-selected-label is-missing"
-              : "firefox-bookmarks-selected-label",
-        });
-        const removeButton = row.createEl("button", {
-          text: "Remove",
-          cls: "mod-warning firefox-bookmarks-remove-button",
-        });
-        removeButton.addEventListener("click", async () => {
-          await updateSelected(selectedFolderGuids.filter((selectedGuid) => selectedGuid !== guid));
-        });
-      }
-    };
+        if (selectedFolderGuids.length === 0) {
+          selectedContainer.createEl("p", {
+            text: "None selected yet. Search below to add folders.",
+            cls: "setting-item-description",
+          });
+          return;
+        }
 
-    const renderSearchResults = () => {
-      searchResultsContainer.empty();
-      const { matches, totalMatches, truncated } = searchFirefoxBookmarkFolders(
-        availableFolders,
-        searchQuery,
-      );
+        const selectedList = selectedContainer.createDiv({
+          cls: "firefox-bookmarks-selected-list",
+        });
+        for (const guid of selectedFolderGuids) {
+          const folder = folderByGuid.get(guid);
+          const row = selectedList.createDiv({ cls: "firefox-bookmarks-selected-row" });
+          row.createSpan({
+            text:
+              folder === undefined
+                ? `${guid} (not found — refresh folders)`
+                : firefoxFolderLabel(folder),
+            cls:
+              folder === undefined
+                ? "firefox-bookmarks-selected-label is-missing"
+                : "firefox-bookmarks-selected-label",
+          });
+          const removeButton = row.createEl("button", {
+            text: "Remove",
+            cls: "mod-warning firefox-bookmarks-remove-button",
+          });
+          removeButton.addEventListener("click", async () => {
+            await updateSelected(
+              selectedFolderGuids.filter((selectedGuid) => selectedGuid !== guid),
+            );
+          });
+        }
+      };
 
-      if (searchQuery.trim().length === 0) {
+      const renderSearchResults = () => {
+        searchResultsContainer.empty();
+        const { matches, totalMatches, truncated, rawMatchCount } = searchFirefoxBookmarkFolders(
+          availableFolders,
+          searchQuery,
+        );
+
+        if (searchQuery.trim().length === 0) {
+          searchResultsContainer.createEl("p", {
+            text: "Type a folder name (for example: recent). Selecting a folder syncs its subfolders too, so you usually only need the parent.",
+            cls: "setting-item-description",
+          });
+          return;
+        }
+
+        if (matches.length === 0) {
+          searchResultsContainer.createEl("p", {
+            text: `No folders match “${searchQuery.trim()}”.`,
+            cls: "setting-item-description",
+          });
+          return;
+        }
+
+        const nestedHidden = Math.max(0, rawMatchCount - totalMatches);
+        const summaryParts = [
+          truncated
+            ? `Showing ${matches.length} of ${totalMatches} folders`
+            : `${totalMatches} folder(s)`,
+        ];
+        if (nestedHidden > 0) {
+          summaryParts.push(
+            `${nestedHidden} nested match(es) hidden — pick the parent to include them`,
+          );
+        }
         searchResultsContainer.createEl("p", {
-          text: `Type to search ${availableFolders.length} bookmark folder(s). Results are limited so the settings pane stays usable.`,
+          text: `${summaryParts.join(". ")}.`,
           cls: "setting-item-description",
         });
-        return;
-      }
 
-      if (matches.length === 0) {
-        searchResultsContainer.createEl("p", {
-          text: `No folders match “${searchQuery.trim()}”.`,
-          cls: "setting-item-description",
+        const resultsList = searchResultsContainer.createDiv({
+          cls: "firefox-bookmarks-search-results",
         });
-        return;
-      }
-
-      searchResultsContainer.createEl("p", {
-        text: truncated
-          ? `Showing ${matches.length} of ${totalMatches} matches. Refine your search to narrow results.`
-          : `${totalMatches} match(es). Click a folder to add or remove it.`,
-        cls: "setting-item-description",
-      });
-
-      const resultsList = searchResultsContainer.createDiv({
-        cls: "firefox-bookmarks-search-results",
-      });
-      for (const folder of matches) {
-        const isSelected = selectedFolderGuids.includes(folder.guid);
-        // Use a div row — Obsidian button styles squash full-width text in settings.
-        const row = resultsList.createDiv({
-          cls: `firefox-bookmarks-result-row${isSelected ? " is-selected" : ""}`,
-          attr: { role: "button", tabindex: "0" },
-        });
-        row.createSpan({
-          text: firefoxFolderLabel(folder),
-          cls: "firefox-bookmarks-result-label",
-        });
-        const toggleSelection = async () => {
-          const newSelection = isSelected
-            ? selectedFolderGuids.filter((guid) => guid !== folder.guid)
-            : [...selectedFolderGuids, folder.guid];
-          await updateSelected(newSelection);
-        };
-        row.addEventListener("click", () => {
-          void toggleSelection();
-        });
-        row.addEventListener("keydown", (event: KeyboardEvent) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            void toggleSelection();
+        for (const folder of matches) {
+          const isSelected = selectedFolderGuids.includes(folder.guid);
+          // Use a div row — Obsidian button styles squash full-width text in settings.
+          const row = resultsList.createDiv({
+            cls: `firefox-bookmarks-result-row${isSelected ? " is-selected" : ""}`,
+            attr: { role: "button", tabindex: "0" },
+          });
+          const textBlock = row.createDiv({ cls: "firefox-bookmarks-result-text" });
+          textBlock.createDiv({
+            text: folder.title.length > 0 ? folder.title : "(Untitled folder)",
+            cls: "firefox-bookmarks-result-title",
+          });
+          if (folder.path.length > 0 && folder.path !== folder.title) {
+            textBlock.createDiv({
+              text: folder.path,
+              cls: "firefox-bookmarks-result-path",
+            });
           }
+          const toggleSelection = async () => {
+            const newSelection = isSelected
+              ? selectedFolderGuids.filter((guid) => guid !== folder.guid)
+              : [...selectedFolderGuids, folder.guid];
+            await updateSelected(newSelection);
+          };
+          row.addEventListener("click", () => {
+            void toggleSelection();
+          });
+          row.addEventListener("keydown", (event: KeyboardEvent) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              void toggleSelection();
+            }
+          });
+        }
+      };
+
+      const renderCount = () => {
+        countElement.setText(
+          `${selectedFolderGuids.length} folder(s) selected · ${availableFolders.length} available`,
+        );
+      };
+
+      const updateSelected = async (newSelected: readonly string[]) => {
+        selectedFolderGuids = [...newSelected];
+        const freshSettings = await this.plugin.loadSettings();
+        if (freshSettings.firefoxBookmarks === undefined) {
+          return;
+        }
+        await this.plugin.updateSettings({
+          firefoxBookmarks: {
+            ...freshSettings.firefoxBookmarks,
+            selectedFolderGuids: [...selectedFolderGuids],
+          },
         });
-      }
-    };
+        renderSelectedFolders();
+        renderSearchResults();
+        renderCount();
+      };
 
-    const renderCount = () => {
-      countElement.setText(
-        `${selectedFolderGuids.length} folder(s) selected · ${availableFolders.length} available`,
-      );
-    };
-
-    const updateSelected = async (newSelected: readonly string[]) => {
-      selectedFolderGuids = [...newSelected];
-      const freshSettings = await this.plugin.loadSettings();
-      if (freshSettings.firefoxBookmarks === undefined) {
-        return;
-      }
-      await this.plugin.updateSettings({
-        firefoxBookmarks: {
-          ...freshSettings.firefoxBookmarks,
-          selectedFolderGuids: [...selectedFolderGuids],
-        },
-      });
       renderSelectedFolders();
+
+      new Setting(searchContainer)
+        .setName("Search folders")
+        .setDesc(
+          "Search by folder name. Nested matches under a hit are hidden — select the parent to sync it and all subfolders.",
+        )
+        .addText((text) => {
+          text.setPlaceholder("For example: recent");
+          text.setValue(searchQuery);
+          text.inputEl.addClass("firefox-bookmarks-search-input");
+          text.onChange((value) => {
+            searchQuery = value;
+            renderSearchResults();
+          });
+        });
+
       renderSearchResults();
       renderCount();
-    };
-
-    renderSelectedFolders();
-
-    new Setting(searchContainer)
-      .setName("Search folders")
-      .setDesc("Filter by folder name or path breadcrumb.")
-      .addText((text) => {
-        text.setPlaceholder("For example: toolbar, reading, uni");
-        text.setValue(searchQuery);
-        text.inputEl.addClass("firefox-bookmarks-search-input");
-        text.onChange((value) => {
-          searchQuery = value;
-          renderSearchResults();
-        });
-      });
-
-    renderSearchResults();
-    renderCount();
+    }
+    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addGoogleTasksListSelector(containerElement: HTMLElement) {
@@ -780,7 +791,7 @@ export class SettingsTab extends PluginSettingTab {
       return;
     }
 
-    new Setting(containerElement).setName("Select task lists to sync").setHeading();
+    this.addSettingsSubheading(containerElement, "Select task lists to sync");
 
     let selectedListIds: readonly string[] = [...(googleTasks.selectedListIds ?? [])];
 
@@ -942,6 +953,13 @@ export class SettingsTab extends PluginSettingTab {
         cls: "setting-item-description mod-warning",
       });
     }
+  }
+
+  /**
+   * Subsection label under an integration heading (visually demoted vs setHeading sections).
+   */
+  private addSettingsSubheading(containerElement: HTMLElement, name: string): void {
+    new Setting(containerElement).setName(name).setHeading().setClass("syncer-setting-subheading");
   }
 
   /**

@@ -18,6 +18,7 @@
 
 - Sync reads the **saved file on disk** — unsaved editor buffers are ignored for Manual sync
 - Target heading input is normalised to H2 (`## …`)
+- Scheduler runs jobs **sequentially** ([`scheduler.ts`](../../src/sync/scheduler.ts)) — parallel `vault.process` on the same note races and drops creates (looked like “Firefox missed a bookmark”)
 - SyncGuard + file-content cache interaction is load-bearing; changing delete-detection without understanding it causes false delete prompts
 - Known issues tracked in [`TODO.md`](../../TODO.md) (not duplicated here), including:
   - List deselect can trigger Google delete-sync prompts incorrectly
@@ -29,8 +30,12 @@
 - Copy `sql-wasm.wasm` alongside `main.js` when installing manually (esbuild copies it on build)
 - sql.js loader: [`src/services/sql-js-loader.ts`](../../src/services/sql-js-loader.ts) resolves WASM via [`plugin-directory.ts`](../../src/plugin/plugin-directory.ts) — join vault `FileSystemAdapter.getBasePath()` with vault-relative `manifest.dir`. Do **not** use `__dirname` (points at Electron asar in Obsidian)
 - Profile auto-detect scans standard paths plus Snap/Flatpak on Linux; manual profile path always wins
-- Copy-on-read of `places.sqlite` (+ `-wal`/`-shm` when present) into a unique temp dir; cleaned in `finally`
+- Copy-on-read of `places.sqlite` + `-wal` into a unique temp dir (never copy `-shm` — Firefox’s live WAL index can make merges miss newest frames); cleaned in `finally`
+- While Firefox is open, new bookmarks live in the WAL. sql.js cannot read WAL sidecars — merge via `sqlite3 .backup` or Python `sqlite3.Connection.backup` before open. If both fail, sync sees a stale main DB (notice: close Firefox briefly)
+- Sync job validates selected folders against the settings snapshot from **Refresh folders**, then opens places once for bookmark fetch (avoids a double hot-copy per sync)
+- Do **not** query `moz_bookmarks_roots` — removed in Firefox 31; tags root is `guid = 'tags________'` on `moz_bookmarks` ([`firefox-bookmarks.ts`](../../src/services/firefox-bookmarks.ts))
 - Stale selected folder GUIDs → soft warning; valid folders still sync
+- Folder picker search ranks shallow title matches first and collapses descendants under a hit (`searchFirefoxBookmarkFolders` in [`firefox-profiles.ts`](../../src/services/firefox-profiles.ts)) — selecting a parent already syncs subfolders recursively
 
 ## Agent pitfalls
 

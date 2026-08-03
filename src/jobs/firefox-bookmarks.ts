@@ -1,11 +1,7 @@
 import { mapFirefoxBookmarkToSyncItem } from "@/adaptors/firefox-bookmarks";
 import type { SyncJobCreator } from "@/jobs/types";
 import type { PluginSettings } from "@/plugin/types";
-import {
-  fetchFirefoxBookmarkFolders,
-  fetchFirefoxBookmarks,
-  FirefoxBookmarksError,
-} from "@/services/firefox-bookmarks";
+import { fetchFirefoxBookmarks, FirefoxBookmarksError } from "@/services/firefox-bookmarks";
 import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
@@ -40,18 +36,20 @@ const getSyncFileWithRetry = async (
 const isMissingFileError = (message: string): boolean =>
   /ENOENT|no such file or directory|not found/i.test(message);
 
-const resolveSelectedFolderGuids = async (
+/**
+ * Validate selected folders against the last Refresh folders snapshot (settings),
+ * so sync opens places.sqlite only once for bookmark fetch.
+ */
+const resolveSelectedFolderGuids = (
   settings: NonNullable<PluginSettings["firefoxBookmarks"]>,
-  wasmDirectory: string,
   notify: (message: string) => void,
-): Promise<readonly string[]> => {
-  const { profilePath, selectedFolderGuids } = settings;
+): readonly string[] => {
+  const { selectedFolderGuids, availableFolders } = settings;
   if (selectedFolderGuids.length === 0) {
     return [];
   }
 
-  const { folders } = await fetchFirefoxBookmarkFolders(profilePath, wasmDirectory);
-  const availableGuids = new Set(folders.map((folder) => folder.guid));
+  const availableGuids = new Set(availableFolders.map((folder) => folder.guid));
   const validGuids = selectedFolderGuids.filter((guid) => availableGuids.has(guid));
   const staleCount = selectedFolderGuids.length - validGuids.length;
 
@@ -95,24 +93,20 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
     }
 
     try {
-      const folderGuids = await resolveSelectedFolderGuids(
-        firefoxBookmarks,
-        config.pluginDirectory,
-        notify,
-      );
+      const folderGuids = resolveSelectedFolderGuids(firefoxBookmarks, notify);
 
       if (folderGuids.length === 0) {
         return;
       }
 
-      const { bookmarks, walSidecarsPresent } = await fetchFirefoxBookmarks(
+      const { bookmarks, walSidecarsPresent, walMerged } = await fetchFirefoxBookmarks(
         firefoxBookmarks.profilePath,
         folderGuids,
         config.pluginDirectory,
       );
 
-      if (walSidecarsPresent) {
-        notify(FIREFOX_NOTICE.firefoxMayBeOpen);
+      if (walSidecarsPresent && !walMerged) {
+        notify(FIREFOX_NOTICE.firefoxWalNotMerged);
       }
 
       const adaptor = mapFirefoxBookmarkToSyncItem(syncHeading);

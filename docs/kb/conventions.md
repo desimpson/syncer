@@ -24,7 +24,7 @@ Jobs glue auth + services + adaptors + sync. Plugin owns lifecycle, settings, an
 - Factories: `createXJob`, `createScheduler`, `createPopper`
 - Mapping: `mapXToSyncItem`
 - Schemas: `*Schema`
-- Source strings: `"google-tasks"`, `"microsoft-outlook"`
+- Source strings: `"google-tasks"`, `"microsoft-outlook"`, `"firefox-bookmarks"`
 - British spelling in identifiers: `normalise`, `initialise`
 
 ## Errors and UX

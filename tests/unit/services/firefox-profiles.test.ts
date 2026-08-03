@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  collapseDescendantFolderMatches,
   getFirefoxProfilesIniRoots,
   parseProfilesIni,
   searchFirefoxBookmarkFolders,
@@ -105,11 +106,27 @@ describe("getFirefoxProfilesIniRoots", () => {
   });
 });
 
+describe("collapseDescendantFolderMatches", () => {
+  it("keeps a parent and drops nested children", () => {
+    const collapsed = collapseDescendantFolderMatches([
+      { guid: "parent", title: "Recent", path: "toolbar / Recent" },
+      { guid: "child", title: "Uni", path: "toolbar / Recent / Uni" },
+      { guid: "deep", title: "A1", path: "toolbar / Recent / Uni / A1" },
+      { guid: "sibling", title: "Other", path: "toolbar / Other" },
+    ]);
+
+    expect(collapsed.map((folder) => folder.guid)).toEqual(["parent", "sibling"]);
+  });
+});
+
 describe("searchFirefoxBookmarkFolders", () => {
   const folders = [
-    { guid: "1", title: "Reading", path: "toolbar / Reading" },
-    { guid: "2", title: "Uni", path: "menu / Uni" },
-    { guid: "3", title: "A2", path: "menu / Uni / MATH2301 / A2" },
+    { guid: "reading", title: "Reading", path: "toolbar / Reading" },
+    { guid: "recent", title: "Recent", path: "toolbar / Recent" },
+    { guid: "uni", title: "Uni", path: "toolbar / Recent / Uni" },
+    { guid: "comp", title: "COMP3310", path: "toolbar / Recent / Uni / COMP3310" },
+    { guid: "menu-uni", title: "Uni", path: "menu / Uni" },
+    { guid: "a2", title: "A2", path: "menu / Uni / MATH2301 / A2" },
   ];
 
   it("returns no matches for an empty query", () => {
@@ -117,14 +134,31 @@ describe("searchFirefoxBookmarkFolders", () => {
       matches: [],
       totalMatches: 0,
       truncated: false,
+      rawMatchCount: 0,
     });
   });
 
-  it("matches title or path and truncates results", () => {
-    const result = searchFirefoxBookmarkFolders(folders, "uni", 1);
-    expect(result.totalMatches).toBe(2);
-    expect(result.truncated).toBe(true);
-    expect(result.matches).toHaveLength(1);
-    expect(result.matches[0]?.guid).toBe("2");
+  it("surfaces Recent and hides nested matches under it", () => {
+    const result = searchFirefoxBookmarkFolders(folders, "Recent");
+
+    expect(result.rawMatchCount).toBeGreaterThan(1);
+    expect(result.matches.map((folder) => folder.guid)).toEqual(["recent"]);
+    expect(result.totalMatches).toBe(1);
+  });
+
+  it("prefers the parent Uni folder over nested descendants", () => {
+    const result = searchFirefoxBookmarkFolders(folders, "uni");
+
+    expect(result.matches.map((folder) => folder.guid)).toEqual(
+      expect.arrayContaining(["menu-uni", "uni"]),
+    );
+    expect(result.matches).toHaveLength(2);
+    expect(result.matches.some((folder) => folder.guid === "a2")).toBe(false);
+    expect(result.matches.some((folder) => folder.guid === "comp")).toBe(false);
+  });
+
+  it("still finds a deep folder when the query is specific", () => {
+    const result = searchFirefoxBookmarkFolders(folders, "COMP3310");
+    expect(result.matches.map((folder) => folder.guid)).toEqual(["comp"]);
   });
 });

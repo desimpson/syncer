@@ -2,12 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, PluginManifest } from "obsidian";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 
-vi.mock("@/services/firefox-debug", () => ({
-  firefoxDebugLog: vi.fn(),
-  firefoxDebugWarn: vi.fn(),
-  firefoxDebugError: vi.fn(),
-}));
-
 vi.mock("@/utils/desktop-fs", () => ({
   getDesktopNodeModules: () => ({
     fs: {},

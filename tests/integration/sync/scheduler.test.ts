@@ -136,4 +136,58 @@ describe("Scheduler", () => {
     consoleSpy.mockRestore();
     vi.useRealTimers(); // restore real timers
   });
+
+  it("runs jobs sequentially so later jobs see earlier writes", async () => {
+    vi.useRealTimers();
+    const order: string[] = [];
+    let releaseFirst: (() => void) | undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const first = createJob("first", async () => {
+      order.push("first-start");
+      await firstGate;
+      order.push("first-end");
+    });
+    const second = createJob("second", async () => {
+      order.push("second");
+    });
+
+    const scheduler = createScheduler([first, second]);
+    scheduler.start(60);
+
+    await Promise.resolve();
+    expect(order).toEqual(["first-start"]);
+
+    releaseFirst?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(order).toEqual(["first-start", "first-end", "second"]);
+  });
+
+  it("prevents lost updates when jobs read-modify-write shared document state", async () => {
+    // Regression: parallel vault.process races dropped Firefox creates from GTD.md.
+    vi.useRealTimers();
+    let document = "base";
+
+    const makeWriter = (suffix: string) =>
+      createJob(`writer-${suffix}`, async () => {
+        const snapshot = document;
+        await new Promise((resolve) => {
+          setTimeout(resolve, 15);
+        });
+        document = `${snapshot}${suffix}`;
+      });
+
+    const scheduler = createScheduler([makeWriter("-A"), makeWriter("-B")]);
+    scheduler.start(60);
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 80);
+    });
+
+    expect(document).toBe("base-A-B");
+  });
 });

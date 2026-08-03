@@ -7,6 +7,18 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+/* Demote subsection titles under Google Tasks / Firefox Bookmarks / etc. */
+.setting-item.setting-item-heading.syncer-setting-subheading {
+  border-top: none;
+  padding-top: 0.75em;
+}
+
+.setting-item.setting-item-heading.syncer-setting-subheading .setting-item-name {
+  font-size: var(--font-ui-medium, 15px);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 /* Google Tasks List Selector */
 .google-tasks-toggle-container {
   display: flex;
@@ -113,14 +125,41 @@ If your plugin does not need CSS, delete this file.
 }
 
 .firefox-bookmarks-selected-label,
-.firefox-bookmarks-result-label {
+.firefox-bookmarks-result-text {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.firefox-bookmarks-selected-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-ui-small, 13px);
   line-height: 1.4;
+}
+
+.firefox-bookmarks-result-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-small, 13px);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.firefox-bookmarks-result-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller, 12px);
+  line-height: 1.3;
+}
+
+.firefox-bookmarks-result-row.is-selected .firefox-bookmarks-result-path {
+  color: var(--text-on-accent);
+  opacity: 0.85;
 }
 
 .firefox-bookmarks-selected-label.is-missing {

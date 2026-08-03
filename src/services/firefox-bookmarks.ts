@@ -1,12 +1,5 @@
-import { z } from "zod";
 import { getDesktopNodeModules } from "@/utils/desktop-fs";
 import { FIREFOX_NOTICE } from "@/services/firefox-messages";
-import {
-  firefoxDebugError,
-  firefoxDebugLog,
-  logPlacesDatabaseAttempt,
-  logPlacesDatabaseFailure,
-} from "@/services/firefox-debug";
 import {
   getFirefoxProfilesIniRoots,
   parseProfilesIni,
@@ -16,6 +9,7 @@ import {
   type FirefoxProfileCandidate,
 } from "@/services/firefox-profiles";
 import { openPlacesDatabase } from "@/services/sql-js-loader";
+import { formatLogError } from "@/utils/error-formatters";
 import type { NodeFs, NodeOs, NodePath } from "@/utils/desktop-fs";
 import type { Database } from "sql.js";
 
@@ -30,6 +24,18 @@ export {
 const BOOKMARK_TYPE = 1;
 const FOLDER_TYPE = 2;
 const PLACE_PREFIX = "place:";
+
+/** Stable Places GUID for the tags root (moz_bookmarks_roots was removed in Firefox 31). */
+export const FIREFOX_TAGS_ROOT_GUID = "tags________";
+
+/**
+ * Relative names to hot-copy from a Firefox profile for places reads.
+ * Never includes `-shm` — copying Firefox's live WAL index can hide newest frames.
+ */
+export const listPlacesHotCopyRelativeNames = (
+  walPresent: boolean,
+): readonly ["places.sqlite"] | readonly ["places.sqlite", "places.sqlite-wal"] =>
+  walPresent ? ["places.sqlite", "places.sqlite-wal"] : ["places.sqlite"];
 
 export class FirefoxBookmarksError extends Error {
   public readonly userMessage: string;
@@ -46,6 +52,11 @@ export class FirefoxBookmarksError extends Error {
 type PlacesCopyResult = {
   buffer: Uint8Array;
   walSidecarsPresent: boolean;
+  walMerged: boolean;
+};
+
+type ChildProcessModule = {
+  execFileSync: (file: string, arguments_: readonly string[], options: { stdio: "pipe" }) => Buffer;
 };
 
 const readFileToBuffer = (fs: NodeFs, filePath: string): Buffer => {
@@ -53,24 +64,23 @@ const readFileToBuffer = (fs: NodeFs, filePath: string): Buffer => {
   return Buffer.isBuffer(contents) ? contents : Buffer.from(contents);
 };
 
+const getChildProcessModule = (): ChildProcessModule | undefined => {
+  const globalWindow = globalThis as typeof globalThis & {
+    require?: (moduleId: string) => unknown;
+  };
+  return globalWindow.require?.("node:child_process") as ChildProcessModule | undefined;
+};
+
+/**
+ * Checkpoint a copied places DB (+ WAL) into a single file sql.js can read.
+ * Prefers the sqlite3 CLI; falls back to Python's sqlite3 module (common on Linux).
+ */
 const tryMergeWalDatabaseCopy = (
   fs: NodeFs,
   path: NodePath,
   temporaryDirectory: string,
 ): Uint8Array | undefined => {
-  const globalWindow = globalThis as typeof globalThis & {
-    require?: (moduleId: string) => unknown;
-  };
-  type ChildProcessModule = {
-    execFileSync: (
-      file: string,
-      arguments_: readonly string[],
-      options: { stdio: "pipe" },
-    ) => Buffer;
-  };
-  const childProcess = globalWindow.require?.("node:child_process") as
-    | ChildProcessModule
-    | undefined;
+  const childProcess = getChildProcessModule();
   if (childProcess === undefined) {
     return undefined;
   }
@@ -78,19 +88,44 @@ const tryMergeWalDatabaseCopy = (
   const sourcePath = path.join(temporaryDirectory, "places.sqlite");
   const mergedPath = path.join(temporaryDirectory, "merged.sqlite");
 
-  try {
-    childProcess.execFileSync("sqlite3", [sourcePath, `.backup ${mergedPath}`], {
-      stdio: "pipe",
-    });
-  } catch {
-    return undefined;
+  const mergeAttempts: readonly (() => void)[] = [
+    () => {
+      childProcess.execFileSync("sqlite3", [sourcePath, `.backup ${mergedPath}`], {
+        stdio: "pipe",
+      });
+    },
+    () => {
+      const script = `
+import sqlite3, sys
+src, dst = sys.argv[1], sys.argv[2]
+src_conn = sqlite3.connect(src)
+dst_conn = sqlite3.connect(dst)
+with dst_conn:
+    src_conn.backup(dst_conn)
+dst_conn.close()
+src_conn.close()
+`;
+      childProcess.execFileSync("python3", ["-c", script, sourcePath, mergedPath], {
+        stdio: "pipe",
+      });
+    },
+  ];
+
+  for (const runMerge of mergeAttempts) {
+    try {
+      if (fs.existsSync(mergedPath)) {
+        fs.rmSync(mergedPath, { recursive: false, force: true });
+      }
+      runMerge();
+      if (fs.existsSync(mergedPath)) {
+        return new Uint8Array(readFileToBuffer(fs, mergedPath));
+      }
+    } catch {
+      // Try the next merge strategy.
+    }
   }
 
-  if (!fs.existsSync(mergedPath)) {
-    return undefined;
-  }
-
-  return new Uint8Array(readFileToBuffer(fs, mergedPath));
+  return undefined;
 };
 
 const copyPlacesDatabase = (
@@ -107,27 +142,35 @@ const copyPlacesDatabase = (
   const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "syncer-firefox-"));
   try {
     const walPath = `${placesPath}-wal`;
-    const shmPath = `${placesPath}-shm`;
-    const walSidecarsPresent = fs.existsSync(walPath) || fs.existsSync(shmPath);
+    const copiedPlacesPath = path.join(temporaryDirectory, "places.sqlite");
+    const copiedWalPath = path.join(temporaryDirectory, "places.sqlite-wal");
+    const walSidecarsPresent = fs.existsSync(walPath);
 
-    fs.copyFileSync(placesPath, path.join(temporaryDirectory, "places.sqlite"));
-    if (fs.existsSync(walPath)) {
-      fs.copyFileSync(walPath, path.join(temporaryDirectory, "places.sqlite-wal"));
+    // Hot-copy policy: main + WAL only (see listPlacesHotCopyRelativeNames).
+    for (const relativeName of listPlacesHotCopyRelativeNames(walSidecarsPresent)) {
+      const source =
+        relativeName === "places.sqlite" ? placesPath : path.join(profileDirectory, relativeName);
+      const destination = path.join(temporaryDirectory, relativeName);
+      fs.copyFileSync(source, destination);
     }
-    if (fs.existsSync(shmPath)) {
-      fs.copyFileSync(shmPath, path.join(temporaryDirectory, "places.sqlite-shm"));
+    if (walSidecarsPresent) {
+      // Re-copy WAL after the main DB so frames written during the main copy are included.
+      fs.copyFileSync(walPath, copiedWalPath);
     }
 
     if (walSidecarsPresent) {
       const mergedBuffer = tryMergeWalDatabaseCopy(fs, path, temporaryDirectory);
       if (mergedBuffer !== undefined) {
-        return { buffer: mergedBuffer, walSidecarsPresent: true };
+        return { buffer: mergedBuffer, walSidecarsPresent: true, walMerged: true };
       }
     }
 
-    const copiedPlacesPath = path.join(temporaryDirectory, "places.sqlite");
     const buffer = readFileToBuffer(fs, copiedPlacesPath);
-    return { buffer: new Uint8Array(buffer), walSidecarsPresent };
+    return {
+      buffer: new Uint8Array(buffer),
+      walSidecarsPresent,
+      walMerged: false,
+    };
   } finally {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }
@@ -151,12 +194,12 @@ const queryAll = <T extends Record<string, unknown>>(
   }
 };
 
-const getTagsRootId = (database: Database): number | undefined => {
-  const rows = queryAll<{ folder_id: number }>(
-    database,
-    "SELECT folder_id FROM moz_bookmarks_roots WHERE root_name = 'tags'",
-  );
-  return rows[0]?.folder_id;
+/** Resolves the tags folder id from the stable Places GUID. Exported for unit tests. */
+export const resolveFirefoxTagsRootId = (database: Database): number | undefined => {
+  const rows = queryAll<{ id: number }>(database, "SELECT id FROM moz_bookmarks WHERE guid = ?", [
+    FIREFOX_TAGS_ROOT_GUID,
+  ]);
+  return rows[0]?.id;
 };
 
 const isUnderTagsRoot = (
@@ -176,13 +219,12 @@ const isUnderTagsRoot = (
       return true;
     }
     visited.add(currentId);
-    const parentRows: { parent: number | null }[] = queryAll<{ parent: number | null }>(
+    const parentRows: { parent: number | null }[] = queryAll(
       database,
       "SELECT parent FROM moz_bookmarks WHERE id = ?",
       [currentId],
     );
-    const parent = parentRows[0]?.parent;
-    currentId = parent ?? undefined;
+    currentId = parentRows[0]?.parent ?? undefined;
   }
 
   return false;
@@ -210,23 +252,20 @@ const buildFolderPath = (
 };
 
 const listBookmarkFoldersFromDatabase = (database: Database): FirefoxBookmarkFolder[] => {
-  const folderRows = queryAll<{ id: number; guid: string; title: string | null }>(
-    database,
-    "SELECT id, guid, title FROM moz_bookmarks WHERE type = ? ORDER BY title",
-    [FOLDER_TYPE],
-  );
+  const folderRows = queryAll<{
+    id: number;
+    guid: string;
+    title: string | null;
+    parent: number | null;
+  }>(database, "SELECT id, guid, title, parent FROM moz_bookmarks WHERE type = ? ORDER BY title", [
+    FOLDER_TYPE,
+  ]);
 
   const titleById = new Map<number, string>();
   const parentById = new Map<number, number | undefined>();
   for (const row of folderRows) {
     titleById.set(row.id, row.title?.trim() ?? "(Untitled folder)");
-    const parentRows = queryAll<{ parent: number | null }>(
-      database,
-      "SELECT parent FROM moz_bookmarks WHERE id = ?",
-      [row.id],
-    );
-    const parent = parentRows[0]?.parent;
-    parentById.set(row.id, parent ?? undefined);
+    parentById.set(row.id, row.parent ?? undefined);
   }
 
   return folderRows.map((row) => ({
@@ -240,11 +279,15 @@ const fetchBookmarksUnderFolderGuids = (
   database: Database,
   folderGuids: readonly string[],
 ): FirefoxBookmark[] => {
-  const tagsRootId = getTagsRootId(database);
+  const tagsRootId = resolveFirefoxTagsRootId(database);
   const bookmarks: FirefoxBookmark[] = [];
   const seenGuids = new Set<string>();
 
   for (const folderGuid of folderGuids) {
+    if (folderGuid === FIREFOX_TAGS_ROOT_GUID) {
+      continue;
+    }
+
     const rows = queryAll<{
       guid: string;
       title: string | null;
@@ -261,13 +304,14 @@ const fetchBookmarksUnderFolderGuids = (
         SELECT b.id, b.guid, b.type, b.fk, b.parent, b.title
         FROM moz_bookmarks b
         JOIN tree t ON b.parent = t.id
+        WHERE b.guid != ?
       )
       SELECT t.guid, t.title, h.url, t.parent
       FROM tree t
       LEFT JOIN moz_places h ON t.fk = h.id
       WHERE t.type = ?
       `,
-      [folderGuid, BOOKMARK_TYPE],
+      [folderGuid, FIREFOX_TAGS_ROOT_GUID, BOOKMARK_TYPE],
     );
 
     for (const row of rows) {
@@ -295,58 +339,42 @@ const fetchBookmarksUnderFolderGuids = (
 const withPlacesDatabase = async <T>(
   profileDirectory: string,
   wasmDirectory: string,
-  operation: (database: Database, walSidecarsPresent: boolean) => T,
+  operation: (
+    database: Database,
+    copyResult: Pick<PlacesCopyResult, "walSidecarsPresent" | "walMerged">,
+  ) => T,
 ): Promise<T> => {
-  firefoxDebugLog("withPlacesDatabase: start", { profileDirectory, wasmDirectory });
-
   const nodeModules = getDesktopNodeModules();
   if (nodeModules === undefined) {
-    firefoxDebugError("withPlacesDatabase: getDesktopNodeModules() returned undefined");
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.couldNotOpenDatabase);
   }
 
   const { fs, path, os } = nodeModules;
   let buffer: Uint8Array;
   let walSidecarsPresent = false;
+  let walMerged = false;
 
   try {
     const copyResult = copyPlacesDatabase(fs, path, os, profileDirectory);
     buffer = copyResult.buffer;
     walSidecarsPresent = copyResult.walSidecarsPresent;
-    firefoxDebugLog("withPlacesDatabase: copied places.sqlite", {
-      profileDirectory,
-      bufferByteLength: buffer.byteLength,
-      walSidecarsPresent,
-    });
+    walMerged = copyResult.walMerged;
   } catch (error) {
-    firefoxDebugError("withPlacesDatabase: copy failed", {
-      profileDirectory,
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
     if (error instanceof FirefoxBookmarksError) {
       throw error;
     }
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.placesMissingOrUnreadable, error);
   }
 
-  logPlacesDatabaseAttempt({
-    profileDirectory,
-    wasmDirectory,
-    bufferByteLength: buffer.byteLength,
-    walSidecarsPresent,
-  });
-
   let database: Database | undefined;
   try {
     database = await openPlacesDatabase(buffer, wasmDirectory);
-    firefoxDebugLog("withPlacesDatabase: sql.js open succeeded");
-    return operation(database, walSidecarsPresent);
+    return operation(database, { walSidecarsPresent, walMerged });
   } catch (error) {
-    logPlacesDatabaseFailure({ wasmDirectory, error });
     if (error instanceof Error && error.message.includes("sql-wasm.wasm")) {
       throw new FirefoxBookmarksError(FIREFOX_NOTICE.wasmNotFound, error);
     }
-    console.error("Failed to open Firefox places database:", error);
+    console.error(`Failed to open Firefox places database: [${formatLogError(error)}].`);
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.couldNotOpenDatabase, error);
   } finally {
     database?.close();
@@ -377,7 +405,9 @@ const readProfilesIniCandidates = (): FirefoxProfileCandidate[] => {
       const parsed = parseProfilesIni(content, root);
       candidates.push(...parsed.profiles);
     } catch (error) {
-      console.warn(`Failed to parse Firefox profiles.ini at ${iniPath}:`, error);
+      console.warn(
+        `Failed to parse Firefox profiles.ini at ${iniPath}: [${formatLogError(error)}].`,
+      );
     }
   }
 
@@ -412,6 +442,7 @@ export type FetchFirefoxBookmarksResult = {
   profileDirectory: string;
   bookmarks: readonly FirefoxBookmark[];
   walSidecarsPresent: boolean;
+  walMerged: boolean;
 };
 
 /**
@@ -438,24 +469,15 @@ export const fetchFirefoxBookmarks = async (
 ): Promise<FetchFirefoxBookmarksResult> => {
   const profileDirectory = resolveProfileDirectory(manualProfilePath);
   let walSidecarsPresent = false;
+  let walMerged = false;
   const bookmarks = await withPlacesDatabase(
     profileDirectory,
     wasmDirectory,
-    (database, sidecarsPresent) => {
-      walSidecarsPresent = sidecarsPresent;
+    (database, copyMeta) => {
+      walSidecarsPresent = copyMeta.walSidecarsPresent;
+      walMerged = copyMeta.walMerged;
       return fetchBookmarksUnderFolderGuids(database, folderGuids);
     },
   );
-  return { profileDirectory, bookmarks, walSidecarsPresent };
+  return { profileDirectory, bookmarks, walSidecarsPresent, walMerged };
 };
-
-export const firefoxProfilesIniSchema = z.object({
-  profilesDirectory: z.string(),
-  profiles: z.array(
-    z.object({
-      name: z.string(),
-      path: z.string(),
-      isDefault: z.boolean(),
-    }),
-  ),
-});

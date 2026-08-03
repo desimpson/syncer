@@ -1,6 +1,7 @@
 export type NodeFs = {
   readFileSync: (filePath: string, encoding?: BufferEncoding) => string | Buffer;
   existsSync: (filePath: string) => boolean;
+  statSync: (filePath: string) => { size: number; mtimeMs: number };
   mkdtempSync: (prefix: string) => string;
   copyFileSync: (source: string, destination: string) => void;
   rmSync: (path: string, options: { recursive: boolean; force: boolean }) => void;

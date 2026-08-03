@@ -51,7 +51,7 @@ Owning job: [`src/jobs/firefox-bookmarks.ts`](../../src/jobs/firefox-bookmarks.t
 - One-way sync only; Obsidian checkbox is local-only (no write-back to Firefox)
 - Removing a bookmark from a selected folder removes its line on next sync unless the Obsidian line is already `[x]` (completed-preserve)
 - Reads `places.sqlite` via copy-on-read + **sql.js** (WASM bundled as `sql-wasm.wasm` next to `main.js`)
-- While Firefox is open (`-wal`/`-shm` present), sync may use slightly stale data — non-blocking notice only
+- While Firefox is open (`-wal` present), hot-copy merges WAL via `sqlite3` CLI or Python (no `-shm` copy) before sql.js opens; if merge fails, sync may miss newest bookmarks (notice asks to close Firefox briefly)
 - Desktop only (`Platform.isDesktopApp`); settings hidden on mobile
 
 ## SyncGuard

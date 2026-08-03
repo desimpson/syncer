@@ -22,11 +22,103 @@ export type FirefoxFolderSearchResult = {
   matches: readonly FirefoxBookmarkFolder[];
   totalMatches: number;
   truncated: boolean;
+  /** Raw matches before descendant collapsing (for UI copy). */
+  rawMatchCount: number;
+};
+
+const folderDepth = (folderPath: string): number =>
+  folderPath.length === 0 ? 0 : folderPath.split(" / ").length;
+
+const isDescendantPath = (candidatePath: string, ancestorPath: string): boolean =>
+  candidatePath === ancestorPath || candidatePath.startsWith(`${ancestorPath} / `);
+
+/**
+ * Rank higher = better. Prefer exact title, then title contains, then shallow paths.
+ */
+const scoreFolderMatch = (folder: FirefoxBookmarkFolder, normalisedQuery: string): number => {
+  const title = folder.title.toLowerCase();
+  const folderPath = folder.path.toLowerCase();
+  const depth = folderDepth(folder.path);
+
+  let score = 0;
+  if (title === normalisedQuery) {
+    score += 1000;
+  } else if (title.includes(normalisedQuery)) {
+    score += 500;
+  }
+
+  if (folderPath === normalisedQuery) {
+    score += 400;
+  } else if (folderPath.endsWith(` / ${normalisedQuery}`) || folderPath.endsWith(normalisedQuery)) {
+    score += 300;
+  } else if (folderPath.includes(normalisedQuery)) {
+    score += 100;
+  }
+
+  // Prefer shallower folders so "Recent" beats deep grandchildren.
+  score += Math.max(0, 50 - depth);
+  return score;
+};
+
+const compareByRelevance = (
+  left: FirefoxBookmarkFolder,
+  right: FirefoxBookmarkFolder,
+  normalisedQuery: string,
+): number => {
+  const scoreDelta =
+    scoreFolderMatch(right, normalisedQuery) - scoreFolderMatch(left, normalisedQuery);
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+  const depthDelta = folderDepth(left.path) - folderDepth(right.path);
+  if (depthDelta !== 0) {
+    return depthDelta;
+  }
+  return left.path.localeCompare(right.path);
+};
+
+const compareByDepthThenPath = (
+  left: FirefoxBookmarkFolder,
+  right: FirefoxBookmarkFolder,
+): number => {
+  const depthDelta = folderDepth(left.path) - folderDepth(right.path);
+  if (depthDelta !== 0) {
+    return depthDelta;
+  }
+  return left.path.localeCompare(right.path);
+};
+
+// ES2021 lib has no Array#toSorted; copy then sort in place.
+const sortedFolders = (
+  folders: readonly FirefoxBookmarkFolder[],
+  compare: (left: FirefoxBookmarkFolder, right: FirefoxBookmarkFolder) => number,
+): FirefoxBookmarkFolder[] =>
+  // eslint-disable-next-line unicorn/no-array-sort -- Array#toSorted needs ES2023 lib
+  [...folders].sort(compare);
+
+/**
+ * Drop matches that are under another match — selecting a parent already syncs subfolders.
+ * Input should be sorted shallowest-first for stable collapsing.
+ */
+export const collapseDescendantFolderMatches = (
+  folders: readonly FirefoxBookmarkFolder[],
+): FirefoxBookmarkFolder[] => {
+  const kept: FirefoxBookmarkFolder[] = [];
+  for (const folder of folders) {
+    const coveredByKept = kept.some((ancestor) => isDescendantPath(folder.path, ancestor.path));
+    if (!coveredByKept) {
+      kept.push(folder);
+    }
+  }
+  return kept;
 };
 
 /**
  * Filters bookmark folders by title/path query for the settings picker.
  * Empty query returns no matches — callers should show selected folders separately.
+ *
+ * Results prefer the folder the user likely means (title/shallow path) and hide
+ * descendants of other matches, since sync already includes subfolders recursively.
  */
 export const searchFirefoxBookmarkFolders = (
   folders: readonly FirefoxBookmarkFolder[],
@@ -35,19 +127,29 @@ export const searchFirefoxBookmarkFolders = (
 ): FirefoxFolderSearchResult => {
   const normalised = query.trim().toLowerCase();
   if (normalised.length === 0) {
-    return { matches: [], totalMatches: 0, truncated: false };
+    return { matches: [], totalMatches: 0, truncated: false, rawMatchCount: 0 };
   }
 
-  const allMatches = folders.filter((folder) => {
-    const title = folder.title.toLowerCase();
-    const path = folder.path.toLowerCase();
-    return title.includes(normalised) || path.includes(normalised);
-  });
+  const rawMatches = sortedFolders(
+    folders.filter((folder) => {
+      const title = folder.title.toLowerCase();
+      const folderPath = folder.path.toLowerCase();
+      return title.includes(normalised) || folderPath.includes(normalised);
+    }),
+    (left, right) => compareByRelevance(left, right, normalised),
+  );
+
+  // Collapse shallowest-first so parents win over children, then re-rank for display.
+  const shallowFirst = sortedFolders(rawMatches, compareByDepthThenPath);
+  const collapsed = sortedFolders(collapseDescendantFolderMatches(shallowFirst), (left, right) =>
+    compareByRelevance(left, right, normalised),
+  );
 
   return {
-    matches: allMatches.slice(0, limit),
-    totalMatches: allMatches.length,
-    truncated: allMatches.length > limit,
+    matches: collapsed.slice(0, limit),
+    totalMatches: collapsed.length,
+    truncated: collapsed.length > limit,
+    rawMatchCount: rawMatches.length,
   };
 };
 

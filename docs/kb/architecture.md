@@ -4,15 +4,15 @@ Obsidian plugin that pulls external items into a target Markdown note under a co
 
 ## Layers (`src/`)
 
-| Layer       | Owns                                            | Key entry points                                                                 |
-| ----------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
-| `plugin/`   | Lifecycle, settings UI, vault delete-detection  | `plugin/index.ts`, `settings-tab.ts`, `schemas.ts`                               |
-| `sync/`     | Generic reconcile + file I/O (no provider APIs) | `scheduler.ts`, `actions.ts`, `reader.ts`, `writer.ts`, `sync-guard.ts`          |
-| `jobs/`     | Per-integration orchestration                   | `google-tasks.ts`, `microsoft-outlook.ts`, `firefox-bookmarks.ts`                |
-| `services/` | Provider HTTP clients + local SQLite (Firefox)  | `google-tasks.ts`, `outlook-mail.ts`, `firefox-bookmarks.ts`, `sql-js-loader.ts` |
-| `adaptors/` | Source DTO → `SyncItem`                         | `google-tasks.ts`, `microsoft-outlook.ts`, `firefox-bookmarks.ts`                |
-| `auth/`     | OAuth connect + token refresh                   | `google.ts`, `microsoft.ts`                                                      |
-| `utils/`    | Pure helpers / UI popper                        | `error-formatters.ts`, `heading-formatters.ts`, …                                |
+| Layer       | Owns                                            | Key entry points                                                                                        |
+| ----------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `plugin/`   | Lifecycle, settings UI, vault delete-detection  | `plugin/index.ts`, `settings-tab.ts`, `schemas.ts`, `plugin-directory.ts`                               |
+| `sync/`     | Generic reconcile + file I/O (no provider APIs) | `scheduler.ts`, `actions.ts`, `reader.ts`, `writer.ts`, `sync-guard.ts`                                 |
+| `jobs/`     | Per-integration orchestration                   | `google-tasks.ts`, `microsoft-outlook.ts`, `firefox-bookmarks.ts`                                       |
+| `services/` | Provider HTTP clients + local SQLite (Firefox)  | `google-tasks.ts`, `outlook-mail.ts`, `firefox-bookmarks.ts`, `firefox-profiles.ts`, `sql-js-loader.ts` |
+| `adaptors/` | Source DTO → `SyncItem`                         | `google-tasks.ts`, `microsoft-outlook.ts`, `firefox-bookmarks.ts`                                       |
+| `auth/`     | OAuth connect + token refresh                   | `google.ts`, `microsoft.ts`                                                                             |
+| `utils/`    | Pure helpers / UI popper                        | `error-formatters.ts`, `heading-formatters.ts`, …                                                       |
 
 Path alias: `@/*` → `src/*`. Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js`.
 
@@ -24,9 +24,11 @@ onload (plugin/index.ts)
   → wrap each job in SyncGuard (suppress delete-detection during writes)
   → createScheduler(jobs).start(syncIntervalMinutes)
        │
-       ├─ interval + immediate runJobs()
+       ├─ interval + immediate runJobs() (jobs await one-after-another)
        └─ Manual sync command → scheduler.restart()
 ```
+
+Jobs must stay sequential: each job `vault.process`es the same sync note; `Promise.all` lost updates.
 
 **Per job (typical):**
 

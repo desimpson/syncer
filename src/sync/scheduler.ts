@@ -13,26 +13,35 @@ export type Scheduler = {
 /**
  * Creates a scheduler for managing sync jobs.
  *
+ * Jobs run **sequentially** (not in parallel). Each job read-modify-writes the
+ * same sync document via `vault.process`; concurrent runs race and drop creates.
+ *
  * @param jobs - An array of jobs to schedule
  * @returns A Scheduler instance with start, stop, and restart methods
  */
 export const createScheduler = (jobs: SyncJob[]): Scheduler => {
   let intervalHandle: NodeJS.Timeout | undefined = undefined;
 
-  const runJobs = async () =>
-    Promise.all(
-      jobs.map((job) =>
-        job.task().catch((error) => {
-          console.error(`Job [${job.name}] failed: [${formatLogError(error)}].`);
-        }),
-      ),
-    );
+  const runJobs = async () => {
+    for (const job of jobs) {
+      try {
+        await job.task();
+      } catch (error) {
+        console.error(`Job [${job.name}] failed: [${formatLogError(error)}].`);
+      }
+    }
+  };
 
   const start = (intervalMinutes: number) => {
     if (intervalHandle) {
       clearInterval(intervalHandle);
     }
-    intervalHandle = setInterval(runJobs, intervalMinutes * 60 * 1000);
+    intervalHandle = setInterval(
+      () => {
+        void runJobs();
+      },
+      intervalMinutes * 60 * 1000,
+    );
     // Run immediately on start
     void runJobs();
   };

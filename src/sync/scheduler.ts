@@ -21,14 +21,23 @@ export type Scheduler = {
  */
 export const createScheduler = (jobs: SyncJob[]): Scheduler => {
   let intervalHandle: NodeJS.Timeout | undefined = undefined;
+  let isRunning = false;
 
   const runJobs = async () => {
-    for (const job of jobs) {
-      try {
-        await job.task();
-      } catch (error) {
-        console.error(`Job [${job.name}] failed: [${formatLogError(error)}].`);
+    if (isRunning) {
+      return;
+    }
+    isRunning = true;
+    try {
+      for (const job of jobs) {
+        try {
+          await job.task();
+        } catch (error) {
+          console.error(`Job [${job.name}] failed: [${formatLogError(error)}].`);
+        }
       }
+    } finally {
+      isRunning = false;
     }
   };
 

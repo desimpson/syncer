@@ -7,7 +7,7 @@ Small, repeatable checklists for this Obsidian plugin. Keep these lightweight.
 - Behaviour change implemented and covered by the right test level (unit/integration/manual)
 - Relevant KB page updated in the same task (`architecture`, `sync-semantics`, `conventions`, or `gotchas`)
 - PR description links issue with `Closes #<id>` (or `Refs #<id>` when not closing)
-- Before closing the issue, post evidence comment: merged PR link, automated results, and manual notes
+- Before merging a PR that closes an issue, post evidence comment on the issue: PR link, automated results, and manual notes
 
 ## Temporary diagnostics policy
 

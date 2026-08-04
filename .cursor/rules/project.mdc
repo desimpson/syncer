@@ -25,4 +25,4 @@ Skills live under `.cursor/skills/<name>/`:
 - Match existing conventions (Zod schemas, naming, British spelling)
 - No new dependencies without explicit approval
 - When sync semantics, architecture, conventions, or footguns change, update the matching `docs/kb/` page in the same task
-- PRs that resolve issues must include `Closes #<issue>` (or `Refs #<issue>` when not closing), and post test evidence on the linked issue (PR link + automated results + manual verification notes) before closing
+- PRs that resolve issues must include `Closes #<issue>` (or `Refs #<issue>` when not closing), and post test evidence on the linked issue (PR link + automated results + manual verification notes) before merging

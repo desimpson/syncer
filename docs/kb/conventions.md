@@ -64,7 +64,7 @@ When creating or refining issues, include at least:
 
 For PR linkage, include `Closes #<issue>` (or `Refs #<issue>` if not closing) in the PR description.
 
-When a PR closes an issue, post test evidence on that issue before/at close time:
+When a PR closes an issue, post test evidence on that issue before merging the PR:
 
 - Link the merged PR
 - Include key automated test/build results

@@ -2,7 +2,6 @@ import { mapFirefoxBookmarkToSyncItem } from "@/adaptors/firefox-bookmarks";
 import type { SyncJobCreator } from "@/jobs/types";
 import type { PluginSettings } from "@/plugin/types";
 import { fetchFirefoxBookmarks, FirefoxBookmarksError } from "@/services/firefox-bookmarks";
-import { createFirefoxDebugCorrelationId, firefoxDebugLog } from "@/services/firefox-debug";
 import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { FIREFOX_BOOKMARKS_SOURCE } from "@/sync/types";
@@ -93,28 +92,9 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
     }
 
     try {
-      const debugContext = { correlationId: createFirefoxDebugCorrelationId() };
-      firefoxDebugLog(
-        "job: start",
-        {
-          syncDocument,
-          syncHeading,
-          profilePath: firefoxBookmarks.profilePath || "(auto)",
-          resolvedProfilePath: firefoxBookmarks.resolvedProfilePath,
-          selectedFolderGuids: [...firefoxBookmarks.selectedFolderGuids],
-          availableFolderCount: firefoxBookmarks.availableFolders.length,
-        },
-        debugContext,
-      );
       const folderGuids = resolveSelectedFolderGuids(firefoxBookmarks, notify);
-      firefoxDebugLog(
-        "job: resolved folder guids",
-        { folderGuids: [...folderGuids] },
-        debugContext,
-      );
 
       if (folderGuids.length === 0) {
-        firefoxDebugLog("job: abort — no valid selected folder guids", undefined, debugContext);
         return;
       }
 
@@ -122,49 +102,22 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
         firefoxBookmarks.profilePath,
         folderGuids,
         config.pluginDirectory,
-        debugContext,
       );
 
       if (walSidecarsPresent && !walMerged) {
         notify(FIREFOX_NOTICE.firefoxWalNotMerged);
       }
-      firefoxDebugLog(
-        "job: fetched bookmarks",
-        {
-          bookmarkCount: bookmarks.length,
-          titles: bookmarks.map((bookmark) => bookmark.title),
-          walSidecarsPresent,
-          walMerged,
-        },
-        debugContext,
-      );
-
       const adaptor = mapFirefoxBookmarkToSyncItem(syncHeading);
       const incoming = bookmarks.map(adaptor);
 
       try {
-        const { actions, existingItems } = await reconcileSyncSourceAtomically(
+        await reconcileSyncSourceAtomically(
           file,
           incoming,
           FIREFOX_BOOKMARKS_SOURCE,
           syncHeading,
           shouldPreserveCompletedDeletes,
         );
-        firefoxDebugLog(
-          "job: reconcile",
-          {
-            incomingCount: incoming.length,
-            existingCount: existingItems.length,
-            existingIds: existingItems.map((item) => item.id),
-            actions: actions.map((action) => ({
-              operation: action.operation,
-              id: action.item.id,
-              title: action.item.title,
-            })),
-          },
-          debugContext,
-        );
-        firefoxDebugLog("job: write complete", undefined, debugContext);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (isMissingFileError(message)) {

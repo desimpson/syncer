@@ -18,7 +18,6 @@ import {
   FirefoxBookmarksError,
   type FirefoxBookmarkFolder,
 } from "@/services/firefox-bookmarks";
-import { firefoxDebugLog } from "@/services/firefox-debug";
 import { searchFirefoxBookmarkFolders } from "@/services/firefox-profiles";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
@@ -538,18 +537,10 @@ export class SettingsTab extends PluginSettingTab {
 
     try {
       const pluginDirectory = resolvePluginDirectory(this.app, this.plugin.manifest);
-      firefoxDebugLog("settings: refreshFirefoxBookmarkFolders start", {
-        profilePath: firefoxBookmarks.profilePath || "(auto)",
-        pluginDirectory,
-      });
       const { profileDirectory, folders } = await fetchFirefoxBookmarkFolders(
         firefoxBookmarks.profilePath,
         pluginDirectory,
       );
-      firefoxDebugLog("settings: refreshFirefoxBookmarkFolders fetched", {
-        profileDirectory,
-        folderCount: folders.length,
-      });
 
       const availableGuids = new Set(folders.map((folder) => folder.guid));
       const cleanedSelectedGuids = firefoxBookmarks.selectedFolderGuids.filter((guid) =>
@@ -569,9 +560,6 @@ export class SettingsTab extends PluginSettingTab {
       await this.display();
     } catch (error) {
       if (error instanceof FirefoxBookmarksError) {
-        firefoxDebugLog("settings: refreshFirefoxBookmarkFolders failed (domain)", {
-          userMessage: error.userMessage,
-        });
         console.error(
           `Failed to refresh Firefox bookmark folders: [${error.userMessage}].`,
           error.cause,
@@ -579,9 +567,6 @@ export class SettingsTab extends PluginSettingTab {
         new Notice(error.userMessage);
         return;
       }
-      firefoxDebugLog("settings: refreshFirefoxBookmarkFolders failed (unknown)", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
       console.error(`Failed to refresh Firefox bookmark folders: [${formatLogError(error)}].`);
       new Notice("Failed to load Firefox bookmark folders.");
     }

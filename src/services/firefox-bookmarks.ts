@@ -1,4 +1,10 @@
 import { getDesktopNodeModules } from "@/utils/desktop-fs";
+import {
+  firefoxDebugError,
+  firefoxDebugLog,
+  firefoxDebugWarn,
+  type FirefoxDebugContext,
+} from "@/services/firefox-debug";
 import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 import {
   getFirefoxProfilesIniRoots,
@@ -64,6 +70,19 @@ const readFileToBuffer = (fs: NodeFs, filePath: string): Buffer => {
   return Buffer.isBuffer(contents) ? contents : Buffer.from(contents);
 };
 
+const describeFileSnapshot = (fs: NodeFs, filePath: string): Record<string, unknown> => {
+  if (!fs.existsSync(filePath)) {
+    return { path: filePath, exists: false };
+  }
+  const stats = fs.statSync(filePath);
+  return {
+    path: filePath,
+    exists: true,
+    size: stats.size,
+    mtimeMs: stats.mtimeMs,
+  };
+};
+
 const getChildProcessModule = (): ChildProcessModule | undefined => {
   const globalWindow = globalThis as typeof globalThis & {
     require?: (moduleId: string) => unknown;
@@ -79,23 +98,39 @@ const tryMergeWalDatabaseCopy = (
   fs: NodeFs,
   path: NodePath,
   temporaryDirectory: string,
+  debugContext?: FirefoxDebugContext,
 ): Uint8Array | undefined => {
   const childProcess = getChildProcessModule();
   if (childProcess === undefined) {
+    firefoxDebugWarn("tryMergeWalDatabaseCopy: child_process unavailable", undefined, debugContext);
     return undefined;
   }
 
   const sourcePath = path.join(temporaryDirectory, "places.sqlite");
   const mergedPath = path.join(temporaryDirectory, "merged.sqlite");
-
-  const mergeAttempts: readonly (() => void)[] = [
-    () => {
-      childProcess.execFileSync("sqlite3", [sourcePath, `.backup ${mergedPath}`], {
-        stdio: "pipe",
-      });
+  firefoxDebugLog(
+    "tryMergeWalDatabaseCopy: start",
+    {
+      source: describeFileSnapshot(fs, sourcePath),
+      wal: describeFileSnapshot(fs, `${sourcePath}-wal`),
+      shm: describeFileSnapshot(fs, `${sourcePath}-shm`),
     },
-    () => {
-      const script = `
+    debugContext,
+  );
+
+  const mergeAttempts: readonly { label: string; run: () => void }[] = [
+    {
+      label: "sqlite3",
+      run: () => {
+        childProcess.execFileSync("sqlite3", [sourcePath, `.backup ${mergedPath}`], {
+          stdio: "pipe",
+        });
+      },
+    },
+    {
+      label: "python3",
+      run: () => {
+        const script = `
 import sqlite3, sys
 src, dst = sys.argv[1], sys.argv[2]
 src_conn = sqlite3.connect(src)
@@ -105,26 +140,54 @@ with dst_conn:
 dst_conn.close()
 src_conn.close()
 `;
-      childProcess.execFileSync("python3", ["-c", script, sourcePath, mergedPath], {
-        stdio: "pipe",
-      });
+        childProcess.execFileSync("python3", ["-c", script, sourcePath, mergedPath], {
+          stdio: "pipe",
+        });
+      },
     },
   ];
 
-  for (const runMerge of mergeAttempts) {
+  for (const attempt of mergeAttempts) {
     try {
       if (fs.existsSync(mergedPath)) {
         fs.rmSync(mergedPath, { recursive: false, force: true });
       }
-      runMerge();
+      const startedAt = Date.now();
+      attempt.run();
       if (fs.existsSync(mergedPath)) {
-        return new Uint8Array(readFileToBuffer(fs, mergedPath));
+        const mergedBuffer = new Uint8Array(readFileToBuffer(fs, mergedPath));
+        firefoxDebugLog(
+          "tryMergeWalDatabaseCopy: merge succeeded",
+          {
+            via: attempt.label,
+            elapsedMs: Date.now() - startedAt,
+            merged: describeFileSnapshot(fs, mergedPath),
+            mergedBufferByteLength: mergedBuffer.byteLength,
+          },
+          debugContext,
+        );
+        return mergedBuffer;
       }
-    } catch {
-      // Try the next merge strategy.
+      firefoxDebugWarn(
+        "tryMergeWalDatabaseCopy: merged file missing after attempt",
+        {
+          via: attempt.label,
+        },
+        debugContext,
+      );
+    } catch (error) {
+      firefoxDebugWarn(
+        "tryMergeWalDatabaseCopy: merge attempt failed",
+        {
+          via: attempt.label,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+        debugContext,
+      );
     }
   }
 
+  firefoxDebugError("tryMergeWalDatabaseCopy: all merge attempts failed", undefined, debugContext);
   return undefined;
 };
 
@@ -133,6 +196,7 @@ const copyPlacesDatabase = (
   path: NodePath,
   os: NodeOs,
   profileDirectory: string,
+  debugContext?: FirefoxDebugContext,
 ): PlacesCopyResult => {
   const placesPath = path.join(profileDirectory, "places.sqlite");
   if (!fs.existsSync(placesPath)) {
@@ -142,11 +206,25 @@ const copyPlacesDatabase = (
   const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "syncer-firefox-"));
   try {
     const walPath = `${placesPath}-wal`;
+    const shmPath = `${placesPath}-shm`;
     const copiedPlacesPath = path.join(temporaryDirectory, "places.sqlite");
     const copiedWalPath = path.join(temporaryDirectory, "places.sqlite-wal");
     const walSidecarsPresent = fs.existsSync(walPath);
+    firefoxDebugLog(
+      "copyPlacesDatabase: source snapshot",
+      {
+        profileDirectory,
+        temporaryDirectory,
+        walSidecarsPresent,
+        places: describeFileSnapshot(fs, placesPath),
+        wal: describeFileSnapshot(fs, walPath),
+        shm: describeFileSnapshot(fs, shmPath),
+      },
+      debugContext,
+    );
 
     // Hot-copy policy: main + WAL only (see listPlacesHotCopyRelativeNames).
+    const copyStartedAt = Date.now();
     for (const relativeName of listPlacesHotCopyRelativeNames(walSidecarsPresent)) {
       const source =
         relativeName === "places.sqlite" ? placesPath : path.join(profileDirectory, relativeName);
@@ -157,15 +235,45 @@ const copyPlacesDatabase = (
       // Re-copy WAL after the main DB so frames written during the main copy are included.
       fs.copyFileSync(walPath, copiedWalPath);
     }
+    firefoxDebugLog(
+      "copyPlacesDatabase: hot-copy complete",
+      {
+        elapsedMs: Date.now() - copyStartedAt,
+        copiedPlaces: describeFileSnapshot(fs, copiedPlacesPath),
+        copiedWal: describeFileSnapshot(fs, copiedWalPath),
+        liveWalAfterCopy: describeFileSnapshot(fs, walPath),
+      },
+      debugContext,
+    );
 
     if (walSidecarsPresent) {
-      const mergedBuffer = tryMergeWalDatabaseCopy(fs, path, temporaryDirectory);
+      const mergedBuffer = tryMergeWalDatabaseCopy(fs, path, temporaryDirectory, debugContext);
       if (mergedBuffer !== undefined) {
+        firefoxDebugLog(
+          "copyPlacesDatabase: using merged buffer",
+          {
+            mergedBufferByteLength: mergedBuffer.byteLength,
+          },
+          debugContext,
+        );
         return { buffer: mergedBuffer, walSidecarsPresent: true, walMerged: true };
       }
+      firefoxDebugWarn(
+        "copyPlacesDatabase: WAL merge failed, falling back to main copy",
+        undefined,
+        debugContext,
+      );
     }
 
     const buffer = readFileToBuffer(fs, copiedPlacesPath);
+    firefoxDebugLog(
+      "copyPlacesDatabase: using main sqlite copy",
+      {
+        bufferByteLength: buffer.byteLength,
+        walSidecarsPresent,
+      },
+      debugContext,
+    );
     return {
       buffer: new Uint8Array(buffer),
       walSidecarsPresent,
@@ -278,13 +386,27 @@ const listBookmarkFoldersFromDatabase = (database: Database): FirefoxBookmarkFol
 const fetchBookmarksUnderFolderGuids = (
   database: Database,
   folderGuids: readonly string[],
+  debugContext?: FirefoxDebugContext,
 ): FirefoxBookmark[] => {
   const tagsRootId = resolveFirefoxTagsRootId(database);
   const bookmarks: FirefoxBookmark[] = [];
   const seenGuids = new Set<string>();
+  firefoxDebugLog(
+    "fetchBookmarksUnderFolderGuids: start",
+    {
+      folderGuids: [...folderGuids],
+      tagsRootId: tagsRootId ?? "(missing)",
+    },
+    debugContext,
+  );
 
   for (const folderGuid of folderGuids) {
     if (folderGuid === FIREFOX_TAGS_ROOT_GUID) {
+      firefoxDebugLog(
+        "fetchBookmarksUnderFolderGuids: skipping tags root",
+        { folderGuid },
+        debugContext,
+      );
       continue;
     }
 
@@ -314,25 +436,62 @@ const fetchBookmarksUnderFolderGuids = (
       [folderGuid, FIREFOX_TAGS_ROOT_GUID, BOOKMARK_TYPE],
     );
 
+    let skippedPlaceOrEmpty = 0;
+    let skippedUnderTags = 0;
+    let skippedDuplicate = 0;
+    const keptTitles: string[] = [];
+
     for (const row of rows) {
       if (row.url === null || row.url.length === 0 || row.url.startsWith(PLACE_PREFIX)) {
+        skippedPlaceOrEmpty += 1;
         continue;
       }
       if (isUnderTagsRoot(database, row.parent, tagsRootId)) {
+        skippedUnderTags += 1;
         continue;
       }
       if (seenGuids.has(row.guid)) {
+        skippedDuplicate += 1;
         continue;
       }
       seenGuids.add(row.guid);
+      keptTitles.push(row.title?.trim() ?? row.url);
       bookmarks.push({
         guid: row.guid,
         title: row.title?.trim() ?? row.url,
         url: row.url,
       });
     }
+
+    firefoxDebugLog(
+      "fetchBookmarksUnderFolderGuids: folder results",
+      {
+        folderGuid,
+        rawRows: rows.length,
+        kept: keptTitles.length,
+        skippedPlaceOrEmpty,
+        skippedUnderTags,
+        skippedDuplicate,
+        keptTitles,
+        rawRowsPreview: rows.slice(0, 20).map((row) => ({
+          guid: row.guid,
+          title: row.title,
+          url: row.url,
+          parent: row.parent,
+        })),
+      },
+      debugContext,
+    );
   }
 
+  firefoxDebugLog(
+    "fetchBookmarksUnderFolderGuids: complete",
+    {
+      total: bookmarks.length,
+      titles: bookmarks.map((bookmark) => bookmark.title),
+    },
+    debugContext,
+  );
   return bookmarks;
 };
 
@@ -343,9 +502,12 @@ const withPlacesDatabase = async <T>(
     database: Database,
     copyResult: Pick<PlacesCopyResult, "walSidecarsPresent" | "walMerged">,
   ) => T,
+  debugContext?: FirefoxDebugContext,
 ): Promise<T> => {
+  firefoxDebugLog("withPlacesDatabase: start", { profileDirectory, wasmDirectory }, debugContext);
   const nodeModules = getDesktopNodeModules();
   if (nodeModules === undefined) {
+    firefoxDebugError("withPlacesDatabase: node modules unavailable", undefined, debugContext);
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.couldNotOpenDatabase);
   }
 
@@ -355,11 +517,27 @@ const withPlacesDatabase = async <T>(
   let walMerged = false;
 
   try {
-    const copyResult = copyPlacesDatabase(fs, path, os, profileDirectory);
+    const copyResult = copyPlacesDatabase(fs, path, os, profileDirectory, debugContext);
     buffer = copyResult.buffer;
     walSidecarsPresent = copyResult.walSidecarsPresent;
     walMerged = copyResult.walMerged;
+    firefoxDebugLog(
+      "withPlacesDatabase: copy result",
+      {
+        bufferByteLength: buffer.byteLength,
+        walSidecarsPresent,
+        walMerged,
+      },
+      debugContext,
+    );
   } catch (error) {
+    firefoxDebugError(
+      "withPlacesDatabase: copy failed",
+      {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+      debugContext,
+    );
     if (error instanceof FirefoxBookmarksError) {
       throw error;
     }
@@ -368,9 +546,17 @@ const withPlacesDatabase = async <T>(
 
   let database: Database | undefined;
   try {
-    database = await openPlacesDatabase(buffer, wasmDirectory);
+    database = await openPlacesDatabase(buffer, wasmDirectory, debugContext);
+    firefoxDebugLog("withPlacesDatabase: sql.js open succeeded", undefined, debugContext);
     return operation(database, { walSidecarsPresent, walMerged });
   } catch (error) {
+    firefoxDebugError(
+      "withPlacesDatabase: sql.js open failed",
+      {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+      debugContext,
+    );
     if (error instanceof Error && error.message.includes("sql-wasm.wasm")) {
       throw new FirefoxBookmarksError(FIREFOX_NOTICE.wasmNotFound, error);
     }
@@ -466,8 +652,19 @@ export const fetchFirefoxBookmarks = async (
   manualProfilePath: string | undefined,
   folderGuids: readonly string[],
   wasmDirectory: string,
+  debugContext?: FirefoxDebugContext,
 ): Promise<FetchFirefoxBookmarksResult> => {
+  firefoxDebugLog(
+    "fetchFirefoxBookmarks: request",
+    {
+      manualProfilePath: manualProfilePath ?? "(auto)",
+      folderGuids: [...folderGuids],
+      wasmDirectory,
+    },
+    debugContext,
+  );
   const profileDirectory = resolveProfileDirectory(manualProfilePath);
+  firefoxDebugLog("fetchFirefoxBookmarks: resolved profile", { profileDirectory }, debugContext);
   let walSidecarsPresent = false;
   let walMerged = false;
   const bookmarks = await withPlacesDatabase(
@@ -476,8 +673,20 @@ export const fetchFirefoxBookmarks = async (
     (database, copyMeta) => {
       walSidecarsPresent = copyMeta.walSidecarsPresent;
       walMerged = copyMeta.walMerged;
-      return fetchBookmarksUnderFolderGuids(database, folderGuids);
+      return fetchBookmarksUnderFolderGuids(database, folderGuids, debugContext);
     },
+    debugContext,
+  );
+  firefoxDebugLog(
+    "fetchFirefoxBookmarks: response",
+    {
+      profileDirectory,
+      bookmarkCount: bookmarks.length,
+      titles: bookmarks.map((bookmark) => bookmark.title),
+      walSidecarsPresent,
+      walMerged,
+    },
+    debugContext,
   );
   return { profileDirectory, bookmarks, walSidecarsPresent, walMerged };
 };

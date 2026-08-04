@@ -2,13 +2,12 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Database } from "sql.js";
 import {
   FIREFOX_TAGS_ROOT_GUID,
   listPlacesHotCopyRelativeNames,
   resolveFirefoxTagsRootId,
 } from "@/services/firefox-bookmarks";
-import { loadSqlJs, resetSqlJsForTests } from "@/services/sql-js-loader";
+import { resetSqlJsForTests } from "@/services/sql-js-loader";
 
 vi.mock("@/utils/desktop-fs", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Vitest importOriginal typing
@@ -22,18 +21,6 @@ vi.mock("@/utils/desktop-fs", async (importOriginal) => {
     }),
   };
 });
-
-const runSql = (database: Database, sql: string, parameters?: readonly unknown[]): void => {
-  const statement = database.prepare(sql);
-  try {
-    if (parameters !== undefined) {
-      statement.bind(parameters);
-    }
-    statement.step();
-  } finally {
-    statement.free();
-  }
-};
 
 describe("listPlacesHotCopyRelativeNames", () => {
   it("never includes places.sqlite-shm (Firefox live WAL index)", () => {
@@ -49,31 +36,27 @@ describe("resolveFirefoxTagsRootId", () => {
     resetSqlJsForTests();
   });
 
-  it("finds the tags root without moz_bookmarks_roots (modern Places schema)", async () => {
-    const SQL = await loadSqlJs(path.join(process.cwd()));
-    const database = new SQL.Database();
-    runSql(
-      database,
-      `
-      CREATE TABLE moz_bookmarks (
-        id INTEGER PRIMARY KEY,
-        guid TEXT NOT NULL,
-        parent INTEGER,
-        type INTEGER,
-        fk INTEGER,
-        title TEXT
-      )
-    `,
-    );
-    runSql(
-      database,
-      `INSERT INTO moz_bookmarks (id, guid, parent, type, fk, title) VALUES
-        (1, 'root________', 0, 2, NULL, ''),
-        (4, ?, 1, 2, NULL, 'tags')`,
-      [FIREFOX_TAGS_ROOT_GUID],
-    );
+  it("finds the tags root without moz_bookmarks_roots (modern Places schema)", () => {
+    let boundGuid: string | undefined;
+    let stepped = false;
+    const database = {
+      prepare: () => ({
+        bind: (values?: readonly unknown[]) => {
+          boundGuid = typeof values?.[0] === "string" ? values[0] : undefined;
+          return true;
+        },
+        step: () => {
+          if (stepped) {
+            return false;
+          }
+          stepped = true;
+          return boundGuid === FIREFOX_TAGS_ROOT_GUID;
+        },
+        getAsObject: () => ({ id: 4 }),
+        free: () => true,
+      }),
+    };
 
-    expect(resolveFirefoxTagsRootId(database)).toBe(4);
-    database.close();
+    expect(resolveFirefoxTagsRootId(database as never)).toBe(4);
   });
 });

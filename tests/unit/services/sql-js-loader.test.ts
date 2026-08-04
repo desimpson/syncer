@@ -23,7 +23,7 @@ describe("sql-js-loader", () => {
   });
 
   it("loads WASM from the plugin output directory and opens a database buffer", async () => {
-    const wasmDirectory = path.join(process.cwd());
+    const wasmDirectory = path.join(process.cwd(), "node_modules", "sql.js", "dist");
     const SQL = await loadSqlJs(wasmDirectory);
     expect(SQL.Database).toBeDefined();
 

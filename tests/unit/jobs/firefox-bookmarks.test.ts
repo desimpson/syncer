@@ -123,6 +123,7 @@ describe("createFirefoxBookmarksJob", () => {
       "",
       ["folder-1"],
       baseConfig.pluginDirectory,
+      expect.objectContaining({ correlationId: expect.any(String) }),
     );
     expect(notify).not.toHaveBeenCalledWith(FIREFOX_NOTICE.firefoxWalNotMerged);
     expect(writeSyncActions).toHaveBeenCalled();

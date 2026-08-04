@@ -51,3 +51,23 @@ See [docs/testing.md](../testing.md):
 ## Imports
 
 Barrels exist but are incomplete (e.g. `jobs/index.ts` / `services/index.ts` export Google only). Prefer the import style already used in the file you edit; do not mass-migrate to barrels unless asked.
+
+## Issue minimum bar
+
+When creating or refining issues, include at least:
+
+- Problem statement: what user-visible behaviour is wrong/missing
+- Scope: affected integration/module and explicit non-goals
+- Reproduction steps (for bugs) or workflow context (for enhancements)
+- Acceptance criteria: testable checklist of done conditions
+- Verification notes: required automated/manual evidence to close
+
+For PR linkage, include `Closes #<issue>` (or `Refs #<issue>` if not closing) in the PR description.
+
+When a PR closes an issue, post test evidence on that issue before/at close time:
+
+- Link the merged PR
+- Include key automated test/build results
+- Include manual verification notes for user-visible behaviour
+
+See [checklists.md](checklists.md) for Definition of Done, debug logging policy, integration template, and release smoke checks.

@@ -8,10 +8,10 @@ import {
   GraphAuthorizationError,
   type OutlookFlaggedMessage,
 } from "@/services/outlook-mail";
-import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } from "@/sync/actions";
+import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { MICROSOFT_OUTLOOK_SOURCE, type SyncItem } from "@/sync/types";
-import { writeSyncActions } from "@/sync/writer";
+import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import type { TFile, Vault } from "obsidian";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 
@@ -304,11 +304,13 @@ const syncOutlookMessagesToFile = async (
       accessToken,
       notify,
     );
-    const actions = filterActions(
-      generateSyncActions(updatedIncoming, existing),
+    await reconcileSyncSourceAtomically(
+      file,
+      updatedIncoming,
+      MICROSOFT_OUTLOOK_SOURCE,
+      syncHeading,
       shouldPreserveCompletedDeletes,
     );
-    await writeSyncActions(file, actions, syncHeading);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (isMissingFileError(message)) {

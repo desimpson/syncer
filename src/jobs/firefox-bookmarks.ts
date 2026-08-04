@@ -4,10 +4,9 @@ import type { PluginSettings } from "@/plugin/types";
 import { fetchFirefoxBookmarks, FirefoxBookmarksError } from "@/services/firefox-bookmarks";
 import { createFirefoxDebugCorrelationId, firefoxDebugLog } from "@/services/firefox-debug";
 import { FIREFOX_NOTICE } from "@/services/firefox-messages";
-import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } from "@/sync/actions";
-import { readMarkdownSyncItems } from "@/sync/reader";
+import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { FIREFOX_BOOKMARKS_SOURCE } from "@/sync/types";
-import { writeSyncActions } from "@/sync/writer";
+import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import { Platform, type TFile, type Vault } from "obsidian";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
@@ -144,17 +143,19 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
       const incoming = bookmarks.map(adaptor);
 
       try {
-        const existing = await readMarkdownSyncItems(file, FIREFOX_BOOKMARKS_SOURCE);
-        const actions = filterActions(
-          generateSyncActions(incoming, existing),
+        const { actions, existingItems } = await reconcileSyncSourceAtomically(
+          file,
+          incoming,
+          FIREFOX_BOOKMARKS_SOURCE,
+          syncHeading,
           shouldPreserveCompletedDeletes,
         );
         firefoxDebugLog(
           "job: reconcile",
           {
             incomingCount: incoming.length,
-            existingCount: existing.length,
-            existingIds: existing.map((item) => item.id),
+            existingCount: existingItems.length,
+            existingIds: existingItems.map((item) => item.id),
             actions: actions.map((action) => ({
               operation: action.operation,
               id: action.item.id,
@@ -163,7 +164,6 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
           },
           debugContext,
         );
-        await writeSyncActions(file, actions, syncHeading);
         firefoxDebugLog("job: write complete", undefined, debugContext);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

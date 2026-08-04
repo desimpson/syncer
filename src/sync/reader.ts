@@ -31,7 +31,7 @@ const parseLine = (line: string): ParsedLine | undefined => {
   }
 };
 
-const parseMarkdownLines = (lines: string[]): SyncItem[] =>
+const parseMarkdownLines = (lines: readonly string[]): SyncItem[] =>
   lines
     .map((line) => {
       const parsed = parseLine(line);
@@ -53,6 +53,12 @@ const parseMarkdownLines = (lines: string[]): SyncItem[] =>
       completed,
     }));
 
+export const parseMarkdownSyncItemsFromContent = (
+  content: string,
+  syncSource: SyncSource,
+): SyncItem[] =>
+  parseMarkdownLines(content.split("\n")).filter((item) => item.source === syncSource);
+
 /**
  * Reads markdown sync items from a file.
  *
@@ -64,7 +70,5 @@ export const readMarkdownSyncItems = async (
   file: TFile,
   syncSource: SyncSource,
 ): Promise<SyncItem[]> => {
-  const content = await file.vault.read(file);
-  const lines = content.split("\n");
-  return parseMarkdownLines(lines).filter((item) => item.source === syncSource);
+  return parseMarkdownSyncItemsFromContent(await file.vault.read(file), syncSource);
 };

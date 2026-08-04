@@ -19,6 +19,7 @@
 - Sync reads the **saved file on disk** — unsaved editor buffers are ignored for Manual sync
 - Target heading input is normalised to H2 (`## …`)
 - Scheduler runs jobs **sequentially** ([`scheduler.ts`](../../src/sync/scheduler.ts)) — parallel `vault.process` on the same note races and drops creates (looked like “Firefox missed a bookmark”)
+- Job reconcile planning must be atomic (`reconcileSyncSourceAtomically` in [`writer.ts`](../../src/sync/writer.ts)); pre-read action planning can miss creates when the file changes before write
 - SyncGuard + file-content cache interaction is load-bearing; changing delete-detection without understanding it causes false delete prompts
 - Known issues tracked in [`TODO.md`](../../TODO.md) (not duplicated here), including:
   - List deselect can trigger Google delete-sync prompts incorrectly

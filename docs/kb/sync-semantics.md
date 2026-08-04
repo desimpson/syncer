@@ -21,6 +21,17 @@ Written by [`src/sync/writer.ts`](../../src/sync/writer.ts):
 
 **Preserve completed deletes:** [`shouldPreserveCompletedDeletes`](../../src/sync/actions.ts) — completed Obsidian lines are **not** deleted when the remote item drops out of the incoming feed.
 
+### Atomic write path
+
+Jobs write via [`reconcileSyncSourceAtomically`](../../src/sync/writer.ts), which:
+
+1. runs inside one `vault.process` callback,
+2. parses existing items from callback `content`,
+3. computes reconcile actions against that same snapshot,
+4. applies updates/deletes/creates before returning new content.
+
+This avoids stale pre-read races where actions are planned from an older `vault.read` snapshot and then applied to newer file content.
+
 ## Google Tasks
 
 Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).

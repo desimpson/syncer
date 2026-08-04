@@ -13,6 +13,12 @@ Match existing patterns; do not invent a second style.
 
 Jobs glue auth + services + adaptors + sync. Plugin owns lifecycle, settings, and delete-detection UI.
 
+## Reconcile contract
+
+- New integrations must write through `reconcileSyncSourceAtomically` in `src/sync/writer.ts`
+- Do not do `vault.read` → `generateSyncActions` → later write as separate steps
+- If a job needs pre-read state for integration-specific side effects (for example completion push), still run final reconcile/write through the atomic sync API
+
 ## Zod and types
 
 - Validate settings, API payloads, and Markdown metadata with Zod (`*Schema` in nearby `schemas.ts`)

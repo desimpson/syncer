@@ -1,6 +1,13 @@
-import type { SyncAction, SyncItem } from "@/sync/types";
+import type { SyncAction, SyncItem, SyncSource } from "@/sync/types";
 import type { TFile } from "obsidian";
-import { buildUpdateDeleteMap, getCreateItems } from "@/sync/actions";
+import {
+  buildUpdateDeleteMap,
+  filterActions,
+  generateSyncActions,
+  getCreateItems,
+  shouldPreserveCompletedDeletes,
+} from "@/sync/actions";
+import { parseMarkdownSyncItemsFromContent } from "@/sync/reader";
 import { parsedLineSchema } from "@/sync/schemas";
 
 /* Matches markdown heading lines at the start of the line, e.g. "## Heading".
@@ -184,6 +191,19 @@ const appendCreates = (
   return insertAt(lines, insertIndex, createLines);
 };
 
+export const applySyncActionsToContent = (
+  content: string,
+  actions: readonly SyncAction[],
+  heading: string,
+): string => {
+  const updateDeleteMap = buildUpdateDeleteMap(actions);
+  const createItems = getCreateItems(actions);
+  const lines = content.split("\n");
+  const updatedLines = applyUpdatesAndDeletes(lines, updateDeleteMap);
+  const resultLines = appendCreates(updatedLines, createItems, heading);
+  return resultLines.join("\n");
+};
+
 /**
  * Write sync actions to an Obsidian `TFile` file instance.
  *
@@ -196,13 +216,29 @@ export const writeSyncActions = async (
   actions: readonly SyncAction[],
   heading: string,
 ): Promise<void> => {
-  const updateDeleteMap = buildUpdateDeleteMap(actions);
-  const createItems = getCreateItems(actions);
+  await file.vault.process(file, (content) => applySyncActionsToContent(content, actions, heading));
+};
+
+export type AtomicReconcileResult = {
+  actions: readonly SyncAction[];
+  existingItems: readonly SyncItem[];
+};
+
+export const reconcileSyncSourceAtomically = async (
+  file: TFile,
+  incomingItems: readonly SyncItem[],
+  syncSource: SyncSource,
+  heading: string,
+  actionPredicate: (action: SyncAction) => boolean = shouldPreserveCompletedDeletes,
+): Promise<AtomicReconcileResult> => {
+  let existingItems: readonly SyncItem[] = [];
+  let actions: readonly SyncAction[] = [];
 
   await file.vault.process(file, (content) => {
-    const lines = content.split("\n");
-    const updatedLines = applyUpdatesAndDeletes(lines, updateDeleteMap);
-    const resultLines = appendCreates(updatedLines, createItems, heading);
-    return resultLines.join("\n");
+    existingItems = parseMarkdownSyncItemsFromContent(content, syncSource);
+    actions = filterActions(generateSyncActions(incomingItems, existingItems), actionPredicate);
+    return applySyncActionsToContent(content, actions, heading);
   });
+
+  return { actions, existingItems };
 };

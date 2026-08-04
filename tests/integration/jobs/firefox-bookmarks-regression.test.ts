@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
-import { readMarkdownSyncItems } from "@/sync/reader";
+import { parseMarkdownSyncItemsFromContent } from "@/sync/reader";
 import { FIREFOX_BOOKMARKS_SOURCE } from "@/sync/types";
 import type { TFile, Vault } from "obsidian";
 
@@ -107,7 +107,7 @@ describe("Firefox bookmarks stale read regression", () => {
     );
     await job.task();
 
-    const synced = await readMarkdownSyncItems(file, FIREFOX_BOOKMARKS_SOURCE);
+    const synced = parseMarkdownSyncItemsFromContent(currentContent, FIREFOX_BOOKMARKS_SOURCE);
     expect(synced.map((item) => item.id)).toEqual(["bm-1", "bm-2", "bm-3", "bm-4"]);
   });
 });

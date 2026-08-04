@@ -37,10 +37,12 @@ Jobs must stay sequential: each job `vault.process`es the same sync note; `Promi
 3. Resolve sync file via vault
 4. **Services** fetch remote items
 5. **Adaptors** map to `SyncItem[]`
-6. **Reader** parse existing Markdown items for that `source`
+6. Optional pre-read for integration-specific logic (for example completion push)
 7. Optional Obsidian → remote completion push
-8. **Actions** `generateSyncActions` → create/update/delete (with preserve filters)
-9. **Writer** apply actions; append creates under target heading (Kanban-aware)
+8. **Writer** `reconcileSyncSourceAtomically` computes actions from the `vault.process` snapshot
+9. **Writer** applies updates/deletes/creates in the same `vault.process` callback
+
+Atomic reconcile in `src/sync/writer.ts` is the default job write contract for all integrations. Jobs must not plan actions from a stale `vault.read` snapshot and then write later.
 
 Side path (Google Tasks only): vault `modify` listener in `plugin/index.ts` may delete Google Tasks remotely when lines disappear (`enableDeleteSync`). `handleFileModification` filters `source === "google-tasks"` — Outlook and Firefox have no equivalent delete-sync path today.
 

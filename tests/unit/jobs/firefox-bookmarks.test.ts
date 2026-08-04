@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TFile, Vault } from "obsidian";
 import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
-import type { SyncAction } from "@/sync/types";
+import type { AtomicReconcileResult } from "@/sync/writer";
 
 vi.mock("obsidian", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Vitest importOriginal typing
@@ -12,22 +12,8 @@ vi.mock("obsidian", async (importOriginal) => {
   };
 });
 
-vi.mock("@/sync/reader", () => ({
-  readMarkdownSyncItems: vi.fn(),
-}));
-
-vi.mock("@/sync/actions", () => ({
-  generateSyncActions: vi.fn(),
-  filterActions: vi.fn((actions: SyncAction[], predicate: (action: SyncAction) => boolean) =>
-    actions.filter(predicate),
-  ),
-  shouldPreserveCompletedDeletes: vi.fn(
-    (action: SyncAction) => action.operation !== "delete" || !action.item.completed,
-  ),
-}));
-
 vi.mock("@/sync/writer", () => ({
-  writeSyncActions: vi.fn(),
+  reconcileSyncSourceAtomically: vi.fn(),
 }));
 
 vi.mock("@/services/firefox-bookmarks", async (importOriginal) => {
@@ -39,9 +25,7 @@ vi.mock("@/services/firefox-bookmarks", async (importOriginal) => {
   };
 });
 
-import { readMarkdownSyncItems } from "@/sync/reader";
-import { generateSyncActions } from "@/sync/actions";
-import { writeSyncActions } from "@/sync/writer";
+import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import { fetchFirefoxBookmarks, FirefoxBookmarksError } from "@/services/firefox-bookmarks";
 import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 
@@ -59,6 +43,11 @@ const makeFile = (path = "GTD.md"): TFile =>
     path,
     name: path,
   }) as unknown as TFile;
+
+const emptyReconcileResult = (): AtomicReconcileResult => ({
+  actions: [],
+  existingItems: [],
+});
 
 describe("createFirefoxBookmarksJob", () => {
   beforeEach(() => {
@@ -104,9 +93,7 @@ describe("createFirefoxBookmarksJob", () => {
       walSidecarsPresent: true,
       walMerged: true,
     });
-    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createFirefoxBookmarksJob(
       loadSettings,
@@ -126,7 +113,7 @@ describe("createFirefoxBookmarksJob", () => {
       expect.objectContaining({ correlationId: expect.any(String) }),
     );
     expect(notify).not.toHaveBeenCalledWith(FIREFOX_NOTICE.firefoxWalNotMerged);
-    expect(writeSyncActions).toHaveBeenCalled();
+    expect(reconcileSyncSourceAtomically).toHaveBeenCalled();
   });
 
   it("warns when Firefox WAL could not be merged", async () => {
@@ -149,9 +136,7 @@ describe("createFirefoxBookmarksJob", () => {
       walSidecarsPresent: true,
       walMerged: false,
     });
-    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createFirefoxBookmarksJob(
       loadSettings,
@@ -227,6 +212,6 @@ describe("createFirefoxBookmarksJob", () => {
     await job.task();
 
     expect(notify).toHaveBeenCalledWith("Firefox profile path not found.");
-    expect(writeSyncActions).not.toHaveBeenCalled();
+    expect(reconcileSyncSourceAtomically).not.toHaveBeenCalled();
   });
 });

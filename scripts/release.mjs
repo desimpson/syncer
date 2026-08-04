@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDirectory = path.join(__dirname, "..");
 
-const requiredFiles = ["main.js", "manifest.json", "styles.css"];
+const requiredFiles = ["main.js", "manifest.json", "styles.css", "sql-wasm.wasm"];
 
 /**
  * @param {string} file
@@ -156,7 +156,7 @@ const printSuccessMessage = (manifest) => {
   console.log("     - Go to: https://github.com/desimpson/syncer/releases/new");
   console.log(`     - Tag: ${manifest?.version || "X.X.X"}`);
   console.log(`     - Title: ${manifest?.version || "X.X.X"}`);
-  console.log("     - Attach files: main.js, manifest.json, styles.css");
+  console.log("     - Attach files: main.js, manifest.json, styles.css, sql-wasm.wasm");
   console.log("\n  2. Submit to Obsidian Community Plugins:");
   console.log("     - Fork: https://github.com/obsidianmd/obsidian-releases");
   console.log("     - Add entry to community-plugins.json");

@@ -27,10 +27,13 @@ export type SyncAction = {
 /**
  * The different supported sync sources.
  */
-export type SyncSource = "google-tasks" | "microsoft-outlook";
+export type SyncSource = "google-tasks" | "microsoft-outlook" | "firefox-bookmarks";
 
 /** `SyncItem.source` / markdown metadata value for Microsoft Outlook. */
 export const MICROSOFT_OUTLOOK_SOURCE = "microsoft-outlook" satisfies SyncSource;
+
+/** `SyncItem.source` / markdown metadata value for Firefox Bookmarks. */
+export const FIREFOX_BOOKMARKS_SOURCE = "firefox-bookmarks" satisfies SyncSource;
 
 /**
  * A parsed Markdown line item with sync metadata.

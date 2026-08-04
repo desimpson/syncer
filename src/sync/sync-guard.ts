@@ -4,7 +4,7 @@
  * Each call to {@link run} increments an internal counter on entry and
  * decrements it in a `finally` block, so {@link isActive} only returns
  * `false` once every concurrent operation has completed — even when
- * multiple jobs run in parallel via `Promise.all`.
+ * multiple guarded operations overlap (e.g. overlapping Manual syncs).
  */
 export class SyncGuard {
   private count = 0;

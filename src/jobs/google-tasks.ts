@@ -1,9 +1,9 @@
 import { GoogleTasksService } from "@/services";
 import { mapGoogleTaskToSyncItem } from "@/adaptors";
 import type { SyncJobCreator } from "@/jobs/types";
-import { filterActions, generateSyncActions, shouldPreserveCompletedDeletes } from "@/sync/actions";
+import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
-import { writeSyncActions } from "@/sync/writer";
+import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin/types";
 import type { TFile, Vault } from "obsidian";
 import type { GoogleTask } from "@/services/types";
@@ -334,11 +334,13 @@ const syncTasksToFile = async (
       );
     }
 
-    const allActions = generateSyncActions(updatedIncoming, existing);
-    // Preserve completed tasks in Obsidian
-    const actions = filterActions(allActions, shouldPreserveCompletedDeletes);
-
-    await writeSyncActions(file, actions, syncHeading);
+    await reconcileSyncSourceAtomically(
+      file,
+      updatedIncoming,
+      "google-tasks",
+      syncHeading,
+      shouldPreserveCompletedDeletes,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (/ENOENT|no such file or directory|not found/i.test(message)) {

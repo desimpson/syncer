@@ -7,6 +7,8 @@ import type {
 } from "@/auth/types";
 import type { MicrosoftAuthAccountKind } from "@/plugin/schemas";
 
+import type { FirefoxBookmarkFolder } from "@/services/firefox-bookmarks";
+
 /**
  * Syncer plugin settings.
  */
@@ -22,6 +24,7 @@ export type PluginSettings = {
   microsoftAuthAccountKind: MicrosoftAuthAccountKind;
   microsoftAuthWorkOrSchoolTenantId: string;
   microsoftOutlook?: MicrosoftOutlookSettings | undefined;
+  firefoxBookmarks?: FirefoxBookmarksSettings | undefined;
 };
 
 /**
@@ -30,6 +33,7 @@ export type PluginSettings = {
 export type PluginConfig = {
   googleClientId: string;
   microsoftClientId: string;
+  pluginDirectory: string;
 };
 
 /**
@@ -48,4 +52,14 @@ export type GoogleTasksSettings = {
 export type MicrosoftOutlookSettings = {
   userInfo: MicrosoftUserInfo;
   credentials: MicrosoftCredentials;
+};
+
+/**
+ * Firefox Bookmarks integration settings.
+ */
+export type FirefoxBookmarksSettings = {
+  profilePath: string;
+  resolvedProfilePath: string;
+  availableFolders: readonly FirefoxBookmarkFolder[];
+  selectedFolderGuids: readonly string[];
 };

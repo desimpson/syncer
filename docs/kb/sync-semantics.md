@@ -21,6 +21,17 @@ Written by [`src/sync/writer.ts`](../../src/sync/writer.ts):
 
 **Preserve completed deletes:** [`shouldPreserveCompletedDeletes`](../../src/sync/actions.ts) — completed Obsidian lines are **not** deleted when the remote item drops out of the incoming feed.
 
+### Atomic write path
+
+Jobs write via [`reconcileSyncSourceAtomically`](../../src/sync/writer.ts), which:
+
+1. runs inside one `vault.process` callback,
+2. parses existing items from callback `content`,
+3. computes reconcile actions against that same snapshot,
+4. applies updates/deletes/creates before returning new content.
+
+This avoids stale pre-read races where actions are planned from an older `vault.read` snapshot and then applied to newer file content.
+
 ## Google Tasks
 
 Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).
@@ -40,6 +51,19 @@ Owning job: [`src/jobs/microsoft-outlook.ts`](../../src/jobs/microsoft-outlook.t
 - Incoming feed = messages with Outlook follow-up flag `flagged` only (`fetchFlaggedMessages` in `src/services/outlook-mail.ts`); unflagged or `complete` messages drop out on the next sync
 - `syncCompletionStatus`: checking/unchecking in Obsidian updates the Outlook flag on the next sync
 - Account kind + optional Entra tenant ID → tenant segment for Graph auth
+
+## Firefox Bookmarks
+
+Owning job: [`src/jobs/firefox-bookmarks.ts`](../../src/jobs/firefox-bookmarks.ts).
+
+- Incoming feed = bookmarks in selected folder(s), **recursively** including subfolders
+- Filters: separators, `place:` URIs, tag-root duplicates
+- Identity: `moz_bookmarks.guid` → `source: firefox-bookmarks`
+- One-way sync only; Obsidian checkbox is local-only (no write-back to Firefox)
+- Removing a bookmark from a selected folder removes its line on next sync unless the Obsidian line is already `[x]` (completed-preserve)
+- Reads `places.sqlite` via copy-on-read + **sql.js** (WASM bundled as `sql-wasm.wasm` next to `main.js`)
+- While Firefox is open (`-wal` present), hot-copy merges WAL via `sqlite3` CLI or Python (no `-shm` copy) before sql.js opens; if merge fails, sync may miss newest bookmarks (notice asks to close Firefox briefly)
+- Desktop only (`Platform.isDesktopApp`); settings hidden on mobile
 
 ## SyncGuard
 

@@ -100,6 +100,9 @@ export class Setting {
   public setHeading(): this {
     return this;
   }
+  public setClass(_className: string): this {
+    return this;
+  }
   public addButton(_callback: (_button: unknown) => unknown): this {
     return this;
   }

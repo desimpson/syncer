@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks and Microsoft Outlook to your vault.
+Obsidian plugin to sync external sources like Google Tasks, Microsoft Outlook, and Firefox Bookmarks into your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks and Microsoft Outlook (flagged mail). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Microsoft Outlook (flagged mail), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -23,6 +23,12 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Syncs messages with an Outlook follow-up flag set to flagged
   - Personal (Outlook.com / Hotmail / Live) or work/school accounts (optional Entra tenant ID)
   - When completion status sync is enabled, checking/unchecking items in Obsidian updates the Outlook flag on the next sync
+- Firefox Bookmarks integration (desktop only):
+  - Sync bookmarks from a local Firefox profile into your vault
+  - Auto-detect default profile or set a manual profile path
+  - Search and select bookmark folders (subfolders included recursively)
+  - One-way sync: Firefox → Obsidian only; checking items in Obsidian does not change Firefox
+  - Works while Firefox is open when `sqlite3` or Python is available to merge the places WAL; otherwise close Firefox briefly and sync again
 
 ## Requirements
 
@@ -39,6 +45,7 @@ Manual install into a vault:
 1. Copy these files to your vault: `Vault/.obsidian/plugins/syncer/`
    - `manifest.json`
    - `main.js`
+   - `sql-wasm.wasm`
    - `styles.css`
 1. Enable “Syncer” in Obsidian → Settings → Community plugins
 
@@ -66,6 +73,17 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - Choose **Outlook account type** (personal or work/school); for work/school you may optionally set a Directory (tenant) ID
 - Connect your Microsoft account using the **Connect** button (requires the plugin to be built with a Microsoft application client ID)
 - Flagged messages are synced into the target note under the sync heading
+
+### Firefox Bookmarks (desktop only)
+
+- Enable **Firefox Bookmarks** in the plugin settings
+- Optionally set a **Firefox profile path**; leave empty to auto-detect the default profile from `profiles.ini`
+- Click **Refresh folders**, then search by folder name and select parents to include (subfolders are synced recursively — nested matches under a hit are hidden in search)
+- Typical profile locations:
+  - Linux: `~/.mozilla/firefox/<profile>/`
+  - macOS: `~/Library/Application Support/Firefox/Profiles/<profile>/`
+  - Windows: `%APPDATA%\Mozilla\Firefox\Profiles\<profile>\`
+- If newest bookmarks are missing while Firefox is open, close Firefox briefly and sync again (or install the `sqlite3` CLI so the plugin can merge the live database)
 
 ## Commands
 
@@ -110,5 +128,5 @@ This plugin includes code adapted from the following projects:
 3. Verify: `npm run release:check`
 4. Create release:
    - **Automated**: `git tag 1.0.0 && git push origin 1.0.0` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.1.0` or `1.0.0`, not `v1.0.0`)
-   - **Manual**: Create GitHub release with `main.js`, `manifest.json`, `styles.css`
+   - **Manual**: Create GitHub release with `main.js`, `manifest.json`, `styles.css`, `sql-wasm.wasm`
 5. Submit to [Obsidian Community Plugins](https://github.com/obsidianmd/obsidian-releases)

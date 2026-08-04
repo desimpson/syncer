@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile, Vault } from "obsidian";
 import { createMicrosoftOutlookJob } from "@/jobs/microsoft-outlook";
 import type { OutlookFlaggedMessage } from "@/services/outlook-mail";
-import type * as SyncActionsModule from "@/sync/actions";
 import type { SyncAction, SyncItem } from "@/sync/types";
+import type { AtomicReconcileResult } from "@/sync/writer";
 
 vi.mock("@/sync/reader", () => {
   const readMarkdownSyncItems = vi.fn() as unknown as (
@@ -13,30 +13,15 @@ vi.mock("@/sync/reader", () => {
   return { readMarkdownSyncItems };
 });
 
-vi.mock("@/sync/actions", () => {
-  const generateSyncActions = vi.fn() as unknown as (
-    incoming: SyncItem[],
-    existing: SyncItem[],
-  ) => SyncAction[];
-  const filterActions = vi.fn((actions: SyncAction[], predicate: (action: SyncAction) => boolean) =>
-    actions.filter(predicate),
-  ) as unknown as (
-    actions: SyncAction[],
-    predicate: (action: SyncAction) => boolean,
-  ) => SyncAction[];
-  const shouldPreserveCompletedDeletes = vi.fn(
-    (action: SyncAction) => action.operation !== "delete" || !action.item.completed,
-  ) as unknown as (action: SyncAction) => boolean;
-  return { filterActions, generateSyncActions, shouldPreserveCompletedDeletes };
-});
-
 vi.mock("@/sync/writer", () => {
-  const writeSyncActions = vi.fn() as unknown as (
+  const reconcileSyncSourceAtomically = vi.fn() as unknown as (
     file: TFile,
-    actions: SyncAction[],
+    incomingItems: readonly SyncItem[],
+    syncSource: string,
     heading: string,
-  ) => Promise<void>;
-  return { writeSyncActions };
+    actionPredicate?: (action: SyncAction) => boolean,
+  ) => Promise<AtomicReconcileResult>;
+  return { reconcileSyncSourceAtomically };
 });
 
 vi.mock("@/services/outlook-mail", async () => {
@@ -78,8 +63,7 @@ vi.mock("@/plugin/modals/authorization-expired-modal", () => ({
 }));
 
 import { readMarkdownSyncItems } from "@/sync/reader";
-import { generateSyncActions, shouldPreserveCompletedDeletes, filterActions } from "@/sync/actions";
-import { writeSyncActions } from "@/sync/writer";
+import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import {
   fetchFlaggedMessages,
   updateOutlookMessageFlag,
@@ -90,6 +74,7 @@ import { MicrosoftAuth } from "@/auth";
 const baseConfig = {
   googleClientId: "",
   microsoftClientId: "microsoft-client-id",
+  pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 
 const makeVault = (file: TFile | null) =>
@@ -102,6 +87,10 @@ const makeFile = (path = "GTD.md"): TFile =>
   }) as unknown as TFile;
 
 const mockApp = {} as unknown as App;
+const emptyReconcileResult = (): AtomicReconcileResult => ({
+  actions: [],
+  existingItems: [],
+});
 
 const makeOutlookSettings = () => ({
   credentials: {
@@ -153,8 +142,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     ]);
 
     vi.mocked(updateOutlookMessageFlag).mockResolvedValue();
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createMicrosoftOutlookJob(
       loadSettings,
@@ -170,7 +158,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
 
     // Assert
     expect(updateOutlookMessageFlag).toHaveBeenCalledWith("outlook-token", "msg-1", true);
-    expect(generateSyncActions).toHaveBeenCalled();
+    expect(reconcileSyncSourceAtomically).toHaveBeenCalled();
   });
 
   it("does not PATCH when markdown and Outlook completion already match", async () => {
@@ -207,8 +195,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     ]);
 
     vi.mocked(updateOutlookMessageFlag).mockResolvedValue();
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createMicrosoftOutlookJob(
       loadSettings,
@@ -281,11 +268,10 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     });
 
     let capturedIncoming: SyncItem[] = [];
-    vi.mocked(generateSyncActions).mockImplementation((incoming) => {
-      capturedIncoming = [...incoming];
-      return [];
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async (_file, incomingItems) => {
+      capturedIncoming = [...incomingItems];
+      return emptyReconcileResult();
     });
-    vi.mocked(writeSyncActions).mockResolvedValue();
 
     const job = createMicrosoftOutlookJob(
       loadSettings,
@@ -338,17 +324,10 @@ describe("createMicrosoftOutlookJob completion sync", () => {
 
     vi.mocked(updateOutlookMessageFlag).mockResolvedValue();
 
-    const actualActions = await vi.importActual<typeof SyncActionsModule>("@/sync/actions");
-    vi.mocked(generateSyncActions).mockImplementation(actualActions.generateSyncActions);
-    vi.mocked(filterActions).mockImplementation(actualActions.filterActions);
-    vi.mocked(shouldPreserveCompletedDeletes).mockImplementation(
-      actualActions.shouldPreserveCompletedDeletes,
-    );
-
-    let capturedActions: SyncAction[] = [];
-    vi.mocked(writeSyncActions).mockImplementation((_file, actions, _heading) => {
-      capturedActions = [...actions];
-      return Promise.resolve();
+    let capturedIncoming: SyncItem[] = [];
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async (_file, incomingItems) => {
+      capturedIncoming = [...incomingItems];
+      return emptyReconcileResult();
     });
 
     const job = createMicrosoftOutlookJob(
@@ -366,8 +345,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     // Assert
     expect(updateOutlookMessageFlag).toHaveBeenCalledWith("outlook-token", "msg-1", false);
 
-    const deleteActions = capturedActions.filter((action) => action.operation === "delete");
-    expect(deleteActions.find((action) => action.item.id === "msg-1")).toBeUndefined();
+    expect(capturedIncoming.find((item) => item.id === "msg-1")).toBeDefined();
   });
 
   it("does not falsely reconcile uncheck when re-flag PATCH fails", async () => {
@@ -400,11 +378,10 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     vi.mocked(updateOutlookMessageFlag).mockRejectedValue(new Error("Graph patch failed"));
 
     let capturedIncoming: SyncItem[] = [];
-    vi.mocked(generateSyncActions).mockImplementation((incoming) => {
-      capturedIncoming = [...incoming];
-      return [];
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async (_file, incomingItems) => {
+      capturedIncoming = [...incomingItems];
+      return emptyReconcileResult();
     });
-    vi.mocked(writeSyncActions).mockResolvedValue();
 
     const job = createMicrosoftOutlookJob(
       loadSettings,
@@ -450,17 +427,10 @@ describe("createMicrosoftOutlookJob completion sync", () => {
       },
     ]);
 
-    const actualActions = await vi.importActual<typeof SyncActionsModule>("@/sync/actions");
-    vi.mocked(generateSyncActions).mockImplementation(actualActions.generateSyncActions);
-    vi.mocked(filterActions).mockImplementation(actualActions.filterActions);
-    vi.mocked(shouldPreserveCompletedDeletes).mockImplementation(
-      actualActions.shouldPreserveCompletedDeletes,
-    );
-
-    let capturedActions: SyncAction[] = [];
-    vi.mocked(writeSyncActions).mockImplementation((_file, actions, _heading) => {
-      capturedActions = [...actions];
-      return Promise.resolve();
+    let capturedIncoming: SyncItem[] = [];
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async (_file, incomingItems) => {
+      capturedIncoming = [...incomingItems];
+      return emptyReconcileResult();
     });
 
     const job = createMicrosoftOutlookJob(
@@ -478,8 +448,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     // Assert
     expect(updateOutlookMessageFlag).not.toHaveBeenCalled();
 
-    const deleteActions = capturedActions.filter((action) => action.operation === "delete");
-    expect(deleteActions.find((action) => action.item.id === "msg-gone")).toBeDefined();
+    expect(capturedIncoming.find((item) => item.id === "msg-gone")).toBeUndefined();
   });
 
   it("reloads settings before persisting a refreshed access token", async () => {
@@ -508,8 +477,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     });
     vi.mocked(fetchFlaggedMessages).mockResolvedValue([]);
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createMicrosoftOutlookJob(
       loadSettings,
@@ -616,7 +584,7 @@ describe("createMicrosoftOutlookJob completion sync", () => {
       expect.objectContaining({ microsoftOutlook: undefined }),
     );
     expect(modalOpen).toHaveBeenCalled();
-    expect(writeSyncActions).not.toHaveBeenCalled();
+    expect(reconcileSyncSourceAtomically).not.toHaveBeenCalled();
   });
 
   it("clears credentials when completion PATCH returns 401", async () => {
@@ -676,6 +644,6 @@ describe("createMicrosoftOutlookJob completion sync", () => {
       expect.objectContaining({ microsoftOutlook: undefined }),
     );
     expect(modalOpen).toHaveBeenCalled();
-    expect(writeSyncActions).not.toHaveBeenCalled();
+    expect(reconcileSyncSourceAtomically).not.toHaveBeenCalled();
   });
 });

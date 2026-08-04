@@ -7,6 +7,18 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+/* Demote subsection titles under Google Tasks / Firefox Bookmarks / etc. */
+.setting-item.setting-item-heading.syncer-setting-subheading {
+  border-top: none;
+  padding-top: 0.75em;
+}
+
+.setting-item.setting-item-heading.syncer-setting-subheading .setting-item-name {
+  font-size: var(--font-ui-medium, 15px);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 /* Google Tasks List Selector */
 .google-tasks-toggle-container {
   display: flex;
@@ -48,6 +60,121 @@ If your plugin does not need CSS, delete this file.
 }
 
 .google-tasks-selection-count {
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Firefox Bookmarks folder picker (search-first; do not dump all folders) */
+.firefox-bookmarks-folder-selector {
+  margin-top: 0.5em;
+  margin-bottom: 1em;
+}
+
+.firefox-bookmarks-selected-list,
+.firefox-bookmarks-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.firefox-bookmarks-search-results {
+  max-height: 240px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+}
+
+.firefox-bookmarks-selected-row,
+.firefox-bookmarks-result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.25em;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  line-height: 1.4;
+}
+
+.firefox-bookmarks-selected-row {
+  justify-content: space-between;
+}
+
+.firefox-bookmarks-result-row {
+  cursor: pointer;
+}
+
+.firefox-bookmarks-result-row:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.firefox-bookmarks-result-row.is-selected {
+  background-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.firefox-bookmarks-selected-label,
+.firefox-bookmarks-result-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.firefox-bookmarks-selected-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-small, 13px);
+  line-height: 1.4;
+}
+
+.firefox-bookmarks-result-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-small, 13px);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.firefox-bookmarks-result-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller, 12px);
+  line-height: 1.3;
+}
+
+.firefox-bookmarks-result-row.is-selected .firefox-bookmarks-result-path {
+  color: var(--text-on-accent);
+  opacity: 0.85;
+}
+
+.firefox-bookmarks-selected-label.is-missing {
+  color: var(--text-error);
+}
+
+.firefox-bookmarks-remove-button {
+  flex: 0 0 auto;
+}
+
+.firefox-bookmarks-search-input {
+  width: 100%;
+}
+
+.firefox-bookmarks-selection-count {
   font-weight: 500;
   color: var(--text-muted);
   margin-top: 8px;

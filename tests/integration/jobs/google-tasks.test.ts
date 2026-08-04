@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { App, TFile, Vault } from "obsidian";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import type { SyncAction, SyncItem } from "@/sync/types";
+import type { AtomicReconcileResult } from "@/sync/writer";
 import type { GoogleTask } from "@/services/types";
 
 // Module mocks
@@ -31,12 +32,14 @@ vi.mock("@/sync/actions", () => {
 });
 
 vi.mock("@/sync/writer", () => {
-  const writeSyncActions = vi.fn() as unknown as (
+  const reconcileSyncSourceAtomically = vi.fn() as unknown as (
     file: TFile,
-    actions: SyncAction[],
+    incomingItems: readonly SyncItem[],
+    syncSource: string,
     heading: string,
-  ) => Promise<void>;
-  return { writeSyncActions };
+    actionPredicate?: (action: SyncAction) => boolean,
+  ) => Promise<AtomicReconcileResult>;
+  return { reconcileSyncSourceAtomically };
 });
 
 vi.mock("@/services", () => {
@@ -77,8 +80,7 @@ vi.mock("@/auth", () => {
 
 // Bring mocked fns into scope with types
 import { readMarkdownSyncItems } from "@/sync/reader";
-import { generateSyncActions } from "@/sync/actions";
-import { writeSyncActions } from "@/sync/writer";
+import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import { GoogleTasksService } from "@/services";
 import { GoogleAuth } from "@/auth";
 import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-tasks";
@@ -86,6 +88,7 @@ import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-task
 const baseConfig = {
   googleClientId: "id",
   microsoftClientId: "",
+  pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 
 const makeVault = (file: TFile | null) =>
@@ -99,6 +102,10 @@ const makeFile = (path = "GTD.md"): TFile =>
   }) as unknown as TFile;
 
 const mockApp = {} as unknown as App;
+const emptyReconcileResult = (): AtomicReconcileResult => ({
+  actions: [],
+  existingItems: [],
+});
 
 describe("createGoogleTasksJob", () => {
   beforeEach(() => {
@@ -136,7 +143,7 @@ describe("createGoogleTasksJob", () => {
     // Assert
     expect(vi.mocked(GoogleTasksService.createGoogleTasksFetcher)).not.toHaveBeenCalled();
     expect(vi.mocked(readMarkdownSyncItems)).not.toHaveBeenCalled();
-    expect(vi.mocked(writeSyncActions)).not.toHaveBeenCalled();
+    expect(vi.mocked(reconcileSyncSourceAtomically)).not.toHaveBeenCalled();
   });
 
   it("returns early when no lists selected", async () => {
@@ -174,7 +181,7 @@ describe("createGoogleTasksJob", () => {
     // Assert
     expect(vi.mocked(GoogleTasksService.createGoogleTasksFetcher)).not.toHaveBeenCalled();
     expect(vi.mocked(readMarkdownSyncItems)).not.toHaveBeenCalled();
-    expect(vi.mocked(writeSyncActions)).not.toHaveBeenCalled();
+    expect(vi.mocked(reconcileSyncSourceAtomically)).not.toHaveBeenCalled();
   });
 
   it("shows a notice and returns early when sync document is missing", async () => {
@@ -216,7 +223,7 @@ describe("createGoogleTasksJob", () => {
     const noticeArgument = notify.mock.calls[0]?.[0];
     expect(String(noticeArgument)).toContain("Missing.md");
     expect(vi.mocked(readMarkdownSyncItems)).not.toHaveBeenCalled();
-    expect(vi.mocked(writeSyncActions)).not.toHaveBeenCalled();
+    expect(vi.mocked(reconcileSyncSourceAtomically)).not.toHaveBeenCalled();
   });
 
   it("shows a notice and returns when file disappears mid-sync (ENOENT)", async () => {
@@ -265,7 +272,7 @@ describe("createGoogleTasksJob", () => {
     expect(notify).toHaveBeenCalledTimes(1);
     const noticeArgument = notify.mock.calls[0]?.[0];
     expect(String(noticeArgument)).toContain("missing on disk");
-    expect(vi.mocked(writeSyncActions)).not.toHaveBeenCalled();
+    expect(vi.mocked(reconcileSyncSourceAtomically)).not.toHaveBeenCalled();
   });
 
   it("refreshes token when expired and persists it, then syncs", async () => {
@@ -301,8 +308,7 @@ describe("createGoogleTasksJob", () => {
       { id: `${listId}-1`, title: "T", webViewLink: "https://x" } as GoogleTask,
     ]);
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createGoogleTasksJob(
       loadSettings,
@@ -326,8 +332,13 @@ describe("createGoogleTasksJob", () => {
     // Subsequent fetch and write
     expect(GoogleTasksService.createGoogleTasksFetcher).toHaveBeenCalledWith("new-token");
     expect(readMarkdownSyncItems).toHaveBeenCalledWith(file, "google-tasks");
-    expect(generateSyncActions).toHaveBeenCalled();
-    expect(writeSyncActions).toHaveBeenCalledWith(file, expect.any(Array), "## Inbox");
+    expect(reconcileSyncSourceAtomically).toHaveBeenCalledWith(
+      file,
+      expect.any(Array),
+      "google-tasks",
+      "## Inbox",
+      expect.any(Function),
+    );
   });
 
   it("performs a full sync when configured and token valid", async () => {
@@ -367,32 +378,7 @@ describe("createGoogleTasksJob", () => {
       },
     ];
     vi.mocked(readMarkdownSyncItems).mockResolvedValue(existing);
-    const actions: SyncAction[] = [
-      {
-        operation: "update",
-        item: {
-          id: "A-1",
-          title: "T1",
-          link: "https://x1",
-          source: "google-tasks",
-          heading: "## Inbox",
-          completed: false,
-        },
-      },
-      {
-        operation: "create",
-        item: {
-          id: "B-1",
-          title: "T1",
-          link: "https://x1",
-          source: "google-tasks",
-          heading: "## Inbox",
-          completed: false,
-        },
-      },
-    ];
-    vi.mocked(generateSyncActions).mockReturnValue(actions);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createGoogleTasksJob(
       loadSettings,
@@ -409,7 +395,8 @@ describe("createGoogleTasksJob", () => {
     // Assert
     expect(GoogleTasksService.createGoogleTasksFetcher).toHaveBeenCalledWith("tok");
     expect(readMarkdownSyncItems).toHaveBeenCalledWith(file, "google-tasks");
-    expect(generateSyncActions).toHaveBeenCalledWith(
+    expect(reconcileSyncSourceAtomically).toHaveBeenCalledWith(
+      file,
       [
         {
           id: "A-1",
@@ -428,9 +415,10 @@ describe("createGoogleTasksJob", () => {
           completed: false,
         },
       ],
-      existing,
+      "google-tasks",
+      "## Inbox",
+      expect.any(Function),
     );
-    expect(writeSyncActions).toHaveBeenCalledWith(file, actions, "## Inbox");
   });
 
   it("excludes failed updates from incoming items to prevent desync", async () => {
@@ -510,14 +498,12 @@ describe("createGoogleTasksJob", () => {
       },
     );
 
-    // Mock generateSyncActions to capture what incoming items it receives
+    // Capture what incoming items are passed to atomic reconcile
     let capturedIncoming: SyncItem[] = [];
-    vi.mocked(generateSyncActions).mockImplementation((incoming, _existing) => {
-      capturedIncoming = [...incoming];
-      return [];
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async (_file, incomingItems) => {
+      capturedIncoming = [...incomingItems];
+      return emptyReconcileResult();
     });
-
-    vi.mocked(writeSyncActions).mockResolvedValue();
 
     const notify = vi.fn();
     const job = createGoogleTasksJob(
@@ -610,14 +596,13 @@ describe("createGoogleTasksJob", () => {
     ];
     vi.mocked(readMarkdownSyncItems).mockResolvedValue(existing);
     vi.mocked(updateGoogleTaskStatus).mockResolvedValue();
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
-    // Capture the actions passed to writeSyncActions
-    let capturedActions: SyncAction[] = [];
-    vi.mocked(writeSyncActions).mockImplementation((_file, actions, _heading) => {
-      capturedActions = [...actions];
-      return Promise.resolve();
+    // Capture incoming items passed to atomic reconcile
+    let capturedIncoming: SyncItem[] = [];
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async (_file, incomingItems) => {
+      capturedIncoming = [...incomingItems];
+      return emptyReconcileResult();
     });
 
     const notify = vi.fn();
@@ -636,12 +621,8 @@ describe("createGoogleTasksJob", () => {
     // Assert: Should call updateGoogleTaskStatus to uncomplete the task
     expect(updateGoogleTaskStatus).toHaveBeenCalledWith("tok", "list-1", "task-uncomplete", false);
 
-    // Assert: Task should not be deleted (it should be added to incoming after uncompleting)
-    const deleteActions = capturedActions.filter((action) => action.operation === "delete");
-    const uncompletedTaskDeleteAction = deleteActions.find(
-      (action) => action.item.id === "task-uncomplete",
-    );
-    expect(uncompletedTaskDeleteAction).toBeUndefined();
+    // Assert: uncompleted task should be present in reconcile input
+    expect(capturedIncoming.find((item) => item.id === "task-uncomplete")).toBeDefined();
   });
 
   it("filters out manually deleted tasks from sync", async () => {
@@ -673,12 +654,10 @@ describe("createGoogleTasksJob", () => {
       { id: "A-2", title: "Normal Task", webViewLink: "https://x2" } as GoogleTask,
     ]);
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
-    const capturedActions: SyncAction[] = [];
-    vi.mocked(generateSyncActions).mockImplementation((incoming) => {
-      return incoming.map((item) => ({ operation: "create" as const, item }));
-    });
-    vi.mocked(writeSyncActions).mockImplementation(async (_file, actions) => {
-      capturedActions.push(...actions);
+    let capturedIncoming: SyncItem[] = [];
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async (_file, incomingItems) => {
+      capturedIncoming = [...incomingItems];
+      return emptyReconcileResult();
     });
 
     const job = createGoogleTasksJob(
@@ -694,7 +673,7 @@ describe("createGoogleTasksJob", () => {
     await job.task();
 
     // Assert: Manually deleted task should be filtered out
-    const incomingTaskIds = capturedActions.map((action) => action.item.id);
+    const incomingTaskIds = capturedIncoming.map((item) => item.id);
     expect(incomingTaskIds).not.toContain("A-1");
     expect(incomingTaskIds).toContain("A-2");
   });
@@ -728,8 +707,7 @@ describe("createGoogleTasksJob", () => {
       // A-2 is not in the list (deleted from Google Tasks)
     ]);
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
-    vi.mocked(generateSyncActions).mockReturnValue([]);
-    vi.mocked(writeSyncActions).mockResolvedValue();
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
 
     const job = createGoogleTasksJob(
       loadSettings,

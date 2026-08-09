@@ -72,23 +72,23 @@ const baseOptions = {
 };
 
 const environmentSchema = z.object({
-  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
+  GOOGLE_TASKS_CLIENT_ID: z.string().min(1, "GOOGLE_TASKS_CLIENT_ID is required"),
 });
 
 /**
- * Returns the Microsoft client ID for the current build mode.
- * Production builds require MICROSOFT_CLIENT_ID_PROD (Outlook is a shipped feature).
- * Development builds treat MICROSOFT_CLIENT_ID_DEV as optional (Outlook Connect disabled if omitted).
+ * Returns the Outlook client ID for the current build mode.
+ * Production builds require OUTLOOK_CLIENT_ID_PROD (Outlook is a shipped feature).
+ * Development builds treat OUTLOOK_CLIENT_ID_DEV as optional (Outlook Connect disabled if omitted).
  */
 const getMicrosoftClientId = (mode) => {
   const environmentVariableName =
-    mode === "production" ? "MICROSOFT_CLIENT_ID_PROD" : "MICROSOFT_CLIENT_ID_DEV";
+    mode === "production" ? "OUTLOOK_CLIENT_ID_PROD" : "OUTLOOK_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
   const trimmed = typeof clientId === "string" ? clientId.trim() : "";
 
   if (mode === "production" && trimmed.length === 0) {
     throw new Error(
-      `Microsoft Client ID is required for production builds. Set ${environmentVariableName} environment variable.`,
+      `Outlook Client ID is required for production builds. Set ${environmentVariableName} environment variable.`,
     );
   }
 
@@ -97,12 +97,12 @@ const getMicrosoftClientId = (mode) => {
 
 /**
  * Validates and returns the Google Client ID for the current build mode.
- * Production builds require GOOGLE_CLIENT_ID_PROD.
- * Development builds require GOOGLE_CLIENT_ID_DEV.
+ * Production builds require GOOGLE_TASKS_CLIENT_ID_PROD.
+ * Development builds require GOOGLE_TASKS_CLIENT_ID_DEV.
  */
 const getValidatedClientId = (mode) => {
   const environmentVariableName =
-    mode === "production" ? "GOOGLE_CLIENT_ID_PROD" : "GOOGLE_CLIENT_ID_DEV";
+    mode === "production" ? "GOOGLE_TASKS_CLIENT_ID_PROD" : "GOOGLE_TASKS_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
 
   if (!clientId || clientId.trim() === "") {
@@ -111,7 +111,7 @@ const getValidatedClientId = (mode) => {
     );
   }
 
-  const result = environmentSchema.safeParse({ GOOGLE_CLIENT_ID: clientId });
+  const result = environmentSchema.safeParse({ GOOGLE_TASKS_CLIENT_ID: clientId });
   if (!result.success) {
     const issues = result.error.issues
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
@@ -119,20 +119,20 @@ const getValidatedClientId = (mode) => {
     throw new Error(`Invalid Google Client ID: ${issues}`);
   }
 
-  return result.data.GOOGLE_CLIENT_ID;
+  return result.data.GOOGLE_TASKS_CLIENT_ID;
 };
 
 /**
  * Creates production build options with the validated client ID.
  */
-const createProductionOptions = (clientId, microsoftClientId) => ({
+const createProductionOptions = (clientId, outlookClientId) => ({
   ...baseOptions,
   sourcemap: false,
   minify: true,
   define: {
     "process.env": JSON.stringify({
-      GOOGLE_CLIENT_ID: clientId,
-      MICROSOFT_CLIENT_ID: microsoftClientId,
+      GOOGLE_TASKS_CLIENT_ID: clientId,
+      OUTLOOK_CLIENT_ID: outlookClientId,
     }),
   },
 });
@@ -140,14 +140,14 @@ const createProductionOptions = (clientId, microsoftClientId) => ({
 /**
  * Creates development build options with the validated client ID.
  */
-const createDevelopmentOptions = (clientId, microsoftClientId) => ({
+const createDevelopmentOptions = (clientId, outlookClientId) => ({
   ...baseOptions,
   sourcemap: "inline",
   minify: false,
   define: {
     "process.env": JSON.stringify({
-      GOOGLE_CLIENT_ID: clientId,
-      MICROSOFT_CLIENT_ID: microsoftClientId,
+      GOOGLE_TASKS_CLIENT_ID: clientId,
+      OUTLOOK_CLIENT_ID: outlookClientId,
     }),
   },
 });
@@ -210,30 +210,28 @@ const run = async () => {
   const clientIdType = mode === "production" ? "PROD" : "DEV";
   console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
 
-  const microsoftClientId = getMicrosoftClientId(
+  const outlookClientId = getMicrosoftClientId(
     mode === "production" ? "production" : "development",
   );
-  if (microsoftClientId.length > 0) {
-    console.info(
-      `Using Microsoft Client ID (${clientIdType}): ${microsoftClientId.slice(0, 8)}...`,
-    );
+  if (outlookClientId.length > 0) {
+    console.info(`Using Outlook Client ID (${clientIdType}): ${outlookClientId.slice(0, 8)}...`);
   } else {
-    console.info("Microsoft Client ID not set (Outlook connect disabled until configured).");
+    console.info("Outlook Client ID not set (Outlook connect disabled until configured).");
   }
 
   switch (mode) {
     case "production": {
-      const options = createProductionOptions(clientId, microsoftClientId);
+      const options = createProductionOptions(clientId, outlookClientId);
       await build(options);
       break;
     }
     case "development": {
-      const options = createDevelopmentOptions(clientId, microsoftClientId);
+      const options = createDevelopmentOptions(clientId, outlookClientId);
       await build(options);
       break;
     }
     default: {
-      const options = createDevelopmentOptions(clientId, microsoftClientId);
+      const options = createDevelopmentOptions(clientId, outlookClientId);
       await watch(options);
     }
   }

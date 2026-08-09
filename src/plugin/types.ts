@@ -32,7 +32,7 @@ export type PluginSettings = {
  */
 export type PluginConfig = {
   googleClientId: string;
-  microsoftClientId: string;
+  outlookClientId: string;
   pluginDirectory: string;
 };
 

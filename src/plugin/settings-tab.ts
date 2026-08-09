@@ -349,12 +349,12 @@ export class SettingsTab extends PluginSettingTab {
     if (microsoftOutlook === undefined) {
       outlookRow.setName("No Microsoft Outlook account connected");
       outlookRow.setDesc(
-        this.config.microsoftClientId.length === 0
-          ? "The plugin build does not include a Microsoft application (client) ID. Set MICROSOFT_CLIENT_ID_DEV or MICROSOFT_CLIENT_ID_PROD when building to enable Connect."
+        this.config.outlookClientId.length === 0
+          ? "The plugin build does not include a Microsoft application (client) ID. Set OUTLOOK_CLIENT_ID_DEV or OUTLOOK_CLIENT_ID_PROD when building to enable Connect."
           : "Connect opens your browser to sign in with Microsoft; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
       );
       outlookRow.addButton((button) => {
-        if (this.config.microsoftClientId.length === 0) {
+        if (this.config.outlookClientId.length === 0) {
           button.setDisabled(true);
         }
         button.setButtonText("Connect").onClick(async () => {
@@ -387,8 +387,8 @@ export class SettingsTab extends PluginSettingTab {
 
   private async connectMicrosoftOutlook(): Promise<void> {
     /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
-    if (this.config.microsoftClientId.length === 0) {
-      new Notice("Microsoft client ID is not configured for this build.");
+    if (this.config.outlookClientId.length === 0) {
+      new Notice("Outlook client ID is not configured for this build.");
       return;
     }
 
@@ -408,7 +408,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       const credentials = await MicrosoftAuth.authenticate({
-        clientId: this.config.microsoftClientId,
+        clientId: this.config.outlookClientId,
         tenantSegment,
       });
 

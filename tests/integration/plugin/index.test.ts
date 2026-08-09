@@ -13,7 +13,8 @@ const mockManifest = {
 describe("Plugin settings method binding", () => {
   beforeEach(() => {
     // Ensure required env vars for constructor schema parse
-    process.env["GOOGLE_CLIENT_ID"] = process.env["GOOGLE_CLIENT_ID"] ?? "test-client-id";
+    process.env["GOOGLE_TASKS_CLIENT_ID"] =
+      process.env["GOOGLE_TASKS_CLIENT_ID"] ?? "test-client-id";
   });
 
   it("allows calling load/save/update after destructuring (bound methods)", async () => {
@@ -39,7 +40,8 @@ describe("Plugin settings method binding", () => {
 describe("Plugin file content cache initialization", () => {
   beforeEach(() => {
     // Ensure required env vars for constructor schema parse
-    process.env["GOOGLE_CLIENT_ID"] = process.env["GOOGLE_CLIENT_ID"] ?? "test-client-id";
+    process.env["GOOGLE_TASKS_CLIENT_ID"] =
+      process.env["GOOGLE_TASKS_CLIENT_ID"] ?? "test-client-id";
   });
 
   it("re-initializes cache when syncDocument changes", async () => {

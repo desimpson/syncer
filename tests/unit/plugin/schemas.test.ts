@@ -35,7 +35,7 @@ describe("pluginSchema", () => {
   it("accepts valid non-empty client credentials", () => {
     // Arrange
     const input = {
-      GOOGLE_CLIENT_ID: "id-123",
+      GOOGLE_TASKS_CLIENT_ID: "id-123",
     };
 
     // Act
@@ -44,15 +44,15 @@ describe("pluginSchema", () => {
     // Assert
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.GOOGLE_CLIENT_ID).toBe("id-123");
-      expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
+      expect(result.data.GOOGLE_TASKS_CLIENT_ID).toBe("id-123");
+      expect(result.data.OUTLOOK_CLIENT_ID).toBe("");
     }
   });
 
   it("rejects empty client credentials", () => {
     // Arrange
     const input = {
-      GOOGLE_CLIENT_ID: "",
+      GOOGLE_TASKS_CLIENT_ID: "",
     };
 
     // Act

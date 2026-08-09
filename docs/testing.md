@@ -83,3 +83,13 @@ tests/
 - **CI optimization**: Can run unit tests first, fail fast on logic errors
 - **Clear separation**: Easy to identify test types and their purposes
 - **Parallel execution**: Different test suites can run independently
+
+## Scoped property-based testing and contracts
+
+Use these techniques selectively to match Syncer's size and risk profile:
+
+- Prefer property-based tests for sync-core invariants (`src/sync/actions.ts`, `src/sync/reader.ts`, `src/sync/writer.ts`) where many input combinations can hide edge cases
+- Keep property-based coverage small and purposeful (idempotence, create/update/delete partitioning, completed-delete preservation, parse/write stability)
+- Do not replace broad example-based tests in `jobs/`, `services/`, or `auth/` with heavy generator suites; side-effect flows remain better served by focused integration tests
+- Treat Zod schemas as the primary runtime contract mechanism at boundaries (settings, provider payloads, markdown metadata)
+- Add internal contract assertions only for critical invariants in complex paths; avoid pervasive DbC-style guards on every helper

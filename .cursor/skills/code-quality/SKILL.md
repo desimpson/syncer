@@ -31,6 +31,9 @@ Follow [`docs/testing.md`](docs/testing.md):
 - Pure logic → `tests/unit/…`
 - Vault/HTTP/DOM/timer mocks → `tests/integration/…`
 - Mirror the `src/` area path
+- Use property-based tests sparingly and only where invariants are high-value (mainly `sync/` reconcile and markdown transform logic)
+- Keep PBT scope proportional to project size: a few strong properties over large random suites
+- Treat Zod as primary DbC at boundaries; add internal invariant checks only in critical paths
 
 ## Scope
 

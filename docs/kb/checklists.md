@@ -5,6 +5,7 @@ Small, repeatable checklists for this Obsidian plugin. Keep these lightweight.
 ## Definition of done (minimum)
 
 - Behaviour change implemented and covered by the right test level (unit/integration/manual)
+- For reconcile/parser/writer logic, consider a targeted invariant/property test; keep scope lean for repo size
 - Relevant KB page updated in the same task (`architecture`, `sync-semantics`, `conventions`, or `gotchas`)
 - PR description links issue with `Closes #<id>` (or `Refs #<id>` when not closing)
 - Before merging a PR that closes an issue, post evidence comment on the issue: PR link, automated results, and manual notes

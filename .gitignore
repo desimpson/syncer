@@ -35,3 +35,6 @@ sql-wasm.wasm
 .envrc
 .direnv
 .env
+
+# Cursor local planning artefacts
+.cursor/plans/

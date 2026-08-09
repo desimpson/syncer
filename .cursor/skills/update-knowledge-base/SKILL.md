@@ -29,7 +29,7 @@ Skip for pure formatting, typo-only, or test-only changes that do not alter prod
 | Env, auth traps, known footguns                                | [`docs/kb/gotchas.md`](docs/kb/gotchas.md)               |
 | Index / update policy                                          | [`docs/kb/README.md`](docs/kb/README.md)                 |
 
-Backlog items stay in [`TODO.md`](TODO.md). Mention in `gotchas.md` only when they actively trip agents.
+Backlog items live in GitHub issues. Mention in `gotchas.md` only when they actively trip agents.
 
 ## Done when
 

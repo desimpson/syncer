@@ -187,7 +187,6 @@ describe("createAzureDevOpsJob (PAT mode)", () => {
     const freshContent = "## Inbox\n- [ ] fresh";
     const readSpy = vi
       .fn()
-      .mockResolvedValueOnce(staleContent) // pre-sync trace
       .mockResolvedValueOnce(staleContent) // stability: initial
       .mockResolvedValueOnce(freshContent) // stability: changed
       .mockResolvedValueOnce(freshContent); // stability: stable
@@ -204,7 +203,7 @@ describe("createAzureDevOpsJob (PAT mode)", () => {
       },
     ]);
     vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async () => {
-      expect(readSpy).toHaveBeenCalledTimes(4);
+      expect(readSpy).toHaveBeenCalledTimes(3);
       return createReconcileResult();
     });
     const job = createAzureDevOpsJob(loadSettings, vi.fn(), baseConfig, vault, vi.fn(), mockApp);
@@ -216,6 +215,47 @@ describe("createAzureDevOpsJob (PAT mode)", () => {
 
     // Assert
     expect(vi.mocked(reconcileSyncSourceAtomically)).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("skips reconcile when sync file never reaches a stable snapshot", async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const loadSettings = vi.fn().mockResolvedValue(makeSettings());
+    const file = makeFile();
+    const notify = vi.fn();
+    const changingRead = vi
+      .fn()
+      .mockResolvedValueOnce("## Inbox\n- [ ] state-a")
+      .mockResolvedValueOnce("## Inbox\n- [ ] state-b")
+      .mockResolvedValueOnce("## Inbox\n- [ ] state-c")
+      .mockResolvedValueOnce("## Inbox\n- [ ] state-d")
+      .mockResolvedValueOnce("## Inbox\n- [ ] state-e")
+      .mockResolvedValueOnce("## Inbox\n- [ ] state-f")
+      .mockResolvedValueOnce("## Inbox\n- [ ] state-g");
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: changingRead,
+    } as unknown as Vault;
+    vi.mocked(fetchAssignedWorkItems).mockResolvedValue([
+      {
+        id: 42,
+        title: "Fix bug",
+        url: "https://dev.azure.com/my-org/My%20Test%20Project/_workitems/edit/42",
+      },
+    ]);
+    const job = createAzureDevOpsJob(loadSettings, vi.fn(), baseConfig, vault, notify, mockApp);
+
+    // Act
+    const taskPromise = job.task();
+    await vi.runAllTimersAsync();
+    await taskPromise;
+
+    // Assert
+    expect(vi.mocked(reconcileSyncSourceAtomically)).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(
+      "Sync document is still changing on disk. Azure DevOps sync skipped; retry shortly.",
+    );
     vi.useRealTimers();
   });
 

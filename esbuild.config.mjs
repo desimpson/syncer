@@ -191,15 +191,30 @@ const watch = async (options) => {
 };
 
 /**
- * Parses the build mode from command-line arguments.
+ * Parses and normalises the build mode from command-line arguments.
  *
  * @returns {"production" | "development" | "watch"} The current mode.
  */
 const getMode = () => {
   const modeFlagIndex = process.argv.indexOf("--mode");
-  return modeFlagIndex !== -1 && modeFlagIndex + 1 < process.argv.length
-    ? process.argv[modeFlagIndex + 1]
-    : "watch"; // default is "watch"
+  const rawMode =
+    modeFlagIndex !== -1 && modeFlagIndex + 1 < process.argv.length
+      ? process.argv[modeFlagIndex + 1]
+      : "watch";
+
+  switch (rawMode) {
+    case "prod":
+    case "production": {
+      return "production";
+    }
+    case "dev":
+    case "development": {
+      return "development";
+    }
+    default: {
+      return "watch";
+    }
+  }
 };
 
 /**

@@ -4,6 +4,12 @@ import type { ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { URLSearchParams } from "node:url";
 import { formatLogError } from "@/utils/error-formatters";
+import {
+  describeGoogleClientId,
+  googleOAuthDebugError,
+  googleOAuthDebugLog,
+  redactAuthUrl,
+} from "@/auth/google-oauth-debug";
 import type { GoogleCredentials, GoogleUserInfo } from "@/auth/types";
 import {
   refreshResponseSchema,
@@ -101,6 +107,17 @@ const exchangeCodeForTokens = async (
 
   if (!response.ok) {
     const errorText = await response.text();
+    googleOAuthDebugError(
+      "Token exchange failed",
+      {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+        clientId: describeGoogleClientId(clientId),
+        redirectUri,
+      },
+      { phase: "token-exchange" },
+    );
     throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
   }
 
@@ -134,6 +151,16 @@ const parseAuthRequest = (requestUrl: string, expectedPath: string): AuthResult 
 
   if (searchParameters.has("error")) {
     const errorMessage = searchParameters.get("error") ?? "Unknown error";
+    const errorDescription = searchParameters.get("error_description");
+    googleOAuthDebugError(
+      "OAuth callback returned error query params",
+      {
+        error: errorMessage,
+        errorDescription,
+        requestUrl,
+      },
+      { phase: "callback" },
+    );
     return { type: "authorization_denied", message: errorMessage };
   }
 
@@ -176,11 +203,21 @@ const createAuthServer = (
   createServer(async (request, response) => {
     try {
       const requestUrl = request.url ?? "/";
+      googleOAuthDebugLog("OAuth callback received", { requestUrl }, { phase: "callback" });
       const result = parseAuthRequest(requestUrl, redirectPath);
 
       // Handle success case early
       if (!("type" in result)) {
         const redirectUri = getRedirectUri(); // Get the redirectUri when we need it
+        googleOAuthDebugLog(
+          "Exchanging authorization code for tokens",
+          {
+            redirectUri,
+            clientId: describeGoogleClientId(clientId),
+            codeLength: result.code.length,
+          },
+          { phase: "token-exchange" },
+        );
         const authenticatedClient = await exchangeCodeForTokens(clientId, result.code, redirectUri);
 
         response.end(SUCCESS_MESSAGE);
@@ -196,6 +233,11 @@ const createAuthServer = (
         onError(new Error(result.message));
       }
     } catch (error) {
+      googleOAuthDebugError(
+        "OAuth callback handler threw",
+        { error: formatLogError(error, false) },
+        { phase: "callback" },
+      );
       onError(error as Error);
     }
   });
@@ -263,7 +305,23 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
       serverPort = address.port;
       const redirectUri = createRedirectUri(serverPort);
 
+      googleOAuthDebugLog(
+        "Starting Google OAuth browser flow",
+        {
+          clientId: describeGoogleClientId(options.clientId),
+          scopes: options.scopes,
+          redirectUri,
+          serverPort,
+        },
+        { phase: "authorize" },
+      );
+
       const authUrl = generateAuthUrl(options.clientId, redirectUri, options.scopes);
+      googleOAuthDebugLog(
+        "Opening authorization URL",
+        { authUrl: redactAuthUrl(authUrl) },
+        { phase: "authorize" },
+      );
       window.open(authUrl, "_blank");
     });
   });

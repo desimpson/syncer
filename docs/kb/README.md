@@ -12,7 +12,7 @@ Short, living notes for agents and contributors. Prefer links into `src/` over c
 | [gotchas.md](gotchas.md)               | Footguns, env gaps, known traps                   |
 | [checklists.md](checklists.md)         | DoD, issue/PR evidence, debug, release smoke      |
 
-Also see [docs/testing.md](../testing.md) for unit vs integration layout (do not duplicate here).
+Also see [docs/design.md](../design.md) for product intent and roadmap, and [docs/testing.md](../testing.md) for unit vs integration layout (do not duplicate here).
 
 ## When to update
 

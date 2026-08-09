@@ -82,13 +82,13 @@ const environmentSchema = z.object({
  */
 const getMicrosoftClientId = (mode) => {
   const environmentVariableName =
-    mode === "production" ? "OUTLOOK_CLIENT_ID_PROD" : "OUTLOOK_CLIENT_ID_DEV";
+    mode === "prod" ? "OUTLOOK_CLIENT_ID_PROD" : "OUTLOOK_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
   const trimmed = typeof clientId === "string" ? clientId.trim() : "";
 
-  if (mode === "production" && trimmed.length === 0) {
+  if (mode === "prod" && trimmed.length === 0) {
     throw new Error(
-      `Outlook Client ID is required for production builds. Set ${environmentVariableName} environment variable.`,
+      `Outlook Client ID is required for prod builds. Set ${environmentVariableName} environment variable.`,
     );
   }
 
@@ -102,7 +102,7 @@ const getMicrosoftClientId = (mode) => {
  */
 const getValidatedClientId = (mode) => {
   const environmentVariableName =
-    mode === "production" ? "GOOGLE_TASKS_CLIENT_ID_PROD" : "GOOGLE_TASKS_CLIENT_ID_DEV";
+    mode === "prod" ? "GOOGLE_TASKS_CLIENT_ID_PROD" : "GOOGLE_TASKS_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
 
   if (!clientId || clientId.trim() === "") {
@@ -187,7 +187,7 @@ const watch = async (options) => {
 /**
  * Parses the build mode from command-line arguments.
  *
- * @returns {"production" | "development" | "watch"} The current mode.
+ * @returns {"prod" | "dev" | "watch"} The current mode.
  */
 const getMode = () => {
   const modeFlagIndex = process.argv.indexOf("--mode");
@@ -207,12 +207,10 @@ const run = async () => {
 
   // Get and validate the appropriate client ID for this build mode
   const clientId = getValidatedClientId(mode);
-  const clientIdType = mode === "production" ? "PROD" : "DEV";
+  const clientIdType = mode === "prod" ? "PROD" : "DEV";
   console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
 
-  const outlookClientId = getMicrosoftClientId(
-    mode === "production" ? "production" : "development",
-  );
+  const outlookClientId = getMicrosoftClientId(mode);
   if (outlookClientId.length > 0) {
     console.info(`Using Outlook Client ID (${clientIdType}): ${outlookClientId.slice(0, 8)}...`);
   } else {
@@ -220,12 +218,12 @@ const run = async () => {
   }
 
   switch (mode) {
-    case "production": {
+    case "prod": {
       const options = createProductionOptions(clientId, outlookClientId);
       await build(options);
       break;
     }
-    case "development": {
+    case "dev": {
       const options = createDevelopmentOptions(clientId, outlookClientId);
       await build(options);
       break;

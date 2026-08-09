@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "npm run build:dev",
-    "build:dev": "npm run typecheck && node esbuild.config.mjs --mode development",
-    "build:prod": "npm run typecheck && node esbuild.config.mjs --mode production",
+    "build:dev": "npm run typecheck && node esbuild.config.mjs --mode dev",
+    "build:prod": "npm run typecheck && node esbuild.config.mjs --mode prod",
     "build:watch": "npm run typecheck && node esbuild.config.mjs --mode watch",
     "dev": "npm run build:watch",
     "format": "npm run format:check",

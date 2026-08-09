@@ -178,6 +178,47 @@ describe("createAzureDevOpsJob (PAT mode)", () => {
     expect(vi.mocked(reconcileSyncSourceAtomically)).toHaveBeenCalledTimes(2);
   });
 
+  it("waits for a stable on-disk snapshot before first reconcile", async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const loadSettings = vi.fn().mockResolvedValue(makeSettings());
+    const file = makeFile();
+    const staleContent = "## Inbox\n- [ ] stale";
+    const freshContent = "## Inbox\n- [ ] fresh";
+    const readSpy = vi
+      .fn()
+      .mockResolvedValueOnce(staleContent) // pre-sync trace
+      .mockResolvedValueOnce(staleContent) // stability: initial
+      .mockResolvedValueOnce(freshContent) // stability: changed
+      .mockResolvedValueOnce(freshContent); // stability: stable
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: readSpy,
+    } as unknown as Vault;
+
+    vi.mocked(fetchAssignedWorkItems).mockResolvedValue([
+      {
+        id: 42,
+        title: "Fix bug",
+        url: "https://dev.azure.com/my-org/My%20Test%20Project/_workitems/edit/42",
+      },
+    ]);
+    vi.mocked(reconcileSyncSourceAtomically).mockImplementation(async () => {
+      expect(readSpy).toHaveBeenCalledTimes(4);
+      return createReconcileResult();
+    });
+    const job = createAzureDevOpsJob(loadSettings, vi.fn(), baseConfig, vault, vi.fn(), mockApp);
+
+    // Act
+    const taskPromise = job.task();
+    await vi.runAllTimersAsync();
+    await taskPromise;
+
+    // Assert
+    expect(vi.mocked(reconcileSyncSourceAtomically)).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
   it("notifies and returns on PAT authorization failure", async () => {
     // Arrange
     const loadSettings = vi.fn().mockResolvedValue(makeSettings());

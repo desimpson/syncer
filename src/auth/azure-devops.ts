@@ -42,7 +42,7 @@ export type AzureDevOpsAuthSelection = {
 /**
  * Maps settings UI values to the Microsoft identity platform tenant path segment.
  *
- * - Personal Microsoft account → `consumers`
+ * - Personal Microsoft account → `common`
  * - Work or school, any tenant → `organizations`
  * - Work or school, single tenant → Azure AD tenant GUID
  */
@@ -50,7 +50,9 @@ export const azureDevOpsTenantSegmentFromAuthSelection = (
   selection: AzureDevOpsAuthSelection,
 ): string => {
   if (selection.accountKind === "personal") {
-    return "consumers";
+    // Azure DevOps Entra scopes are not available on the consumers authority.
+    // Use common so personal Microsoft accounts can still complete consent.
+    return "common";
   }
 
   const tenantId = selection.workOrSchoolTenantId.trim();
@@ -77,7 +79,7 @@ const generatePkcePair = (): { codeVerifier: string; codeChallenge: string } => 
 export type AzureDevOpsAuthOptions = {
   /** Entra application (client) ID from the plugin build configuration. */
   clientId: string;
-  /** `consumers`, `organizations`, or a tenant GUID. */
+  /** `common`, `organizations`, or a tenant GUID. */
   tenantSegment: string;
 };
 

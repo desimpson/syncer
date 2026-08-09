@@ -3,7 +3,3 @@
 # Local development only: path to Obsidian vault plugin directory for hot-reloading, etc.
 export OBSIDIAN_VAULT_PLUGIN_DIR_DEV="$HOME/Documents/Obsidian Dev Vault/.obsidian/plugins/syncer"
 
-# Optional OAuth client IDs for local builds (see .env.example)
-# export GOOGLE_TASKS_CLIENT_ID_DEV=
-# export OUTLOOK_CLIENT_ID_DEV=
-# export AZURE_DEVOPS_CLIENT_ID_DEV=

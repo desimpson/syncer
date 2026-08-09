@@ -12,7 +12,7 @@
 
 - Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`). README “PKCE” wording is misleading
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
-- Azure DevOps: Auth Code + PKCE via Entra ID; Azure DevOps resource scope (`499b84ac-1321-427f-aa17-267ca6975798/.default`); register **Mobile and desktop** redirect URIs for `http://localhost`; personal Microsoft accounts use `common` authority (not `consumers`) because Azure DevOps scopes are not exposed on `consumers`
+- Azure DevOps: Auth Code + PKCE via Entra ID; Azure DevOps resource scope (`499b84ac-1321-427f-aa17-267ca6975798/.default`); register **Mobile and desktop** redirect URIs for `http://localhost`; Entra OAuth for Azure DevOps currently supports work/school accounts (MSA/personal support is not available yet)
 - Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
 - Google services still use global `fetch` in places; prefer matching the style of the file you touch
 

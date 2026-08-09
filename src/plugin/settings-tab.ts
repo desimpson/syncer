@@ -478,11 +478,11 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Azure DevOps account type")
       .setDesc(
-        "Choose the option that matches how you sign in to Microsoft for Azure DevOps: personal Microsoft account or work/school.",
+        "Choose how you sign in to Microsoft for Azure DevOps. Current Entra OAuth support is work/school only.",
       )
       .addDropdown((dropdown) => {
         dropdown
-          .addOption("personal", "Personal Microsoft account")
+          .addOption("personal", "Personal Microsoft account (not supported with Entra OAuth yet)")
           .addOption("workSchool", "Work or school")
           .setValue(settings.azureDevOpsAuthAccountKind)
           .onChange(async (value) => {
@@ -606,6 +606,15 @@ export class SettingsTab extends PluginSettingTab {
     const organization = normaliseAzureDevOpsOrganizationInput(
       settings.azureDevOpsOrganization ?? settings.azureDevOps?.organization ?? "",
     );
+    if (settings.azureDevOpsAuthAccountKind === "personal") {
+      new Notice(
+        "Azure DevOps via Entra OAuth currently supports work/school accounts only. Switch account type to Work or school.",
+      );
+      console.warn(
+        `${AZURE_DEVOPS_SETTINGS_DEBUG_PREFIX} Personal account selected, but Entra OAuth for Azure DevOps currently supports work/school accounts only.`,
+      );
+      return;
+    }
     if (organization.length === 0) {
       new Notice("Enter your Azure DevOps organisation name before connecting.");
       return;

@@ -60,7 +60,7 @@ Owning job: [`src/jobs/azure-devops.ts`](../../src/jobs/azure-devops.ts).
 - One connected organisation per settings profile; reconnect (disconnect + connect) to switch org
 - Checkbox in Obsidian is **local-only** — no write-back to Azure DevOps work item state in #35
 - Empty assignment set passes an empty incoming list → stale unchecked Azure DevOps lines are removed; completed lines preserved via `shouldPreserveCompletedDeletes`
-- Auth: Microsoft Entra OAuth (Auth Code + PKCE) with Azure DevOps resource scope
+- Auth: Microsoft Entra OAuth (Auth Code + PKCE) with Azure DevOps resource scope (work/school accounts only at present)
 
 ## Firefox Bookmarks
 

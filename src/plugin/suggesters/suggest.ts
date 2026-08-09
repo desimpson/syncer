@@ -64,7 +64,7 @@ export class Suggest<T> {
   }
 
   private onSuggestionMouseover(_event: MouseEvent, element: HTMLElement): void {
-    const item = this.suggestions.indexOf(element as HTMLDivElement);
+    const item = this.suggestions.indexOf(element);
     this.setSelectedItem(item, false);
   }
 

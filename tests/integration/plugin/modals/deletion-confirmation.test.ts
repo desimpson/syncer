@@ -722,7 +722,7 @@ describe("Task deletion confirmation", () => {
         id,
         title: taskTitles[index],
         status: "needsAction",
-      })) as GoogleTask[],
+      })),
     );
 
     // Mock modal to cancel deletion for each task sequentially

@@ -15,7 +15,7 @@ const mockRect = (element: HTMLElement, rect: Partial<DOMRect>) => {
     x: rect.left ?? 0,
     y: rect.top ?? 0,
     toJSON: () => ({}),
-  } as DOMRect);
+  });
 };
 
 describe("createPopper", () => {

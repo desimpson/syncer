@@ -3,15 +3,17 @@
 ## Build / env
 
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
-- Dev: `GOOGLE_TASKS_CLIENT_ID_DEV` required; `OUTLOOK_CLIENT_ID_DEV` optional (Outlook Connect disabled if omitted)
-- Prod: `GOOGLE_TASKS_CLIENT_ID_PROD` and `OUTLOOK_CLIENT_ID_PROD` both required (fail the build if either is missing)
-- See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`dev` / `prod` environment secrets)
+- Dev: `GOOGLE_TASKS_CLIENT_ID_DEV` required; `OUTLOOK_CLIENT_ID_DEV` optional (Outlook Connect disabled if omitted); `AZURE_DEVOPS_CLIENT_ID_DEV` optional (Azure DevOps Connect disabled if omitted)
+- Prod: `GOOGLE_TASKS_CLIENT_ID_PROD` and `OUTLOOK_CLIENT_ID_PROD` both required (fail the build if either is missing); `AZURE_DEVOPS_CLIENT_ID_PROD` optional
+- See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`development` / `production` environment secrets)
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, `styles.css`, and `sql-wasm.wasm`
 
 ## Auth realities
 
 - Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`). README “PKCE” wording is misleading
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
+- Azure DevOps: Auth Code + PKCE via Entra ID; Azure DevOps resource scope (`49939cec-5e97-4525-bb00-e3888f55c1a1/.default`); register **Mobile and desktop** redirect URIs for `http://localhost`
+- Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
 - Google services still use global `fetch` in places; prefer matching the style of the file you touch
 
 ## Sync / UI traps

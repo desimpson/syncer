@@ -16,6 +16,7 @@ jobs:
     env:
       GOOGLE_TASKS_CLIENT_ID_PROD: ${{ secrets.GOOGLE_TASKS_CLIENT_ID_PROD }}
       OUTLOOK_CLIENT_ID_PROD: ${{ secrets.OUTLOOK_CLIENT_ID_PROD }}
+      AZURE_DEVOPS_CLIENT_ID_PROD: ${{ secrets.AZURE_DEVOPS_CLIENT_ID_PROD }}
 
     steps:
       - name: Checkout repository

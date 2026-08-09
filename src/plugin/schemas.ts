@@ -25,6 +25,8 @@ export const pluginSchema = z.object({
   GOOGLE_TASKS_CLIENT_ID: z.string().min(1),
   /** Optional at build time; Outlook connect is disabled when empty. */
   OUTLOOK_CLIENT_ID: z.string().default(""),
+  /** Optional at build time; Azure DevOps connect is disabled when empty. */
+  AZURE_DEVOPS_CLIENT_ID: z.string().default(""),
 });
 
 /**
@@ -136,6 +138,39 @@ export const microsoftOutlookSettingsSchema = z.object({
   }),
 });
 
+/** Pre-connect Azure DevOps account kind from settings UI. */
+export const azureDevOpsAuthAccountKindSchema = z
+  .enum(["personal", "workSchool"])
+  .default("workSchool");
+
+export type AzureDevOpsAuthAccountKind = z.infer<typeof azureDevOpsAuthAccountKindSchema>;
+
+/** Azure DevOps project metadata cached in plugin settings. */
+export const azureDevOpsProjectSettingsSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+/**
+ * Connected Azure DevOps organisation and selected project scope.
+ */
+export const azureDevOpsSettingsSchema = z.object({
+  userInfo: z.object({
+    email: z.email(),
+    displayName: z.string().optional(),
+  }),
+  credentials: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiryDate: z.number().int(),
+    scope: z.string(),
+    tenantSegment: z.string().min(1),
+  }),
+  organization: z.string().trim().min(1),
+  availableProjects: z.array(azureDevOpsProjectSettingsSchema).default([]),
+  selectedProjectId: z.string().default(""),
+});
+
 export const firefoxBookmarkFolderSettingsSchema = z.object({
   guid: z.string(),
   title: z.string(),
@@ -167,5 +202,9 @@ export const pluginSettingsSchema = z.object({
   microsoftAuthAccountKind: microsoftAuthAccountKindSchema,
   microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
   microsoftOutlook: microsoftOutlookSettingsSchema.optional(),
+  azureDevOpsAuthAccountKind: azureDevOpsAuthAccountKindSchema,
+  azureDevOpsAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
+  azureDevOpsOrganization: z.string().trim().default(""),
+  azureDevOps: azureDevOpsSettingsSchema.optional(),
   firefoxBookmarks: firefoxBookmarksSettingsSchema.optional(),
 });

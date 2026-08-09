@@ -32,6 +32,7 @@ import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 const baseConfig = {
   googleClientId: "",
   outlookClientId: "",
+  azureDevOpsClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

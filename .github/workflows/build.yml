@@ -51,6 +51,7 @@ jobs:
     env:
       GOOGLE_TASKS_CLIENT_ID_DEV: ${{ secrets.GOOGLE_TASKS_CLIENT_ID_DEV }}
       OUTLOOK_CLIENT_ID_DEV: ${{ secrets.OUTLOOK_CLIENT_ID_DEV }}
+      AZURE_DEVOPS_CLIENT_ID_DEV: ${{ secrets.AZURE_DEVOPS_CLIENT_ID_DEV }}
 
     steps:
       - name: Checkout repository
@@ -82,13 +83,14 @@ jobs:
     name: Build (Prod)
     runs-on: ubuntu-latest
     needs: [test]
-    # Only build production artifacts on main branch
+    # Only build prod artifacts on main branch
     if: github.ref == 'refs/heads/main'
     environment:
       name: prod
     env:
       GOOGLE_TASKS_CLIENT_ID_PROD: ${{ secrets.GOOGLE_TASKS_CLIENT_ID_PROD }}
       OUTLOOK_CLIENT_ID_PROD: ${{ secrets.OUTLOOK_CLIENT_ID_PROD }}
+      AZURE_DEVOPS_CLIENT_ID_PROD: ${{ secrets.AZURE_DEVOPS_CLIENT_ID_PROD }}
 
     steps:
       - name: Checkout repository

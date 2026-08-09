@@ -40,3 +40,22 @@ export type MicrosoftCredentials = {
   scope: string;
   tenantSegment: string;
 };
+
+/**
+ * Azure DevOps profile fields used in settings UI.
+ */
+export type AzureDevOpsUserInfo = {
+  email: string;
+  displayName?: string | undefined;
+};
+
+/**
+ * Azure DevOps OAuth tokens plus the login authority segment used for refresh.
+ */
+export type AzureDevOpsCredentials = {
+  accessToken: string;
+  refreshToken: string;
+  expiryDate: number;
+  scope: string;
+  tenantSegment: string;
+};

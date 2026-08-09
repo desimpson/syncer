@@ -48,3 +48,17 @@ export const microsoftGraphUserResponseSchema = z.object({
   mail: z.string().nullable().optional(),
   userPrincipalName: z.string(),
 });
+
+/**
+ * Schema for validating the Azure DevOps profile API response.
+ */
+export const azureDevOpsProfileResponseSchema = z.object({
+  id: z.string(),
+  displayName: z.string().nullable().optional(),
+  emailAddress: z
+    .object({
+      value: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
+});

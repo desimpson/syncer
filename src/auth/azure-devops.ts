@@ -5,16 +5,18 @@ import type { ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { requestUrl } from "obsidian";
 import { formatLogError } from "@/utils/error-formatters";
-import type { MicrosoftCredentials, MicrosoftUserInfo } from "@/auth/types";
+import type { AzureDevOpsCredentials, AzureDevOpsUserInfo } from "@/auth/types";
 import { InvalidGrantError } from "@/auth/google";
 import {
-  microsoftGraphUserResponseSchema,
+  azureDevOpsProfileResponseSchema,
   microsoftTokenErrorResponseSchema,
   microsoftTokenResponseSchema,
 } from "@/auth/schemas";
 
-const GRAPH_SCOPES =
-  "openid profile offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/User.Read";
+/** Azure DevOps Services resource identifier for Microsoft identity platform scopes. */
+export const AZURE_DEVOPS_RESOURCE_APP_ID = "49939cec-5e97-4525-bb00-e3888f55c1a1";
+
+const AZURE_DEVOPS_SCOPES = `${AZURE_DEVOPS_RESOURCE_APP_ID}/.default offline_access openid profile`;
 
 const SUCCESS_MESSAGE = "Authentication successful. You can close this tab and return to Obsidian.";
 const AUTH_CONNECT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -28,7 +30,7 @@ const tokenEndpoint = (tenantSegment: string): string =>
 /**
  * How the user chose to sign in from settings (before OAuth).
  */
-export type MicrosoftAuthSelection = {
+export type AzureDevOpsAuthSelection = {
   accountKind: "personal" | "workSchool";
   /**
    * Azure AD directory (tenant) ID. When `accountKind` is `workSchool`, empty means
@@ -40,12 +42,12 @@ export type MicrosoftAuthSelection = {
 /**
  * Maps settings UI values to the Microsoft identity platform tenant path segment.
  *
- * - Personal Outlook / MSA → `consumers`
+ * - Personal Microsoft account → `consumers`
  * - Work or school, any tenant → `organizations`
  * - Work or school, single tenant → Azure AD tenant GUID
  */
-export const microsoftGraphTenantSegmentFromAuthSelection = (
-  selection: MicrosoftAuthSelection,
+export const azureDevOpsTenantSegmentFromAuthSelection = (
+  selection: AzureDevOpsAuthSelection,
 ): string => {
   if (selection.accountKind === "personal") {
     return "consumers";
@@ -69,13 +71,17 @@ const generatePkcePair = (): { codeVerifier: string; codeChallenge: string } => 
   return { codeVerifier, codeChallenge };
 };
 
-export type MicrosoftAuthOptions = {
+/**
+ * Options for starting the Azure DevOps OAuth connect flow.
+ */
+export type AzureDevOpsAuthOptions = {
+  /** Entra application (client) ID from the plugin build configuration. */
   clientId: string;
   /** `consumers`, `organizations`, or a tenant GUID. */
   tenantSegment: string;
 };
 
-const parseTokenJson = (text: string): Omit<MicrosoftCredentials, "tenantSegment"> => {
+const parseTokenJson = (text: string): Omit<AzureDevOpsCredentials, "tenantSegment"> => {
   const json: unknown = JSON.parse(text);
   const data = microsoftTokenResponseSchema.parse(json);
 
@@ -87,13 +93,10 @@ const parseTokenJson = (text: string): Omit<MicrosoftCredentials, "tenantSegment
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
     expiryDate: Date.now() + data.expires_in * 1000,
-    scope: data.scope ?? GRAPH_SCOPES,
+    scope: data.scope ?? AZURE_DEVOPS_SCOPES,
   };
 };
 
-/**
- * POST form body to a URL via Obsidian's `requestUrl` (avoids renderer `fetch` / CORS issues).
- */
 const postForm = async (
   urlString: string,
   formBody: string,
@@ -185,11 +188,11 @@ const buildAuthorizeUrl = (
     client_id: clientId,
     response_type: "code",
     redirect_uri: redirectUri,
-    scope: GRAPH_SCOPES,
+    scope: AZURE_DEVOPS_SCOPES,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
     state,
-    prompt: "consent", // Force refresh token on (re)connect; required for offline_access
+    prompt: "consent",
   });
 
   return `${authorizeEndpoint(tenantSegment)}?${parameters.toString()}`;
@@ -201,7 +204,7 @@ const exchangeCodeForTokens = async (
   code: string,
   redirectUri: string,
   codeVerifier: string,
-): Promise<MicrosoftCredentials> => {
+): Promise<AzureDevOpsCredentials> => {
   const formBody = new URLSearchParams({
     client_id: clientId,
     grant_type: "authorization_code",
@@ -213,7 +216,7 @@ const exchangeCodeForTokens = async (
   const { statusCode, body: text } = await postForm(tokenEndpoint(tenantSegment), formBody);
 
   if (statusCode < 200 || statusCode >= 300) {
-    throw new Error(`Microsoft token exchange failed: ${statusCode} ${text}`);
+    throw new Error(`Azure DevOps token exchange failed: ${statusCode} ${text}`);
   }
 
   const tokens = parseTokenJson(text);
@@ -227,7 +230,7 @@ const createAuthServer = (
   oauthState: string,
   codeVerifier: string,
   getRedirectUri: () => string,
-  onSuccess: (credentials: MicrosoftCredentials) => void,
+  onSuccess: (credentials: AzureDevOpsCredentials) => void,
   onError: (error: Error) => void,
 ) =>
   createServer(async (request, response) => {
@@ -265,19 +268,20 @@ const createAuthServer = (
   });
 
 /**
- * OAuth 2.0 authorization code flow with PKCE. Starts a short-lived `localhost` redirect
- * listener, opens the Microsoft sign-in URL in the browser, then exchanges the code for tokens.
+ * OAuth 2.0 authorization code flow with PKCE for Azure DevOps (Entra ID).
  *
- * Register **Mobile and desktop** redirect URIs in Entra for `http://localhost` (loopback);
- * ephemeral ports are accepted for localhost redirects.
+ * @param options - Client ID and tenant segment for the sign-in authority
+ * @returns Stored credentials including refresh token and tenant segment
  */
-export const authenticate = async (options: MicrosoftAuthOptions): Promise<MicrosoftCredentials> =>
+export const authenticate = async (
+  options: AzureDevOpsAuthOptions,
+): Promise<AzureDevOpsCredentials> =>
   new Promise((resolve, reject) => {
     const trimmedClientId = options.clientId.trim();
     if (trimmedClientId.length === 0) {
       reject(
         new Error(
-          "Outlook application (client) ID is missing. Set OUTLOOK_CLIENT_ID_DEV or OUTLOOK_CLIENT_ID_PROD for your build.",
+          "Azure DevOps application (client) ID is missing. Set AZURE_DEVOPS_CLIENT_ID_DEV or AZURE_DEVOPS_CLIENT_ID_PROD for your build.",
         ),
       );
       return;
@@ -285,7 +289,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
 
     const tenantSegment = options.tenantSegment.trim();
     if (tenantSegment.length === 0) {
-      reject(new Error("Microsoft tenant segment is empty."));
+      reject(new Error("Azure DevOps tenant segment is empty."));
       return;
     }
 
@@ -325,7 +329,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
 
     const connectTimeout = setTimeout(() => {
       settleWith(() =>
-        reject(new Error("Microsoft sign-in timed out. Please try connecting again.")),
+        reject(new Error("Azure DevOps sign-in timed out. Please try connecting again.")),
       );
     }, AUTH_CONNECT_TIMEOUT_MS);
 
@@ -352,26 +356,28 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
   });
 
 /**
- * Fetches Microsoft Graph profile for the signed-in user.
+ * Fetches Azure DevOps profile for the signed-in user.
+ *
+ * @param accessToken - Valid Azure DevOps OAuth access token
  */
-export const getUserInfo = async (accessToken: string): Promise<MicrosoftUserInfo> => {
+export const getUserInfo = async (accessToken: string): Promise<AzureDevOpsUserInfo> => {
   const response = await requestUrl({
-    url: "https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName",
+    url: "https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.3",
     method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
     throw: false,
   });
 
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(`Failed to fetch Microsoft user info: ${response.status} ${response.text}`);
+    throw new Error(`Failed to fetch Azure DevOps user info: ${response.status} ${response.text}`);
   }
 
   const json: unknown = JSON.parse(response.text);
-  const data = microsoftGraphUserResponseSchema.parse(json);
+  const data = azureDevOpsProfileResponseSchema.parse(json);
   const email =
-    data.mail !== null && data.mail !== undefined && data.mail.length > 0
-      ? data.mail
-      : data.userPrincipalName;
+    data.emailAddress?.value !== undefined && data.emailAddress.value.length > 0
+      ? data.emailAddress.value
+      : data.id;
 
   return {
     email,
@@ -380,11 +386,15 @@ export const getUserInfo = async (accessToken: string): Promise<MicrosoftUserInf
 };
 
 /**
- * Refreshes a Microsoft OAuth 2.0 access token using a refresh token, with retries.
+ * Refreshes an Azure DevOps OAuth 2.0 access token using a refresh token, with retries.
+ *
+ * @param clientId - Entra application (client) ID from the plugin build configuration
+ * @param credentials - Refresh token and tenant segment used at connect time
+ * @param retries - Remaining retry attempts for transient network failures
  */
 export const refreshAccessToken = async (
   clientId: string,
-  credentials: Pick<MicrosoftCredentials, "refreshToken" | "tenantSegment">,
+  credentials: Pick<AzureDevOpsCredentials, "refreshToken" | "tenantSegment">,
   retries = 2,
 ): Promise<{ accessToken: string; expiryDate: number; refreshToken?: string }> => {
   const tenantSegment = credentials.tenantSegment.trim();
@@ -402,7 +412,7 @@ export const refreshAccessToken = async (
       const response = await Promise.race([
         postForm(tokenEndpoint(tenantSegment), formBody),
         new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Microsoft token request timed out.")), 10_000);
+          setTimeout(() => reject(new Error("Azure DevOps token request timed out.")), 10_000);
         }),
       ]);
 
@@ -444,14 +454,16 @@ export const refreshAccessToken = async (
 
       if (remainingRetries > 0) {
         console.warn(
-          `Microsoft token refresh failed; retrying... Retries left: [${remainingRetries}]. Error: [${formatLogError(
+          `Azure DevOps token refresh failed; retrying... Retries left: [${remainingRetries}]. Error: [${formatLogError(
             error,
           )}].`,
         );
         await new Promise((r) => setTimeout(r, 1000));
         return attempt(remainingRetries - 1);
       }
-      throw new Error(`Microsoft token refresh failed after retries: [${formatLogError(error)}].`);
+      throw new Error(
+        `Azure DevOps token refresh failed after retries: [${formatLogError(error)}].`,
+      );
     }
   };
 

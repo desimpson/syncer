@@ -73,7 +73,8 @@ import { MicrosoftAuth } from "@/auth";
 
 const baseConfig = {
   googleClientId: "",
-  outlookClientId: "microsoft-client-id",
+  outlookClientId: "outlook-client-id",
+  azureDevOpsClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

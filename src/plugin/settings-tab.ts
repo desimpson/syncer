@@ -9,10 +9,15 @@ import {
   microsoftWorkOrSchoolTenantIdSchema,
   syncIntervalSchema,
 } from "./schemas";
-import { GoogleAuth, InvalidGrantError, MicrosoftAuth } from "@/auth";
+import { GoogleAuth, InvalidGrantError, MicrosoftAuth, AzureDevOpsAuth } from "@/auth";
 import { GoogleTasksService } from "@/services";
 import type { GoogleTasksList } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
+import {
+  fetchProjects,
+  AzureDevOpsAuthorizationError,
+  type AzureDevOpsProject,
+} from "@/services/azure-devops";
 import {
   fetchFirefoxBookmarkFolders,
   FirefoxBookmarksError,
@@ -69,6 +74,7 @@ export class SettingsTab extends PluginSettingTab {
     });
     await this.addGoogleTasksSettings(containerElement);
     await this.addMicrosoftOutlookSettings(containerElement);
+    await this.addAzureDevOpsSettings(containerElement);
     await this.addFirefoxBookmarksSettings(containerElement);
   }
 
@@ -350,7 +356,7 @@ export class SettingsTab extends PluginSettingTab {
       outlookRow.setName("No Microsoft Outlook account connected");
       outlookRow.setDesc(
         this.config.outlookClientId.length === 0
-          ? "The plugin build does not include a Microsoft application (client) ID. Set OUTLOOK_CLIENT_ID_DEV or OUTLOOK_CLIENT_ID_PROD when building to enable Connect."
+          ? "The plugin build does not include an Outlook application (client) ID. Set OUTLOOK_CLIENT_ID_DEV or OUTLOOK_CLIENT_ID_PROD when building to enable Connect."
           : "Connect opens your browser to sign in with Microsoft; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
       );
       outlookRow.addButton((button) => {
@@ -434,6 +440,368 @@ export class SettingsTab extends PluginSettingTab {
     await this.plugin.updateSettings({ microsoftOutlook: undefined });
     new Notice("Microsoft Outlook account disconnected.");
     /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async addAzureDevOpsSettings(containerElement: HTMLElement): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Azure DevOps product names in settings */
+
+    new Setting(containerElement).setName("Azure DevOps").setHeading();
+
+    const settings = await this.plugin.loadSettings();
+
+    new Setting(containerElement)
+      .setName("Azure DevOps account type")
+      .setDesc(
+        "Choose the option that matches how you sign in to Microsoft for Azure DevOps: personal Microsoft account or work/school.",
+      )
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("personal", "Personal Microsoft account")
+          .addOption("workSchool", "Work or school")
+          .setValue(settings.azureDevOpsAuthAccountKind)
+          .onChange(async (value) => {
+            const accountKind = value === "workSchool" ? "workSchool" : "personal";
+            await this.plugin.updateSettings({ azureDevOpsAuthAccountKind: accountKind });
+            await this.display();
+          });
+      });
+
+    if (settings.azureDevOpsAuthAccountKind === "workSchool") {
+      const tenantParse = microsoftWorkOrSchoolTenantIdSchema.safeParse(
+        settings.azureDevOpsAuthWorkOrSchoolTenantId,
+      );
+      const { input, errorElement } = this.createTextSetting(
+        containerElement,
+        "Directory (tenant) ID",
+        "Optional. Leave empty to allow any work or school account. Otherwise paste your Microsoft Entra tenant GUID.",
+        settings.azureDevOpsAuthWorkOrSchoolTenantId,
+        "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      );
+
+      if (!tenantParse.success) {
+        errorElement.setText(tenantParse.error.issues[0]?.message ?? "Invalid tenant ID.");
+      }
+
+      input.onChange(async (value) => {
+        const result = microsoftWorkOrSchoolTenantIdSchema.safeParse(value);
+        if (result.success) {
+          await this.plugin.updateSettings({ azureDevOpsAuthWorkOrSchoolTenantId: result.data });
+          errorElement.setText("");
+        } else {
+          errorElement.setText(result.error.issues[0]?.message ?? "Invalid value.");
+        }
+      });
+    }
+
+    const organizationValue =
+      settings.azureDevOps?.organization ?? settings.azureDevOpsOrganization ?? "";
+    const { input: organizationInput, errorElement: organizationError } = this.createTextSetting(
+      containerElement,
+      "Organisation name",
+      "Azure DevOps organisation URL segment (for example, the name in https://dev.azure.com/your-org). One organisation per settings profile.",
+      organizationValue,
+      "your-org",
+    );
+
+    organizationInput.onChange(async (value) => {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        organizationError.setText("Organisation name cannot be empty.");
+        await this.plugin.updateSettings({ azureDevOpsOrganization: "" });
+        return;
+      }
+
+      organizationError.setText("");
+      const freshSettings = await this.plugin.loadSettings();
+      await (freshSettings.azureDevOps === undefined
+        ? this.plugin.updateSettings({ azureDevOpsOrganization: trimmed })
+        : this.plugin.updateSettings({
+            azureDevOpsOrganization: trimmed,
+            azureDevOps: { ...freshSettings.azureDevOps, organization: trimmed },
+          }));
+    });
+
+    const azureRow = new Setting(containerElement);
+    const { azureDevOps } = settings;
+
+    if (azureDevOps === undefined) {
+      azureRow.setName("No Azure DevOps account connected");
+      azureRow.setDesc(
+        this.config.azureDevOpsClientId.length === 0
+          ? "The plugin build does not include an Azure DevOps application (client) ID. Set AZURE_DEVOPS_CLIENT_ID_DEV or AZURE_DEVOPS_CLIENT_ID_PROD when building to enable Connect."
+          : "Connect opens your browser to sign in with Microsoft Entra ID; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
+      );
+      azureRow.addButton((button) => {
+        if (this.config.azureDevOpsClientId.length === 0) {
+          button.setDisabled(true);
+        }
+        button.setButtonText("Connect").onClick(async () => {
+          await this.connectAzureDevOps();
+          await this.display();
+        });
+      });
+    } else {
+      const display =
+        azureDevOps.userInfo.displayName !== undefined &&
+        azureDevOps.userInfo.displayName.length > 0
+          ? `${azureDevOps.userInfo.displayName} · ${azureDevOps.userInfo.email}`
+          : azureDevOps.userInfo.email;
+      azureRow.setName("Connected account");
+      azureRow.setDesc(
+        `${display} · organisation: ${azureDevOps.organization} · authority: login.microsoftonline.com/${azureDevOps.credentials.tenantSegment}`,
+      );
+      azureRow.addButton((button) =>
+        button
+          .setButtonText("Disconnect")
+          .setWarning()
+          .onClick(async () => {
+            await this.disconnectAzureDevOps();
+            await this.display();
+          }),
+      );
+    }
+
+    await this.addAzureDevOpsProjectSelector(containerElement);
+
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async connectAzureDevOps(): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Azure DevOps product names in notices */
+    if (this.config.azureDevOpsClientId.length === 0) {
+      new Notice("Azure DevOps client ID is not configured for this build.");
+      return;
+    }
+
+    const settings = await this.plugin.loadSettings();
+    const organization = (
+      settings.azureDevOpsOrganization ??
+      settings.azureDevOps?.organization ??
+      ""
+    ).trim();
+    if (organization.length === 0) {
+      new Notice("Enter your Azure DevOps organisation name before connecting.");
+      return;
+    }
+
+    const tenantIdCheck = microsoftWorkOrSchoolTenantIdSchema.safeParse(
+      settings.azureDevOpsAuthWorkOrSchoolTenantId,
+    );
+    if (!tenantIdCheck.success) {
+      new Notice("Fix the directory (tenant) ID before connecting.");
+      return;
+    }
+
+    try {
+      const tenantSegment = AzureDevOpsAuth.azureDevOpsTenantSegmentFromAuthSelection({
+        accountKind: settings.azureDevOpsAuthAccountKind,
+        workOrSchoolTenantId: tenantIdCheck.data,
+      });
+
+      const credentials = await AzureDevOpsAuth.authenticate({
+        clientId: this.config.azureDevOpsClientId,
+        tenantSegment,
+      });
+
+      const userInfo = await AzureDevOpsAuth.getUserInfo(credentials.accessToken);
+      const projects = await fetchProjects(credentials.accessToken, organization);
+
+      await this.plugin.updateSettings({
+        azureDevOpsOrganization: organization,
+        azureDevOps: {
+          credentials,
+          userInfo,
+          organization,
+          availableProjects: projects,
+          selectedProjectId: "",
+        },
+      });
+
+      new Notice("Azure DevOps account connected successfully.");
+    } catch (error) {
+      new Notice("Failed to connect Azure DevOps.");
+      console.error(`Error connecting Azure DevOps: [${formatLogError(error)}].`);
+    }
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async disconnectAzureDevOps(): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Azure DevOps product names in notices */
+    await this.plugin.updateSettings({ azureDevOps: undefined });
+    new Notice("Azure DevOps account disconnected.");
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async refreshAzureDevOpsProjects(
+    accessToken: string,
+    organization: string,
+  ): Promise<readonly AzureDevOpsProject[]> {
+    return fetchProjects(accessToken, organization);
+  }
+
+  private async ensureAzureDevOpsAccessToken(): Promise<string | undefined> {
+    const settings = await this.plugin.loadSettings();
+    const { azureDevOps } = settings;
+    if (azureDevOps === undefined) {
+      return undefined;
+    }
+
+    const { credentials: token } = azureDevOps;
+    if (token.expiryDate >= Date.now()) {
+      return token.accessToken;
+    }
+
+    try {
+      const refreshed = await AzureDevOpsAuth.refreshAccessToken(this.config.azureDevOpsClientId, {
+        refreshToken: token.refreshToken,
+        tenantSegment: token.tenantSegment,
+      });
+
+      const freshSettings = await this.plugin.loadSettings();
+      if (freshSettings.azureDevOps === undefined) {
+        return undefined;
+      }
+
+      await this.plugin.updateSettings({
+        azureDevOps: {
+          ...freshSettings.azureDevOps,
+          credentials: {
+            ...freshSettings.azureDevOps.credentials,
+            accessToken: refreshed.accessToken,
+            expiryDate: refreshed.expiryDate,
+            ...(refreshed.refreshToken === undefined
+              ? {}
+              : { refreshToken: refreshed.refreshToken }),
+          },
+        },
+      });
+
+      return refreshed.accessToken;
+    } catch (error) {
+      if (error instanceof InvalidGrantError) {
+        console.warn(
+          "Azure DevOps refresh token has been expired or revoked. Clearing credentials...",
+        );
+        const freshSettings = await this.plugin.loadSettings();
+        await this.plugin.updateSettings({ ...freshSettings, azureDevOps: undefined });
+        new AuthorizationExpiredModal(this.app).open();
+        await this.display();
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
+  private async addAzureDevOpsProjectSelector(containerElement: HTMLElement): Promise<void> {
+    const { azureDevOps } = await this.plugin.loadSettings();
+    if (azureDevOps === undefined) {
+      return;
+    }
+
+    this.addSettingsSubheading(containerElement, "Select project to sync");
+
+    const projectContainer = containerElement.createDiv({ cls: "azure-devops-project-selector" });
+    let selectedProjectId = azureDevOps.selectedProjectId ?? "";
+
+    const renderProjectDropdown = (
+      projects: readonly AzureDevOpsProject[],
+      currentSelection: string,
+    ): void => {
+      projectContainer.empty();
+
+      if (projects.length === 0) {
+        projectContainer.createEl("p", {
+          text: "No projects found in this organisation.",
+          cls: "setting-item-description",
+        });
+        return;
+      }
+
+      new Setting(projectContainer)
+        .setName("Project")
+        .setDesc("Sync work items assigned to you in this project only.")
+        .addDropdown((dropdown) => {
+          dropdown.addOption("", "Select a project…");
+          projects.forEach((project) => {
+            dropdown.addOption(project.id, project.name);
+          });
+          dropdown.setValue(currentSelection);
+          dropdown.onChange(async (value) => {
+            selectedProjectId = value;
+            const freshSettings = await this.plugin.loadSettings();
+            if (freshSettings.azureDevOps !== undefined) {
+              await this.plugin.updateSettings({
+                azureDevOps: {
+                  ...freshSettings.azureDevOps,
+                  selectedProjectId: value,
+                },
+              });
+            }
+          });
+        });
+    };
+
+    renderProjectDropdown(azureDevOps.availableProjects ?? [], selectedProjectId);
+
+    new Setting(projectContainer)
+      .setName("Refresh projects")
+      /* eslint-disable-next-line obsidianmd/ui/sentence-case -- Azure DevOps product name */
+      .setDesc("Reload the project list from Azure DevOps.")
+      .addButton((button) =>
+        button.setButtonText("Refresh").onClick(async () => {
+          try {
+            const accessToken = await this.ensureAzureDevOpsAccessToken();
+            if (accessToken === undefined) {
+              return;
+            }
+
+            const freshSettings = await this.plugin.loadSettings();
+            if (freshSettings.azureDevOps === undefined) {
+              return;
+            }
+
+            const projects = await this.refreshAzureDevOpsProjects(
+              accessToken,
+              freshSettings.azureDevOps.organization,
+            );
+
+            const availableProjectIds = new Set(projects.map((project) => project.id));
+            const cleanedSelectedId = availableProjectIds.has(selectedProjectId)
+              ? selectedProjectId
+              : "";
+
+            await this.plugin.updateSettings({
+              azureDevOps: {
+                ...freshSettings.azureDevOps,
+                availableProjects: projects,
+                selectedProjectId: cleanedSelectedId,
+              },
+            });
+
+            selectedProjectId = cleanedSelectedId;
+            renderProjectDropdown(projects, cleanedSelectedId);
+            // eslint-disable-next-line obsidianmd/ui/sentence-case -- Azure DevOps product name
+            new Notice("Azure DevOps projects refreshed.");
+          } catch (error) {
+            if (error instanceof AzureDevOpsAuthorizationError) {
+              console.warn(
+                `Azure DevOps authorization failed (${error.status}). Clearing credentials...`,
+              );
+              const freshSettings = await this.plugin.loadSettings();
+              await this.plugin.updateSettings({ ...freshSettings, azureDevOps: undefined });
+              new AuthorizationExpiredModal(this.app).open();
+              await this.display();
+              return;
+            }
+
+            console.error(`Failed to refresh Azure DevOps projects: [${formatLogError(error)}].`);
+            projectContainer.createEl("p", {
+              text: "Failed to load projects. Check your connection and try refreshing again.",
+              cls: "setting-item-description mod-warning",
+            });
+          }
+        }),
+      );
   }
 
   private async addFirefoxBookmarksSettings(containerElement: HTMLElement): Promise<void> {

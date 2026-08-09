@@ -11,6 +11,7 @@
 ## Auth realities
 
 - Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`). README “PKCE” wording is misleading
+- For Google OAuth in this plugin, create the client as **UWP (Universal Windows Platform)** so no client secret is required; reference: [Stack Overflow answer](https://stackoverflow.com/a/78414957).
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
 - Google services still use global `fetch` in places; prefer matching the style of the file you touch
 

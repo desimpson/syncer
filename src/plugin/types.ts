@@ -1,6 +1,7 @@
 import type { GoogleTasksList } from "@/services/types";
 import type {
   GoogleAccessToken,
+  GoogleCredentials,
   GoogleUserInfo,
   MicrosoftCredentials,
   MicrosoftUserInfo,
@@ -36,7 +37,7 @@ export type PluginSettings = {
  */
 export type PluginConfig = {
   googleClientId: string;
-  outlookClientId: string;
+  microsoftClientId: string;
   pluginDirectory: string;
 };
 
@@ -55,7 +56,7 @@ export type GoogleTasksSettings = {
  */
 export type GmailStarredSettings = {
   userInfo: GoogleUserInfo;
-  credentials: GoogleAccessToken;
+  credentials: GoogleCredentials;
 };
 
 /**

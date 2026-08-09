@@ -87,7 +87,7 @@ import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-task
 
 const baseConfig = {
   googleClientId: "id",
-  outlookClientId: "",
+  microsoftClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

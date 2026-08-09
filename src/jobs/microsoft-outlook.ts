@@ -42,7 +42,7 @@ const ensureAccessToken = async (
 
   if (token.expiryDate < Date.now()) {
     const { accessToken, expiryDate, refreshToken } = await MicrosoftAuth.refreshAccessToken(
-      config.outlookClientId,
+      config.microsoftClientId,
       {
         refreshToken: token.refreshToken,
         tenantSegment: token.tenantSegment,
@@ -388,7 +388,7 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
       return;
     }
 
-    if (config.outlookClientId.length === 0) {
+    if (config.microsoftClientId.length === 0) {
       return;
     }
 

@@ -357,6 +357,25 @@ const clearGmailStarredCredentials = async (
   new AuthorizationExpiredModal(app).open();
 };
 
+const handleGmailAuthorizationFailure = async (
+  error: GmailAuthorizationError,
+  notify: (message: string) => void,
+  loadSettings: () => Promise<PluginSettings>,
+  saveSettings: (s: PluginSettings) => Promise<void>,
+  app: Parameters<SyncJobCreator>[5],
+): Promise<void> => {
+  if (error.status === 401) {
+    console.warn(`Gmail access token rejected (${error.status}). Clearing credentials...`);
+    await clearGmailStarredCredentials(loadSettings, saveSettings, app);
+    return;
+  }
+
+  notify(
+    "Gmail Starred sync was denied (403). Enable the Gmail API on your Google Cloud project and ensure gmail.modify is on the OAuth consent screen, then reconnect.",
+  );
+  console.warn(`Gmail API access denied (${error.status}): [${error.message}]. Credentials kept.`);
+};
+
 const notifySyncFailure = (error: unknown, notify: (message: string) => void): void => {
   const message = error instanceof Error ? formatUiError(error) : formatUiError(String(error));
   notify(`Gmail Starred sync failed: ${message}`);
@@ -421,8 +440,7 @@ export const createGmailStarredJob: SyncJobCreator = (
       truncated = fetchResult.truncated;
     } catch (error) {
       if (error instanceof GmailAuthorizationError) {
-        console.warn(`Gmail authorization failed (${error.status}). Clearing credentials...`);
-        await clearGmailStarredCredentials(loadSettings, saveSettings, app);
+        await handleGmailAuthorizationFailure(error, notify, loadSettings, saveSettings, app);
         return;
       }
       if (error instanceof GmailRateLimitError) {
@@ -454,8 +472,7 @@ export const createGmailStarredJob: SyncJobCreator = (
       );
     } catch (error) {
       if (error instanceof GmailAuthorizationError) {
-        console.warn(`Gmail authorization failed (${error.status}). Clearing credentials...`);
-        await clearGmailStarredCredentials(loadSettings, saveSettings, app);
+        await handleGmailAuthorizationFailure(error, notify, loadSettings, saveSettings, app);
         return;
       }
       notifySyncFailure(error, notify);

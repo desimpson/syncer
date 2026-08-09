@@ -132,7 +132,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Development builds require `GOOGLE_TASKS_CLIENT_ID_DEV` (see `.env.example`). Optionally set `OUTLOOK_CLIENT_ID_DEV` to enable Outlook Connect.
+Development builds require `GOOGLE_CLIENT_ID_DEV` (see `.env.example`). Optionally set `MICROSOFT_CLIENT_ID_DEV` to enable Outlook Connect.
 
 Sync to your vault with:
 
@@ -153,7 +153,7 @@ This plugin includes code adapted from the following projects:
 ## Releasing
 
 1. Update version: `npm run version` (or `npm version patch|minor|major`)
-2. Build production: `GOOGLE_TASKS_CLIENT_ID_PROD=your-id OUTLOOK_CLIENT_ID_PROD=your-id npm run build:prod` (Google Tasks and Outlook client IDs required)
+2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (Google and Microsoft client IDs required)
 3. Verify: `npm run release:check`
 4. Create release:
    - **Automated**: `git tag 1.0.0 && git push origin 1.0.0` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.1.0` or `1.0.0`, not `v1.0.0`)

@@ -131,8 +131,7 @@ describe("Task deletion confirmation", () => {
     modifyCallbacks = [];
 
     // Setup required env var
-    process.env["GOOGLE_TASKS_CLIENT_ID"] =
-      process.env["GOOGLE_TASKS_CLIENT_ID"] ?? "test-client-id";
+    process.env["GOOGLE_CLIENT_ID"] = process.env["GOOGLE_CLIENT_ID"] ?? "test-client-id";
 
     // Mock file
     mockFile = {

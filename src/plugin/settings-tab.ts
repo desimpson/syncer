@@ -9,13 +9,7 @@ import {
   microsoftWorkOrSchoolTenantIdSchema,
   syncIntervalSchema,
 } from "./schemas";
-import { GoogleAuth, InvalidGrantError, MicrosoftAuth } from "@/auth";
-import {
-  describeGoogleClientId,
-  googleOAuthDebugError,
-  googleOAuthDebugLog,
-  googleOAuthDebugWarn,
-} from "@/auth/google-oauth-debug";
+import { GoogleAuth, InvalidGrantError, MicrosoftAuth, hasGmailModifyScope } from "@/auth";
 import { GoogleTasksService } from "@/services";
 import type { GoogleTasksList } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
@@ -362,7 +356,7 @@ export class SettingsTab extends PluginSettingTab {
       setting.setName("No Gmail Starred account connected");
       setting.setDesc(
         this.config.googleClientId.length === 0
-          ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_TASKS_CLIENT_ID_DEV or GOOGLE_TASKS_CLIENT_ID_PROD when building to enable Connect."
+          ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_CLIENT_ID_DEV or GOOGLE_CLIENT_ID_PROD when building to enable Connect."
           : "Connect opens your browser to sign in with Google; after you consent, starred mail syncs on the next run. Uses separate credentials from Google Tasks.",
       );
       setting.addButton((button) => {
@@ -393,21 +387,7 @@ export class SettingsTab extends PluginSettingTab {
 
   private async connectGmailStarred(): Promise<void> {
     /* eslint-disable obsidianmd/ui/sentence-case -- Gmail product names in notices */
-    const integration = "gmail-starred";
-    googleOAuthDebugLog(
-      "Connect clicked",
-      {
-        googleClientId: describeGoogleClientId(this.config.googleClientId),
-        scopes: "https://www.googleapis.com/auth/gmail.modify openid email profile",
-      },
-      { integration, phase: "connect-start" },
-    );
-
     if (this.config.googleClientId.length === 0) {
-      googleOAuthDebugWarn("Connect aborted: empty googleClientId in plugin config", undefined, {
-        integration,
-        phase: "connect-start",
-      });
       new Notice("Google client ID is not configured for this build.");
       return;
     }
@@ -418,15 +398,12 @@ export class SettingsTab extends PluginSettingTab {
         scopes: "https://www.googleapis.com/auth/gmail.modify openid email profile",
       });
 
-      googleOAuthDebugLog(
-        "Authenticate succeeded",
-        {
-          scope: credentials.scope,
-          expiryDate: credentials.expiryDate,
-          hasRefreshToken: credentials.refreshToken.length > 0,
-        },
-        { integration, phase: "connect-success" },
-      );
+      if (!hasGmailModifyScope(credentials.scope)) {
+        new Notice(
+          "Gmail permissions were not granted. Add gmail.modify to your OAuth consent screen, enable the Gmail API, then reconnect.",
+        );
+        return;
+      }
 
       const userInfo = await GoogleAuth.getUserInfo(credentials.accessToken);
 
@@ -439,11 +416,6 @@ export class SettingsTab extends PluginSettingTab {
 
       new Notice("Gmail Starred account connected successfully.");
     } catch (error) {
-      googleOAuthDebugError(
-        "Connect failed",
-        { error: formatLogError(error, false) },
-        { integration, phase: "connect-failure" },
-      );
       new Notice("Failed to connect Gmail Starred.");
       console.error(`Error connecting Gmail Starred: [${formatLogError(error)}].`);
     }
@@ -517,12 +489,12 @@ export class SettingsTab extends PluginSettingTab {
     if (microsoftOutlook === undefined) {
       outlookRow.setName("No Microsoft Outlook account connected");
       outlookRow.setDesc(
-        this.config.outlookClientId.length === 0
-          ? "The plugin build does not include an Outlook application (client) ID. Set OUTLOOK_CLIENT_ID_DEV or OUTLOOK_CLIENT_ID_PROD when building to enable Connect."
+        this.config.microsoftClientId.length === 0
+          ? "The plugin build does not include a Microsoft application (client) ID. Set MICROSOFT_CLIENT_ID_DEV or MICROSOFT_CLIENT_ID_PROD when building to enable Connect."
           : "Connect opens your browser to sign in with Microsoft; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
       );
       outlookRow.addButton((button) => {
-        if (this.config.outlookClientId.length === 0) {
+        if (this.config.microsoftClientId.length === 0) {
           button.setDisabled(true);
         }
         button.setButtonText("Connect").onClick(async () => {
@@ -555,7 +527,7 @@ export class SettingsTab extends PluginSettingTab {
 
   private async connectMicrosoftOutlook(): Promise<void> {
     /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
-    if (this.config.outlookClientId.length === 0) {
+    if (this.config.microsoftClientId.length === 0) {
       new Notice("Outlook client ID is not configured for this build.");
       return;
     }
@@ -576,7 +548,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       const credentials = await MicrosoftAuth.authenticate({
-        clientId: this.config.outlookClientId,
+        clientId: this.config.microsoftClientId,
         tenantSegment,
       });
 

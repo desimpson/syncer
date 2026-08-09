@@ -22,9 +22,9 @@ const h2HeadingRegex = /^##\s.+/;
  * Schema for validating and parsing the plugin configuration settings.
  */
 export const pluginSchema = z.object({
-  GOOGLE_TASKS_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_ID: z.string().min(1),
   /** Optional at build time; Outlook connect is disabled when empty. */
-  OUTLOOK_CLIENT_ID: z.string().default(""),
+  MICROSOFT_CLIENT_ID: z.string().default(""),
 });
 
 /**

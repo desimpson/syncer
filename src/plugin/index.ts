@@ -12,11 +12,6 @@ import { pluginSchema, pluginSettingsSchema } from "./schemas";
 import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation-modal";
 import { deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
-import {
-  describeGoogleClientId,
-  googleOAuthDebugLog,
-  googleOAuthDebugWarn,
-} from "@/auth/google-oauth-debug";
 import { parsedLineSchema } from "@/sync/schemas";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 
@@ -32,33 +27,12 @@ export default class SyncerPlugin extends Plugin {
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    const { GOOGLE_TASKS_CLIENT_ID, OUTLOOK_CLIENT_ID } = pluginSchema.parse(process.env);
+    const { GOOGLE_CLIENT_ID, MICROSOFT_CLIENT_ID } = pluginSchema.parse(process.env);
     this.config = {
-      googleClientId: GOOGLE_TASKS_CLIENT_ID,
-      outlookClientId: OUTLOOK_CLIENT_ID.trim(),
+      googleClientId: GOOGLE_CLIENT_ID,
+      microsoftClientId: MICROSOFT_CLIENT_ID.trim(),
       pluginDirectory: resolvePluginDirectory(app, manifest),
     };
-
-    googleOAuthDebugLog(
-      "Plugin constructed with build-time Google client ID",
-      {
-        googleClientId: describeGoogleClientId(this.config.googleClientId),
-        outlookClientIdConfigured: this.config.outlookClientId.length > 0,
-        rawEnvKeysPresent: {
-          GOOGLE_TASKS_CLIENT_ID: GOOGLE_TASKS_CLIENT_ID.length > 0,
-          OUTLOOK_CLIENT_ID: OUTLOOK_CLIENT_ID.length > 0,
-        },
-      },
-      { phase: "plugin-init" },
-    );
-
-    if (this.config.googleClientId === "dummy" || this.config.googleClientId.startsWith("dummy")) {
-      googleOAuthDebugWarn(
-        "Build appears to use a placeholder Google client ID — OAuth will fail with invalid_client",
-        { googleClientId: describeGoogleClientId(this.config.googleClientId) },
-        { phase: "plugin-init" },
-      );
-    }
   }
 
   public override async onload() {

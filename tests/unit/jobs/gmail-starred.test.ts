@@ -74,7 +74,7 @@ import { GoogleAuth } from "@/auth";
 
 const baseConfig = {
   googleClientId: "google-client-id",
-  outlookClientId: "",
+  microsoftClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 
@@ -98,7 +98,7 @@ const makeGmailStarredSettings = () => ({
     accessToken: "gmail-token",
     refreshToken: "refresh-token",
     expiryDate: Date.now() + 60_000,
-    scope: "gmail.modify",
+    scope: "https://www.googleapis.com/auth/gmail.modify openid email profile",
   },
   userInfo: { email: "user@example.com" },
 });
@@ -345,6 +345,43 @@ describe("createGmailStarredJob completion sync", () => {
 
     expect(saveSettings).toHaveBeenCalledWith(expect.objectContaining({ gmailStarred: undefined }));
     expect(modalOpen).toHaveBeenCalled();
+    expect(reconcileSyncSourceAtomically).not.toHaveBeenCalled();
+  });
+
+  it("keeps credentials and notifies when Gmail fetch returns 403", async () => {
+    const settings = {
+      gmailStarred: makeGmailStarredSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: false,
+    };
+    const loadSettings = vi.fn().mockResolvedValue(settings);
+    const saveSettings = vi.fn();
+    const notify = vi.fn();
+    const file = makeFile();
+    const vault = makeVault(file);
+
+    vi.mocked(fetchStarredMessages).mockRejectedValue(
+      new GmailAuthorizationError(
+        403,
+        'Gmail list messages failed: 403 {"error":{"message":"Gmail API has not been used in project"}}',
+      ),
+    );
+
+    const job = createGmailStarredJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
+
+    await job.task();
+
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("403"));
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(modalOpen).not.toHaveBeenCalled();
     expect(reconcileSyncSourceAtomically).not.toHaveBeenCalled();
   });
 

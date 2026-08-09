@@ -51,6 +51,23 @@ const emptyReconcileResult = (): AtomicReconcileResult => ({
   existingItems: [],
 });
 
+const createReconcileResult = (): AtomicReconcileResult => ({
+  actions: [
+    {
+      operation: "create",
+      item: {
+        id: "42",
+        title: "Fix bug",
+        link: "https://dev.azure.com/my-org/My%20Test%20Project/_workitems/edit/42",
+        source: "azure-devops",
+        heading: "## Inbox",
+        completed: false,
+      },
+    },
+  ],
+  existingItems: [],
+});
+
 const makeSettings = (overrides: Partial<Record<string, unknown>> = {}) => ({
   syncDocument: "GTD.md",
   syncHeading: "## Inbox",
@@ -97,7 +114,7 @@ describe("createAzureDevOpsJob (PAT mode)", () => {
         url: "https://dev.azure.com/my-org/My%20Test%20Project/_workitems/edit/42",
       },
     ]);
-    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(createReconcileResult());
     const job = createAzureDevOpsJob(
       loadSettings,
       vi.fn(),
@@ -129,6 +146,36 @@ describe("createAzureDevOpsJob (PAT mode)", () => {
       "## Inbox",
       expect.any(Function),
     );
+  });
+
+  it("rechecks reconcile when first pass is a no-op with incoming items", async () => {
+    // Arrange
+    const loadSettings = vi.fn().mockResolvedValue(makeSettings());
+    const file = makeFile();
+    vi.mocked(fetchAssignedWorkItems).mockResolvedValue([
+      {
+        id: 42,
+        title: "Fix bug",
+        url: "https://dev.azure.com/my-org/My%20Test%20Project/_workitems/edit/42",
+      },
+    ]);
+    vi.mocked(reconcileSyncSourceAtomically)
+      .mockResolvedValueOnce(emptyReconcileResult())
+      .mockResolvedValueOnce(createReconcileResult());
+    const job = createAzureDevOpsJob(
+      loadSettings,
+      vi.fn(),
+      baseConfig,
+      makeVault(file),
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(vi.mocked(reconcileSyncSourceAtomically)).toHaveBeenCalledTimes(2);
   });
 
   it("notifies and returns on PAT authorization failure", async () => {

@@ -27,6 +27,7 @@ import { searchFirefoxBookmarkFolders } from "@/services/firefox-profiles";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
   folder.path.length > 0 ? folder.path : folder.title;
+const AZURE_DEVOPS_SETTINGS_DEBUG_PREFIX = "[AzureDevOps Settings Debug]";
 
 /**
  * Settings tab for the Syncer plugin.
@@ -597,6 +598,16 @@ export class SettingsTab extends PluginSettingTab {
         accountKind: settings.azureDevOpsAuthAccountKind,
         workOrSchoolTenantId: tenantIdCheck.data,
       });
+      console.info(
+        `${AZURE_DEVOPS_SETTINGS_DEBUG_PREFIX} Connect requested.`,
+        JSON.stringify({
+          accountKind: settings.azureDevOpsAuthAccountKind,
+          configuredTenantId: tenantIdCheck.data,
+          resolvedTenantSegment: tenantSegment,
+          organization,
+          hasAzureDevOpsClientId: this.config.azureDevOpsClientId.length > 0,
+        }),
+      );
 
       const credentials = await AzureDevOpsAuth.authenticate({
         clientId: this.config.azureDevOpsClientId,
@@ -618,9 +629,36 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       new Notice("Azure DevOps account connected successfully.");
+      console.info(
+        `${AZURE_DEVOPS_SETTINGS_DEBUG_PREFIX} Connect completed.`,
+        JSON.stringify({
+          organization,
+          availableProjects: projects.length,
+          selectedProjectId: "",
+          authority: credentials.tenantSegment,
+          grantedScope: credentials.scope,
+          expiresAt: credentials.expiryDate,
+        }),
+      );
     } catch (error) {
       new Notice("Failed to connect Azure DevOps.");
       console.error(`Error connecting Azure DevOps: [${formatLogError(error)}].`);
+      console.error(
+        `${AZURE_DEVOPS_SETTINGS_DEBUG_PREFIX} Connect failed details.`,
+        JSON.stringify({
+          organization,
+          accountKind: settings.azureDevOpsAuthAccountKind,
+          configuredTenantId: tenantIdCheck.data,
+          resolvedTenantSegment:
+            settings.azureDevOpsAuthAccountKind === "personal"
+              ? "common"
+              : tenantIdCheck.data.length > 0
+                ? tenantIdCheck.data
+                : "organizations",
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }),
+      );
     }
     /* eslint-enable obsidianmd/ui/sentence-case */
   }

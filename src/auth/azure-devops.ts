@@ -17,6 +17,7 @@ import {
 export const AZURE_DEVOPS_RESOURCE_APP_ID = "49939cec-5e97-4525-bb00-e3888f55c1a1";
 
 const AZURE_DEVOPS_SCOPES = `${AZURE_DEVOPS_RESOURCE_APP_ID}/.default offline_access openid profile`;
+const AZURE_DEVOPS_DEBUG_PREFIX = "[AzureDevOps OAuth Debug]";
 
 const SUCCESS_MESSAGE = "Authentication successful. You can close this tab and return to Obsidian.";
 const AUTH_CONNECT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -26,6 +27,9 @@ const authorizeEndpoint = (tenantSegment: string): string =>
 
 const tokenEndpoint = (tenantSegment: string): string =>
   `https://login.microsoftonline.com/${tenantSegment}/oauth2/v2.0/token`;
+
+const redactClientId = (clientId: string): string =>
+  clientId.length <= 8 ? clientId : `${clientId.slice(0, 8)}...`;
 
 /**
  * How the user chose to sign in from settings (before OAuth).
@@ -142,6 +146,14 @@ const parseAuthRequest = (
   if (searchParameters.has("error")) {
     const errorMessage =
       searchParameters.get("error_description") ?? searchParameters.get("error") ?? "Unknown error";
+    console.warn(
+      `${AZURE_DEVOPS_DEBUG_PREFIX} OAuth callback returned error.`,
+      JSON.stringify({
+        callbackPath: url.pathname,
+        error: searchParameters.get("error"),
+        errorDescription: searchParameters.get("error_description"),
+      }),
+    );
     return { type: "authorization_denied", message: errorMessage };
   }
 
@@ -207,6 +219,15 @@ const exchangeCodeForTokens = async (
   redirectUri: string,
   codeVerifier: string,
 ): Promise<AzureDevOpsCredentials> => {
+  console.info(
+    `${AZURE_DEVOPS_DEBUG_PREFIX} Exchanging auth code for tokens.`,
+    JSON.stringify({
+      tenantSegment,
+      redirectUri,
+      tokenEndpoint: tokenEndpoint(tenantSegment),
+      clientId: redactClientId(clientId),
+    }),
+  );
   const formBody = new URLSearchParams({
     client_id: clientId,
     grant_type: "authorization_code",
@@ -218,6 +239,10 @@ const exchangeCodeForTokens = async (
   const { statusCode, body: text } = await postForm(tokenEndpoint(tenantSegment), formBody);
 
   if (statusCode < 200 || statusCode >= 300) {
+    console.error(
+      `${AZURE_DEVOPS_DEBUG_PREFIX} Token exchange failed.`,
+      JSON.stringify({ statusCode, responseText: text }),
+    );
     throw new Error(`Azure DevOps token exchange failed: ${statusCode} ${text}`);
   }
 
@@ -256,6 +281,12 @@ const createAuthServer = (
       }
 
       handleAuthError(result, response);
+      if (result.type !== "invalid_url") {
+        console.warn(
+          `${AZURE_DEVOPS_DEBUG_PREFIX} OAuth callback parsed as error.`,
+          JSON.stringify({ errorType: result.type, message: result.message }),
+        );
+      }
 
       if (result.type === "invalid_url" && result.message === "favicon") {
         return;
@@ -294,6 +325,16 @@ export const authenticate = async (
       reject(new Error("Azure DevOps tenant segment is empty."));
       return;
     }
+    console.info(
+      `${AZURE_DEVOPS_DEBUG_PREFIX} Starting OAuth connect flow.`,
+      JSON.stringify({
+        tenantSegment,
+        authorizeEndpoint: authorizeEndpoint(tenantSegment),
+        tokenEndpoint: tokenEndpoint(tenantSegment),
+        scope: AZURE_DEVOPS_SCOPES,
+        clientId: redactClientId(trimmedClientId),
+      }),
+    );
 
     const redirectPath = "/";
     const { codeVerifier, codeChallenge } = generatePkcePair();
@@ -352,6 +393,13 @@ export const authenticate = async (
         redirectUri,
         codeChallenge,
         oauthState,
+      );
+      console.info(
+        `${AZURE_DEVOPS_DEBUG_PREFIX} Opening authorize URL.`,
+        JSON.stringify({
+          redirectUri,
+          authUrl,
+        }),
       );
       window.open(authUrl, "_blank");
     });

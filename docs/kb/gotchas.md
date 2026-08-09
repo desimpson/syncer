@@ -7,6 +7,7 @@
 - Prod: `GOOGLE_TASKS_CLIENT_ID_PROD` and `OUTLOOK_CLIENT_ID_PROD` both required (fail the build if either is missing)
 - See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`development` / `production` environment secrets)
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, `styles.css`, and `sql-wasm.wasm`
+- `electron` is an esbuild **external** only ([`esbuild.config.mjs`](../../esbuild.config.mjs)); Obsidian supplies Electron at runtime. Do not re-add it as an npm dependency for typing or audit cosmetics unless the plugin actually imports it
 
 ## Auth realities
 

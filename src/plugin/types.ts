@@ -14,6 +14,7 @@ import type { FirefoxBookmarkFolder } from "@/services/firefox-bookmarks";
  */
 export type PluginSettings = {
   googleTasks?: GoogleTasksSettings | undefined;
+  gmailStarred?: GmailStarredSettings | undefined;
   syncIntervalMinutes: number;
   syncDocument: string;
   syncHeading: string;
@@ -47,6 +48,14 @@ export type GoogleTasksSettings = {
   credentials: GoogleAccessToken;
   availableLists: readonly GoogleTasksList[];
   selectedListIds: readonly string[];
+};
+
+/**
+ * Gmail Starred integration settings.
+ */
+export type GmailStarredSettings = {
+  userInfo: GoogleUserInfo;
+  credentials: GoogleAccessToken;
 };
 
 /**

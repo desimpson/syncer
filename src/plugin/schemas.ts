@@ -136,6 +136,21 @@ export const microsoftOutlookSettingsSchema = z.object({
   }),
 });
 
+/**
+ * Connected Gmail Starred account (separate from Google Tasks credentials).
+ */
+export const gmailStarredSettingsSchema = z.object({
+  userInfo: z.object({
+    email: z.email(),
+  }),
+  credentials: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiryDate: z.number().int(),
+    scope: z.string(),
+  }),
+});
+
 export const firefoxBookmarkFolderSettingsSchema = z.object({
   guid: z.string(),
   title: z.string(),
@@ -164,6 +179,7 @@ export const pluginSettingsSchema = z.object({
   confirmDeleteSync: z.boolean().default(true),
   manuallyDeletedTaskIds: z.array(z.string()).default([]),
   googleTasks: googleTasksSettingsSchema.optional(),
+  gmailStarred: gmailStarredSettingsSchema.optional(),
   microsoftAuthAccountKind: microsoftAuthAccountKindSchema,
   microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
   microsoftOutlook: microsoftOutlookSettingsSchema.optional(),

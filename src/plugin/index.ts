@@ -3,6 +3,7 @@ import { SettingsTab } from "@/plugin/settings-tab";
 import { createScheduler, type Scheduler } from "@/sync/scheduler";
 import { SyncGuard } from "@/sync/sync-guard";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
+import { createGmailStarredJob } from "@/jobs/gmail-starred";
 import { createMicrosoftOutlookJob } from "@/jobs/microsoft-outlook";
 import { createAzureDevOpsJob } from "@/jobs/azure-devops";
 import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
@@ -11,6 +12,11 @@ import { pluginSchema, pluginSettingsSchema } from "./schemas";
 import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation-modal";
 import { deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
+import {
+  describeGoogleClientId,
+  googleOAuthDebugLog,
+  googleOAuthDebugWarn,
+} from "@/auth/google-oauth-debug";
 import { parsedLineSchema } from "@/sync/schemas";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 
@@ -32,11 +38,40 @@ export default class SyncerPlugin extends Plugin {
       outlookClientId: OUTLOOK_CLIENT_ID.trim(),
       pluginDirectory: resolvePluginDirectory(app, manifest),
     };
+
+    googleOAuthDebugLog(
+      "Plugin constructed with build-time Google client ID",
+      {
+        googleClientId: describeGoogleClientId(this.config.googleClientId),
+        outlookClientIdConfigured: this.config.outlookClientId.length > 0,
+        rawEnvKeysPresent: {
+          GOOGLE_TASKS_CLIENT_ID: GOOGLE_TASKS_CLIENT_ID.length > 0,
+          OUTLOOK_CLIENT_ID: OUTLOOK_CLIENT_ID.length > 0,
+        },
+      },
+      { phase: "plugin-init" },
+    );
+
+    if (this.config.googleClientId === "dummy" || this.config.googleClientId.startsWith("dummy")) {
+      googleOAuthDebugWarn(
+        "Build appears to use a placeholder Google client ID — OAuth will fail with invalid_client",
+        { googleClientId: describeGoogleClientId(this.config.googleClientId) },
+        { phase: "plugin-init" },
+      );
+    }
   }
 
   public override async onload() {
     const jobs = [
       createGoogleTasksJob(
+        this.loadSettings,
+        this.saveSettings,
+        this.config,
+        this.app.vault,
+        (message) => new Notice(message),
+        this.app,
+      ),
+      createGmailStarredJob(
         this.loadSettings,
         this.saveSettings,
         this.config,

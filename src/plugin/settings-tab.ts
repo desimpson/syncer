@@ -10,6 +10,12 @@ import {
   syncIntervalSchema,
 } from "./schemas";
 import { GoogleAuth, InvalidGrantError, MicrosoftAuth } from "@/auth";
+import {
+  describeGoogleClientId,
+  googleOAuthDebugError,
+  googleOAuthDebugLog,
+  googleOAuthDebugWarn,
+} from "@/auth/google-oauth-debug";
 import { GoogleTasksService } from "@/services";
 import type { GoogleTasksList } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
@@ -120,6 +126,7 @@ export class SettingsTab extends PluginSettingTab {
       text: "Configure settings for the external sources you want to sync with Obsidian.",
     });
     await this.addGoogleTasksSettings(containerElement);
+    await this.addGmailStarredSettings(containerElement);
     await this.addMicrosoftOutlookSettings(containerElement);
     await this.addAzureDevOpsSettings(containerElement);
     await this.addFirefoxBookmarksSettings(containerElement);
@@ -213,7 +220,7 @@ export class SettingsTab extends PluginSettingTab {
       .setName("Sync completion status")
       .setDesc(
         // eslint-disable-next-line obsidianmd/ui/sentence-case -- product names
-        "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks and Microsoft Outlook (email flags) on the next sync.",
+        "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, and Microsoft Outlook (email flags) on the next sync.",
       )
       .addToggle((toggle) => {
         toggle.setValue(settings.syncCompletionStatus).onChange(async (value) => {
@@ -340,6 +347,114 @@ export class SettingsTab extends PluginSettingTab {
     await this.plugin.updateSettings({ googleTasks: undefined });
     // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     new Notice("Google Tasks account disconnected.");
+  }
+
+  private async addGmailStarredSettings(containerElement: HTMLElement) {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Gmail product names in settings */
+
+    new Setting(containerElement).setName("Gmail Starred").setHeading();
+
+    const settings = await this.plugin.loadSettings();
+    const setting = new Setting(containerElement);
+    const { gmailStarred } = settings;
+
+    if (gmailStarred === undefined) {
+      setting.setName("No Gmail Starred account connected");
+      setting.setDesc(
+        this.config.googleClientId.length === 0
+          ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_TASKS_CLIENT_ID_DEV or GOOGLE_TASKS_CLIENT_ID_PROD when building to enable Connect."
+          : "Connect opens your browser to sign in with Google; after you consent, starred mail syncs on the next run. Uses separate credentials from Google Tasks.",
+      );
+      setting.addButton((button) => {
+        if (this.config.googleClientId.length === 0) {
+          button.setDisabled(true);
+        }
+        button.setButtonText("Connect").onClick(async () => {
+          await this.connectGmailStarred();
+          await this.display();
+        });
+      });
+    } else {
+      setting.setName("Connected account");
+      setting.setDesc(gmailStarred.userInfo.email);
+      setting.addButton((button) =>
+        button
+          .setButtonText("Disconnect")
+          .setWarning()
+          .onClick(async () => {
+            await this.disconnectGmailStarred();
+            await this.display();
+          }),
+      );
+    }
+
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async connectGmailStarred(): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Gmail product names in notices */
+    const integration = "gmail-starred";
+    googleOAuthDebugLog(
+      "Connect clicked",
+      {
+        googleClientId: describeGoogleClientId(this.config.googleClientId),
+        scopes: "https://www.googleapis.com/auth/gmail.modify openid email profile",
+      },
+      { integration, phase: "connect-start" },
+    );
+
+    if (this.config.googleClientId.length === 0) {
+      googleOAuthDebugWarn("Connect aborted: empty googleClientId in plugin config", undefined, {
+        integration,
+        phase: "connect-start",
+      });
+      new Notice("Google client ID is not configured for this build.");
+      return;
+    }
+
+    try {
+      const credentials = await GoogleAuth.authenticate({
+        clientId: this.config.googleClientId,
+        scopes: "https://www.googleapis.com/auth/gmail.modify openid email profile",
+      });
+
+      googleOAuthDebugLog(
+        "Authenticate succeeded",
+        {
+          scope: credentials.scope,
+          expiryDate: credentials.expiryDate,
+          hasRefreshToken: credentials.refreshToken.length > 0,
+        },
+        { integration, phase: "connect-success" },
+      );
+
+      const userInfo = await GoogleAuth.getUserInfo(credentials.accessToken);
+
+      await this.plugin.updateSettings({
+        gmailStarred: {
+          credentials,
+          userInfo,
+        },
+      });
+
+      new Notice("Gmail Starred account connected successfully.");
+    } catch (error) {
+      googleOAuthDebugError(
+        "Connect failed",
+        { error: formatLogError(error, false) },
+        { integration, phase: "connect-failure" },
+      );
+      new Notice("Failed to connect Gmail Starred.");
+      console.error(`Error connecting Gmail Starred: [${formatLogError(error)}].`);
+    }
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async disconnectGmailStarred(): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Gmail product names in notices */
+    await this.plugin.updateSettings({ gmailStarred: undefined });
+    new Notice("Gmail Starred account disconnected.");
+    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addMicrosoftOutlookSettings(containerElement: HTMLElement) {

@@ -16,6 +16,10 @@
 - Azure DevOps uses PAT mode only: Basic auth with `:${PAT}`; requires organisation + project name settings and a PAT with Work Items read scope
 - Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
 - Google services still use global `fetch` in places; prefer matching the style of the file you touch
+- Gmail Starred reuses the same build-time Google client ID as Tasks but stores separate `gmailStarred` credentials; enable **Gmail API** on that OAuth client and add test users if the app is in Testing mode
+- Gmail Starred connect requests `gmail.modify` (star/unstar write-back); starred fetch uses bounded lookahead (`MAX=100`, `CANDIDATE_LIMIT=200`) — do not metadata-fetch the entire starred mailbox
+- Gmail list order is not guaranteed; service sorts by `internalDate` within the candidate window only
+- Gmail thread links (`#all/{threadId}`) open the conversation, not an individual message
 
 ## Sync / UI traps
 

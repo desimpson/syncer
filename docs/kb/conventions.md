@@ -30,12 +30,12 @@ Jobs glue auth + services + adaptors + sync. Plugin owns lifecycle, settings, an
 - Factories: `createXJob`, `createScheduler`, `createPopper`
 - Mapping: `mapXToSyncItem`
 - Schemas: `*Schema`
-- Source strings: `"google-tasks"`, `"microsoft-outlook"`, `"firefox-bookmarks"`
+- Source strings: `"google-tasks"`, `"gmail-starred"`, `"microsoft-outlook"`, `"firefox-bookmarks"`, `"azure-devops"`
 - British spelling in identifiers: `normalise`, `initialise`
 
 ## Errors and UX
 
-- Domain errors: `InvalidGrantError`, `GraphAuthorizationError`
+- Domain errors: `InvalidGrantError`, `GraphAuthorizationError`, `GmailAuthorizationError`, `GmailRateLimitError`
 - Jobs: on invalid grant, clear credentials and surface `AuthorizationExpiredModal`
 - Scheduler: log job failures with `formatLogError`; do not fail the whole schedule on one job
 - UI: `Notice` + `formatUiError`

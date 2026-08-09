@@ -117,9 +117,12 @@ describe("Task deletion confirmation", () => {
   const listId = "list-456";
   const taskTitle = "Test Task";
 
-  const defaultMicrosoftAuthSettings = {
+  const defaultAuthSettings = {
     microsoftAuthAccountKind: "personal" as const,
     microsoftAuthWorkOrSchoolTenantId: "",
+    azureDevOpsOrganization: "",
+    azureDevOpsProjectName: "",
+    azureDevOpsPersonalAccessToken: "",
   };
 
   beforeEach(() => {
@@ -201,7 +204,7 @@ describe("Task deletion confirmation", () => {
 
     // Mock loadSettings to return our test settings
     vi.spyOn(plugin, "loadSettings").mockResolvedValue({
-      ...defaultMicrosoftAuthSettings,
+      ...defaultAuthSettings,
       syncDocument: settings.syncDocument,
       syncHeading: settings.syncHeading,
       syncIntervalMinutes: 60,
@@ -512,7 +515,7 @@ describe("Task deletion confirmation", () => {
 
     // Mock loadSettings to return enableDeleteSync: false
     vi.spyOn(plugin, "loadSettings").mockResolvedValue({
-      ...defaultMicrosoftAuthSettings,
+      ...defaultAuthSettings,
       syncDocument,
       syncHeading: "## Tasks",
       syncIntervalMinutes: 60,
@@ -584,7 +587,7 @@ describe("Task deletion confirmation", () => {
 
     // Mock loadSettings to return task already in manuallyDeletedTaskIds
     vi.spyOn(plugin, "loadSettings").mockResolvedValue({
-      ...defaultMicrosoftAuthSettings,
+      ...defaultAuthSettings,
       syncDocument,
       syncHeading: "## Tasks",
       syncIntervalMinutes: 60,
@@ -684,7 +687,7 @@ describe("Task deletion confirmation", () => {
     // This simulates the fix where we reload settings before tracking each task
     vi.spyOn(plugin, "loadSettings").mockImplementation(async () => {
       const baseSettings = {
-        ...defaultMicrosoftAuthSettings,
+        ...defaultAuthSettings,
         syncDocument,
         syncHeading,
         syncIntervalMinutes: 60,
@@ -897,7 +900,7 @@ describe("Task deletion confirmation", () => {
 
     // Mock loadSettings to include availableLists with List A (even though it's not selected)
     vi.spyOn(plugin, "loadSettings").mockResolvedValue({
-      ...defaultMicrosoftAuthSettings,
+      ...defaultAuthSettings,
       syncDocument,
       syncHeading,
       syncIntervalMinutes: 60,

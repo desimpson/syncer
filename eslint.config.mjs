@@ -55,6 +55,7 @@ export default defineConfig([
       "unicorn/prefer-object-from-entries": "off",
       "unicorn/prefer-switch": "error",
       "unicorn/prefer-ternary": "error",
+      "unicorn/prevent-abbreviations": ["error", { ignore: [/DevOps/u] }],
     },
   },
   {

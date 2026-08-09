@@ -23,6 +23,58 @@ import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
   folder.path.length > 0 ? folder.path : folder.title;
 
+const normaliseAzureDevOpsOrganizationInput = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return "";
+  }
+
+  // Accept full org URLs and extract the organization segment.
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.hostname.toLowerCase() === "dev.azure.com") {
+        const segment = parsed.pathname
+          .split("/")
+          .map((part) => part.trim())
+          .find((part) => part.length > 0);
+        return segment ?? "";
+      }
+    } catch {
+      // Fall through and treat input as a raw organization string.
+    }
+  }
+
+  return trimmed.replaceAll(/^\/+|\/+$/g, "");
+};
+
+const parseAzureDevOpsUrlSegments = (
+  value: string,
+): { organization: string; projectName: string | undefined } | undefined => {
+  const trimmed = value.trim();
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.hostname.toLowerCase() !== "dev.azure.com") {
+      return undefined;
+    }
+    const segments = parsed.pathname
+      .split("/")
+      .map((part) => decodeURIComponent(part.trim()))
+      .filter((part) => part.length > 0);
+    const organization = segments[0];
+    if (organization === undefined) {
+      return undefined;
+    }
+    return { organization, projectName: segments[1] };
+  } catch {
+    return undefined;
+  }
+};
+
 /**
  * Settings tab for the Syncer plugin.
  */
@@ -69,6 +121,7 @@ export class SettingsTab extends PluginSettingTab {
     });
     await this.addGoogleTasksSettings(containerElement);
     await this.addMicrosoftOutlookSettings(containerElement);
+    await this.addAzureDevOpsSettings(containerElement);
     await this.addFirefoxBookmarksSettings(containerElement);
   }
 
@@ -350,7 +403,7 @@ export class SettingsTab extends PluginSettingTab {
       outlookRow.setName("No Microsoft Outlook account connected");
       outlookRow.setDesc(
         this.config.outlookClientId.length === 0
-          ? "The plugin build does not include a Microsoft application (client) ID. Set OUTLOOK_CLIENT_ID_DEV or OUTLOOK_CLIENT_ID_PROD when building to enable Connect."
+          ? "The plugin build does not include an Outlook application (client) ID. Set OUTLOOK_CLIENT_ID_DEV or OUTLOOK_CLIENT_ID_PROD when building to enable Connect."
           : "Connect opens your browser to sign in with Microsoft; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
       );
       outlookRow.addButton((button) => {
@@ -433,6 +486,95 @@ export class SettingsTab extends PluginSettingTab {
     /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
     await this.plugin.updateSettings({ microsoftOutlook: undefined });
     new Notice("Microsoft Outlook account disconnected.");
+    /* eslint-enable obsidianmd/ui/sentence-case */
+  }
+
+  private async addAzureDevOpsSettings(containerElement: HTMLElement): Promise<void> {
+    /* eslint-disable obsidianmd/ui/sentence-case -- Azure DevOps product names in settings */
+
+    new Setting(containerElement).setName("Azure DevOps").setHeading();
+
+    const settings = await this.plugin.loadSettings();
+
+    containerElement.createEl("p", {
+      text: "Azure DevOps sync uses Personal Access Token (PAT) mode. Enter organisation, project, and PAT below, then run Manual sync.",
+      cls: "setting-item-description",
+    });
+
+    const organizationValue = settings.azureDevOpsOrganization ?? "";
+    const { input: organizationInput, errorElement: organizationError } = this.createTextSetting(
+      containerElement,
+      "Organisation name",
+      "Azure DevOps organisation URL segment (for example, the name in https://dev.azure.com/your-org) or paste a full board URL.",
+      organizationValue,
+      "your-org",
+    );
+
+    organizationInput.onChange(async (value) => {
+      const parsedUrl = parseAzureDevOpsUrlSegments(value);
+      const normalized = parsedUrl?.organization ?? normaliseAzureDevOpsOrganizationInput(value);
+      if (normalized.length === 0) {
+        organizationError.setText("Organisation name cannot be empty.");
+        await this.plugin.updateSettings({ azureDevOpsOrganization: "" });
+        return;
+      }
+
+      organizationError.setText("");
+      if (normalized !== value.trim()) {
+        organizationInput.setValue(normalized);
+      }
+      const projectNameFromUrl = parsedUrl?.projectName;
+      await this.plugin.updateSettings({
+        azureDevOpsOrganization: normalized,
+        ...(projectNameFromUrl === undefined ? {} : { azureDevOpsProjectName: projectNameFromUrl }),
+      });
+      if (projectNameFromUrl !== undefined) {
+        projectNameInput.setValue(projectNameFromUrl);
+      }
+    });
+
+    const { input: projectNameInput, errorElement: projectNameError } = this.createTextSetting(
+      containerElement,
+      "Project name",
+      "Required for PAT mode. Use the project segment from URL (for example, My Test Project).",
+      settings.azureDevOpsProjectName ?? "",
+      "My Test Project",
+    );
+    projectNameInput.onChange(async (value) => {
+      const normalized = value.trim();
+      if (normalized.length === 0) {
+        projectNameError.setText("Project name cannot be empty.");
+        await this.plugin.updateSettings({ azureDevOpsProjectName: "" });
+        return;
+      }
+
+      projectNameError.setText("");
+      if (normalized !== value) {
+        projectNameInput.setValue(normalized);
+      }
+      await this.plugin.updateSettings({ azureDevOpsProjectName: normalized });
+    });
+
+    const { input: patInput } = this.createTextSetting(
+      containerElement,
+      "Personal access token (PAT)",
+      "PAT must include Work Items (Read) scope.",
+      settings.azureDevOpsPersonalAccessToken,
+      "Paste PAT token",
+    );
+    patInput.inputEl.type = "password";
+    patInput.onChange(async (value) => {
+      await this.plugin.updateSettings({ azureDevOpsPersonalAccessToken: value.trim() });
+    });
+
+    new Setting(containerElement)
+      .setName("PAT mode")
+      .setDesc(
+        settings.azureDevOpsPersonalAccessToken.trim().length === 0
+          ? "No PAT set yet. Add PAT with Work Items (Read) scope."
+          : "PAT is configured. Use Manual sync to fetch assigned work items.",
+      );
+
     /* eslint-enable obsidianmd/ui/sentence-case */
   }
 

@@ -22,12 +22,15 @@ export type Scheduler = {
 export const createScheduler = (jobs: SyncJob[]): Scheduler => {
   let intervalHandle: NodeJS.Timeout | undefined = undefined;
   let isRunning = false;
+  let hasPendingRun = false;
 
   const runJobs = async () => {
     if (isRunning) {
+      hasPendingRun = true;
       return;
     }
     isRunning = true;
+    hasPendingRun = false;
     try {
       for (const job of jobs) {
         try {
@@ -38,6 +41,9 @@ export const createScheduler = (jobs: SyncJob[]): Scheduler => {
       }
     } finally {
       isRunning = false;
+      if (hasPendingRun) {
+        void runJobs();
+      }
     }
   };
 

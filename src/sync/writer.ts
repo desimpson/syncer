@@ -235,7 +235,21 @@ export const reconcileSyncSourceAtomically = async (
   let actions: readonly SyncAction[] = [];
 
   await file.vault.process(file, (content) => {
-    existingItems = parseMarkdownSyncItemsFromContent(content, syncSource);
+    const lines = content.split("\n");
+    const headingIndex = findTargetHeadingIndex(lines, heading);
+    if (headingIndex === -1) {
+      existingItems = [];
+    } else {
+      const { sectionLines } = getSection(lines, headingIndex);
+      const kanbanSettingsRelativeIndex = sectionLines.findIndex((line) =>
+        kanbanSettingsStartRegex.test(line),
+      );
+      const taskCandidateLines =
+        kanbanSettingsRelativeIndex === -1
+          ? sectionLines
+          : sectionLines.slice(0, kanbanSettingsRelativeIndex);
+      existingItems = parseMarkdownSyncItemsFromContent(taskCandidateLines.join("\n"), syncSource);
+    }
     actions = filterActions(generateSyncActions(incomingItems, existingItems), actionPredicate);
     return applySyncActionsToContent(content, actions, heading);
   });

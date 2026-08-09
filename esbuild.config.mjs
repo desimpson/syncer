@@ -80,15 +80,15 @@ const environmentSchema = z.object({
  * Production builds require OUTLOOK_CLIENT_ID_PROD (Outlook is a shipped feature).
  * Development builds treat OUTLOOK_CLIENT_ID_DEV as optional (Outlook Connect disabled if omitted).
  */
-const getMicrosoftClientId = (mode) => {
+const getOutlookClientId = (mode) => {
   const environmentVariableName =
-    mode === "prod" ? "OUTLOOK_CLIENT_ID_PROD" : "OUTLOOK_CLIENT_ID_DEV";
+    mode === "production" ? "OUTLOOK_CLIENT_ID_PROD" : "OUTLOOK_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
   const trimmed = typeof clientId === "string" ? clientId.trim() : "";
 
-  if (mode === "prod" && trimmed.length === 0) {
+  if (mode === "production" && trimmed.length === 0) {
     throw new Error(
-      `Outlook Client ID is required for prod builds. Set ${environmentVariableName} environment variable.`,
+      `Outlook Client ID is required for production builds. Set ${environmentVariableName} environment variable.`,
     );
   }
 
@@ -96,18 +96,18 @@ const getMicrosoftClientId = (mode) => {
 };
 
 /**
- * Validates and returns the Google Client ID for the current build mode.
+ * Validates and returns the Google Tasks client ID for the current build mode.
  * Production builds require GOOGLE_TASKS_CLIENT_ID_PROD.
  * Development builds require GOOGLE_TASKS_CLIENT_ID_DEV.
  */
 const getValidatedClientId = (mode) => {
   const environmentVariableName =
-    mode === "prod" ? "GOOGLE_TASKS_CLIENT_ID_PROD" : "GOOGLE_TASKS_CLIENT_ID_DEV";
+    mode === "production" ? "GOOGLE_TASKS_CLIENT_ID_PROD" : "GOOGLE_TASKS_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
 
   if (!clientId || clientId.trim() === "") {
     throw new Error(
-      `Google Client ID is required. Set ${environmentVariableName} environment variable.`,
+      `Google Tasks client ID is required. Set ${environmentVariableName} environment variable.`,
     );
   }
 
@@ -116,7 +116,7 @@ const getValidatedClientId = (mode) => {
     const issues = result.error.issues
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join("; ");
-    throw new Error(`Invalid Google Client ID: ${issues}`);
+    throw new Error(`Invalid Google Tasks client ID: ${issues}`);
   }
 
   return result.data.GOOGLE_TASKS_CLIENT_ID;
@@ -124,6 +124,9 @@ const getValidatedClientId = (mode) => {
 
 /**
  * Creates production build options with the validated client ID.
+ *
+ * @param {string} clientId
+ * @param {string} outlookClientId
  */
 const createProductionOptions = (clientId, outlookClientId) => ({
   ...baseOptions,
@@ -139,6 +142,9 @@ const createProductionOptions = (clientId, outlookClientId) => ({
 
 /**
  * Creates development build options with the validated client ID.
+ *
+ * @param {string} clientId
+ * @param {string} outlookClientId
  */
 const createDevelopmentOptions = (clientId, outlookClientId) => ({
   ...baseOptions,
@@ -185,15 +191,36 @@ const watch = async (options) => {
 };
 
 /**
- * Parses the build mode from command-line arguments.
+ * Parses and normalises the build mode from command-line arguments.
  *
- * @returns {"prod" | "dev" | "watch"} The current mode.
+ * @returns {"production" | "development" | "watch"} The current mode.
  */
 const getMode = () => {
   const modeFlagIndex = process.argv.indexOf("--mode");
-  return modeFlagIndex !== -1 && modeFlagIndex + 1 < process.argv.length
-    ? process.argv[modeFlagIndex + 1]
-    : "watch"; // default is "watch"
+  if (modeFlagIndex === -1) {
+    return "watch";
+  }
+
+  const rawMode = process.argv[modeFlagIndex + 1];
+
+  switch (rawMode) {
+    case "prod":
+    case "production": {
+      return "production";
+    }
+    case "dev":
+    case "development": {
+      return "development";
+    }
+    case "watch": {
+      return "watch";
+    }
+    default: {
+      throw new Error(
+        `Unknown build mode "${String(rawMode)}". Use one of: dev, prod, development, production, watch.`,
+      );
+    }
+  }
 };
 
 /**
@@ -207,10 +234,10 @@ const run = async () => {
 
   // Get and validate the appropriate client ID for this build mode
   const clientId = getValidatedClientId(mode);
-  const clientIdType = mode === "prod" ? "PROD" : "DEV";
-  console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
+  const clientIdType = mode === "production" ? "PROD" : "DEV";
+  console.info(`Using Google Tasks Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
 
-  const outlookClientId = getMicrosoftClientId(mode);
+  const outlookClientId = getOutlookClientId(mode === "production" ? "production" : "development");
   if (outlookClientId.length > 0) {
     console.info(`Using Outlook Client ID (${clientIdType}): ${outlookClientId.slice(0, 8)}...`);
   } else {
@@ -218,12 +245,12 @@ const run = async () => {
   }
 
   switch (mode) {
-    case "prod": {
+    case "production": {
       const options = createProductionOptions(clientId, outlookClientId);
       await build(options);
       break;
     }
-    case "dev": {
+    case "development": {
       const options = createDevelopmentOptions(clientId, outlookClientId);
       await build(options);
       break;

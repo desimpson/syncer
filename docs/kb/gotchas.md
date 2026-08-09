@@ -5,26 +5,29 @@
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
 - Dev: `GOOGLE_TASKS_CLIENT_ID_DEV` required; `OUTLOOK_CLIENT_ID_DEV` optional (Outlook Connect disabled if omitted)
 - Prod: `GOOGLE_TASKS_CLIENT_ID_PROD` and `OUTLOOK_CLIENT_ID_PROD` both required (fail the build if either is missing)
-- See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`dev` / `prod` environment secrets)
+- See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`development` / `production` environment secrets)
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, `styles.css`, and `sql-wasm.wasm`
 
 ## Auth realities
 
 - Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`). README “PKCE” wording is misleading
-- For Google OAuth in this plugin, create the client as **UWP (Universal Windows Platform)** so no client secret is required; reference: [Stack Overflow answer](https://stackoverflow.com/a/78414957).
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
+- Azure DevOps uses PAT mode only: Basic auth with `:${PAT}`; requires organisation + project name settings and a PAT with Work Items read scope
+- Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
 - Google services still use global `fetch` in places; prefer matching the style of the file you touch
 
 ## Sync / UI traps
 
 - Sync reads the **saved file on disk** — unsaved editor buffers are ignored for Manual sync
+- Azure DevOps sync now skips a run (with notice) if the sync document keeps changing on disk and does not stabilise within the poll window
 - Target heading input is normalised to H2 (`## …`)
 - Scheduler runs jobs **sequentially** ([`scheduler.ts`](../../src/sync/scheduler.ts)) — parallel `vault.process` on the same note races and drops creates (looked like “Firefox missed a bookmark”)
 - Job reconcile planning must be atomic (`reconcileSyncSourceAtomically` in [`writer.ts`](../../src/sync/writer.ts)); pre-read action planning can miss creates when the file changes before write
 - SyncGuard + file-content cache interaction is load-bearing; changing delete-detection without understanding it causes false delete prompts
-- Product backlog lives in [GitHub issues](https://github.com/desimpson/syncer/issues); mention here only when it actively trips agents:
-  - HTML `--` inside task URLs can break Kanban metadata comments (#31)
-  - Incomplete barrels / inconsistent import style (#47)
+- Known issues tracked in [`TODO.md`](../../TODO.md) (not duplicated here), including:
+  - List deselect can trigger Google delete-sync prompts incorrectly
+  - HTML `--` inside task URLs can break Kanban metadata comments
+  - Incomplete barrels / inconsistent import style
 
 ## Firefox Bookmarks
 

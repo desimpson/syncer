@@ -14,7 +14,7 @@ import {
 } from "@/auth/schemas";
 
 /** Azure DevOps Services resource identifier for Microsoft identity platform scopes. */
-export const AZURE_DEVOPS_RESOURCE_APP_ID = "49939cec-5e97-4525-bb00-e3888f55c1a1";
+export const AZURE_DEVOPS_RESOURCE_APP_ID = "499b84ac-1321-427f-aa17-267ca6975798";
 
 const AZURE_DEVOPS_SCOPES = `${AZURE_DEVOPS_RESOURCE_APP_ID}/.default offline_access openid profile`;
 const AZURE_DEVOPS_DEBUG_PREFIX = "[AzureDevOps OAuth Debug]";

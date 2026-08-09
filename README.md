@@ -82,7 +82,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 ### Azure DevOps
 
 - Choose **Azure DevOps account type** (personal Microsoft account or work/school); for work/school you may optionally set a Directory (tenant) ID
-- Enter your **Organisation name** (the URL segment from `https://dev.azure.com/your-org`)
+- Enter your **Organisation name** (the URL segment from `https://dev.azure.com/your-org`, or paste the full URL and Syncer will extract the name)
 - Connect your account using the **Connect** button (requires the plugin to be built with an Azure DevOps application client ID)
 - Click **Refresh projects**, then select one project — only work items assigned to you in that project are synced
 - To switch organisations, disconnect and reconnect with a different organisation name

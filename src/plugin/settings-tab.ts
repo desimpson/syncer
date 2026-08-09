@@ -29,6 +29,31 @@ const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
   folder.path.length > 0 ? folder.path : folder.title;
 const AZURE_DEVOPS_SETTINGS_DEBUG_PREFIX = "[AzureDevOps Settings Debug]";
 
+const normaliseAzureDevOpsOrganizationInput = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return "";
+  }
+
+  // Accept full org URLs and extract the organization segment.
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.hostname.toLowerCase() === "dev.azure.com") {
+        const segment = parsed.pathname
+          .split("/")
+          .map((part) => part.trim())
+          .find((part) => part.length > 0);
+        return segment ?? "";
+      }
+    } catch {
+      // Fall through and treat input as a raw organization string.
+    }
+  }
+
+  return trimmed.replaceAll(/^\/+|\/+$/g, "");
+};
+
 /**
  * Settings tab for the Syncer plugin.
  */
@@ -505,20 +530,23 @@ export class SettingsTab extends PluginSettingTab {
     );
 
     organizationInput.onChange(async (value) => {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) {
+      const normalized = normaliseAzureDevOpsOrganizationInput(value);
+      if (normalized.length === 0) {
         organizationError.setText("Organisation name cannot be empty.");
         await this.plugin.updateSettings({ azureDevOpsOrganization: "" });
         return;
       }
 
       organizationError.setText("");
+      if (normalized !== value.trim()) {
+        organizationInput.setValue(normalized);
+      }
       const freshSettings = await this.plugin.loadSettings();
       await (freshSettings.azureDevOps === undefined
-        ? this.plugin.updateSettings({ azureDevOpsOrganization: trimmed })
+        ? this.plugin.updateSettings({ azureDevOpsOrganization: normalized })
         : this.plugin.updateSettings({
-            azureDevOpsOrganization: trimmed,
-            azureDevOps: { ...freshSettings.azureDevOps, organization: trimmed },
+            azureDevOpsOrganization: normalized,
+            azureDevOps: { ...freshSettings.azureDevOps, organization: normalized },
           }));
     });
 
@@ -575,11 +603,9 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     const settings = await this.plugin.loadSettings();
-    const organization = (
-      settings.azureDevOpsOrganization ??
-      settings.azureDevOps?.organization ??
-      ""
-    ).trim();
+    const organization = normaliseAzureDevOpsOrganizationInput(
+      settings.azureDevOpsOrganization ?? settings.azureDevOps?.organization ?? "",
+    );
     if (organization.length === 0) {
       new Notice("Enter your Azure DevOps organisation name before connecting.");
       return;

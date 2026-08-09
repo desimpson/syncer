@@ -541,7 +541,7 @@ export class SettingsTab extends PluginSettingTab {
       "My Test Project",
     );
     projectNameInput.onChange(async (value) => {
-      const normalized = decodeURIComponent(value.trim());
+      const normalized = value.trim();
       if (normalized.length === 0) {
         projectNameError.setText("Project name cannot be empty.");
         await this.plugin.updateSettings({ azureDevOpsProjectName: "" });
@@ -549,6 +549,9 @@ export class SettingsTab extends PluginSettingTab {
       }
 
       projectNameError.setText("");
+      if (normalized !== value) {
+        projectNameInput.setValue(normalized);
+      }
       await this.plugin.updateSettings({ azureDevOpsProjectName: normalized });
     });
 

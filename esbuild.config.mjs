@@ -197,10 +197,11 @@ const watch = async (options) => {
  */
 const getMode = () => {
   const modeFlagIndex = process.argv.indexOf("--mode");
-  const rawMode =
-    modeFlagIndex !== -1 && modeFlagIndex + 1 < process.argv.length
-      ? process.argv[modeFlagIndex + 1]
-      : "watch";
+  if (modeFlagIndex === -1) {
+    return "watch";
+  }
+
+  const rawMode = process.argv[modeFlagIndex + 1];
 
   switch (rawMode) {
     case "prod":
@@ -211,8 +212,13 @@ const getMode = () => {
     case "development": {
       return "development";
     }
-    default: {
+    case "watch": {
       return "watch";
+    }
+    default: {
+      throw new Error(
+        `Unknown build mode "${String(rawMode)}". Use one of: dev, prod, development, production, watch.`,
+      );
     }
   }
 };

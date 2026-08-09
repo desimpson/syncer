@@ -257,7 +257,7 @@ const fetchWorkItemDetailsChunk = async (
 /**
  * Fetches work items assigned to the connected user in the selected project.
  * WIQL returns IDs only; details are fetched in chunks (max 200 IDs per request).
- * Partial chunk failures are skipped with a console warning; successful chunks are returned.
+ * Any detail fetch failure aborts the sync to avoid partial reconcile/deletion side effects.
  *
  * @param accessToken - Valid Azure DevOps OAuth access token
  * @param organization - Organisation URL segment
@@ -282,9 +282,10 @@ export const fetchAssignedWorkItems = async (
       results.push(...items);
     } catch (error) {
       console.warn(
-        `Azure DevOps work item detail fetch failed for chunk [${chunk.join(",")}]:`,
+        `Azure DevOps work item detail fetch failed for chunk [${chunk.join(",")}]. Aborting sync to avoid partial results:`,
         error,
       );
+      throw error;
     }
   }
 

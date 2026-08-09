@@ -136,7 +136,7 @@ describe("azure-devops service", () => {
     expect(requestUrl).toHaveBeenCalledTimes(2);
   });
 
-  it("fetchAssignedWorkItems skips failed detail chunks and returns successful chunks", async () => {
+  it("fetchAssignedWorkItems throws when detail fetch fails", async () => {
     // Arrange
     vi.mocked(requestUrl)
       .mockResolvedValueOnce(
@@ -144,15 +144,10 @@ describe("azure-devops service", () => {
       )
       .mockResolvedValueOnce(adoResponse(500, "Server error"));
 
-    // Act
-    const result = await fetchAssignedWorkItems(
-      { kind: "bearer", accessToken: "token" },
-      "my-org",
-      "Contoso",
-    );
-
-    // Assert
-    expect(result).toEqual([]);
+    // Act & Assert
+    await expect(
+      fetchAssignedWorkItems({ kind: "bearer", accessToken: "token" }, "my-org", "Contoso"),
+    ).rejects.toThrow("Azure DevOps fetch work items failed: 500 Server error");
     expect(requestUrl).toHaveBeenCalledTimes(2);
   });
 

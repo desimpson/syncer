@@ -47,7 +47,7 @@ const markdownFilePathShapeSchema = z
 export const createMarkdownFilePathSchema = (vault: Vault): z.ZodString =>
   markdownFilePathShapeSchema.refine(async (value) => vault.getAbstractFileByPath(value), {
     message: "File does not exist in the vault.",
-  }) as unknown as z.ZodString;
+  });
 
 /**
  * Schema for validating the sync interval setting.

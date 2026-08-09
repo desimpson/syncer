@@ -249,7 +249,7 @@ describe("createGoogleTasksJob", () => {
     const vault = makeVault(file);
 
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
-      { id: "A-1", title: "T", webViewLink: "https://x" } as GoogleTask,
+      { id: "A-1", title: "T", webViewLink: "https://x" },
     ]);
     vi.mocked(readMarkdownSyncItems).mockRejectedValue(
       new Error("ENOENT: no such file or directory"),
@@ -305,7 +305,7 @@ describe("createGoogleTasksJob", () => {
       expiryDate: newExpiry,
     });
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async (listId) => [
-      { id: `${listId}-1`, title: "T", webViewLink: "https://x" } as GoogleTask,
+      { id: `${listId}-1`, title: "T", webViewLink: "https://x" },
     ]);
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
     vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
@@ -365,7 +365,7 @@ describe("createGoogleTasksJob", () => {
     const vault = makeVault(file);
 
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async (listId) => [
-      { id: `${listId}-1`, title: "T1", webViewLink: "https://x1" } as GoogleTask,
+      { id: `${listId}-1`, title: "T1", webViewLink: "https://x1" },
     ]);
     const existing: SyncItem[] = [
       {
@@ -650,8 +650,8 @@ describe("createGoogleTasksJob", () => {
     const vault = makeVault(file);
 
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
-      { id: "A-1", title: "Deleted Task", webViewLink: "https://x1" } as GoogleTask,
-      { id: "A-2", title: "Normal Task", webViewLink: "https://x2" } as GoogleTask,
+      { id: "A-1", title: "Deleted Task", webViewLink: "https://x1" },
+      { id: "A-2", title: "Normal Task", webViewLink: "https://x2" },
     ]);
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
     let capturedIncoming: SyncItem[] = [];
@@ -703,7 +703,7 @@ describe("createGoogleTasksJob", () => {
     const vault = makeVault(file);
 
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
-      { id: "A-1", title: "Task", webViewLink: "https://x1" } as GoogleTask,
+      { id: "A-1", title: "Task", webViewLink: "https://x1" },
       // A-2 is not in the list (deleted from Google Tasks)
     ]);
     vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);

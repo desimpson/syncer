@@ -3,12 +3,10 @@
 
 import { vi } from "vitest";
 
-export const requestUrl = vi.fn(
-  async (): Promise<{ status: number; text: string }> => ({
-    status: 501,
-    text: JSON.stringify({ error: "requestUrl not configured for this test" }),
-  }),
-);
+export const requestUrl = vi.fn(async (): Promise<{ status: number; text: string }> => ({
+  status: 501,
+  text: JSON.stringify({ error: "requestUrl not configured for this test" }),
+}));
 
 export class Notice {
   public message: string;

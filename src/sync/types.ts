@@ -28,11 +28,7 @@ export type SyncAction = {
  * The different supported sync sources.
  */
 export type SyncSource =
-  | "google-tasks"
-  | "microsoft-outlook"
-  | "gmail-starred"
-  | "firefox-bookmarks"
-  | "azure-devops";
+  "google-tasks" | "microsoft-outlook" | "gmail-starred" | "firefox-bookmarks" | "azure-devops";
 
 /** `SyncItem.source` / markdown metadata value for Gmail Starred. */
 export const GMAIL_STARRED_SOURCE = "gmail-starred" satisfies SyncSource;

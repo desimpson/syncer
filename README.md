@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks, Microsoft Outlook, and Firefox Bookmarks into your vault.
+Obsidian plugin to sync external sources like Google Tasks, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Microsoft Outlook (flagged mail), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -23,6 +23,11 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Syncs messages with an Outlook follow-up flag set to flagged
   - Personal (Outlook.com / Hotmail / Live) or work/school accounts (optional Entra tenant ID)
   - When completion status sync is enabled, checking/unchecking items in Obsidian updates the Outlook flag on the next sync
+- Azure DevOps integration:
+  - Personal Access Token (PAT) authentication
+  - One organisation + one project per settings profile
+  - Syncs work items assigned to the connected user with clickable links to the work item in the browser
+  - One-way sync only; checking items in Obsidian does not update work item state in Azure DevOps
 - Firefox Bookmarks integration (desktop only):
   - Sync bookmarks from a local Firefox profile into your vault
   - Auto-detect default profile or set a manual profile path
@@ -74,6 +79,19 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - Connect your Microsoft account using the **Connect** button (requires the plugin to be built with a Microsoft application client ID)
 - Flagged messages are synced into the target note under the sync heading
 
+### Azure DevOps
+
+- Enter your **Organisation name** (the URL segment from `https://dev.azure.com/your-org`, or paste the full URL and Syncer will extract the name)
+- Enter **Project name**
+- Enter **Personal access token (PAT)** with **Work Items (Read)** scope
+- Run **Manual sync** — Syncer fetches work items assigned to your account in the configured project
+
+#### PAT setup (Azure DevOps)
+
+1. Open Azure DevOps user settings → **Personal access tokens**
+2. Create a token with scope **Work Items (Read)** (optionally **Project and Team (Read)**)
+3. Copy the token and paste it into Syncer’s **Personal access token (PAT)** field
+
 ### Firefox Bookmarks (desktop only)
 
 - Enable **Firefox Bookmarks** in the plugin settings
@@ -103,7 +121,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Development builds require `GOOGLE_TASKS_CLIENT_ID_DEV` (see `.env.example`). Optionally set `OUTLOOK_CLIENT_ID_DEV` to enable Outlook Connect in local builds.
+Development builds require `GOOGLE_TASKS_CLIENT_ID_DEV` (see `.env.example`). Optionally set `OUTLOOK_CLIENT_ID_DEV` to enable Outlook Connect.
 
 Sync to your vault with:
 
@@ -124,7 +142,7 @@ This plugin includes code adapted from the following projects:
 ## Releasing
 
 1. Update version: `npm run version` (or `npm version patch|minor|major`)
-2. Build production: `GOOGLE_TASKS_CLIENT_ID_PROD=your-id OUTLOOK_CLIENT_ID_PROD=your-id npm run build:prod` (both client IDs required for production builds)
+2. Build production: `GOOGLE_TASKS_CLIENT_ID_PROD=your-id OUTLOOK_CLIENT_ID_PROD=your-id npm run build:prod` (Google Tasks and Outlook client IDs required)
 3. Verify: `npm run release:check`
 4. Create release:
    - **Automated**: `git tag 1.0.0 && git push origin 1.0.0` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.1.0` or `1.0.0`, not `v1.0.0`)

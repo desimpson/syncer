@@ -216,6 +216,9 @@ describe("pluginSettingsSchema", () => {
       expect(result.data.microsoftAuthAccountKind).toBe("personal");
       expect(result.data.microsoftAuthWorkOrSchoolTenantId).toBe("");
       expect(result.data.microsoftOutlook).toBeUndefined();
+      expect(result.data.azureDevOpsOrganization).toBe("");
+      expect(result.data.azureDevOpsProjectName).toBe("");
+      expect(result.data.azureDevOpsPersonalAccessToken).toBe("");
     }
   });
 

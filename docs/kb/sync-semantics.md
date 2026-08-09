@@ -52,6 +52,16 @@ Owning job: [`src/jobs/microsoft-outlook.ts`](../../src/jobs/microsoft-outlook.t
 - `syncCompletionStatus`: checking/unchecking in Obsidian updates the Outlook flag on the next sync
 - Account kind + optional Entra tenant ID → tenant segment for Graph auth
 
+## Azure DevOps
+
+Owning job: [`src/jobs/azure-devops.ts`](../../src/jobs/azure-devops.ts).
+
+- Incoming feed = work items **assigned to the connected user** in one selected project (WIQL + chunked detail fetch in `src/services/azure-devops.ts`)
+- One connected organisation per settings profile; reconnect (disconnect + connect) to switch org
+- Checkbox in Obsidian is **local-only** — no write-back to Azure DevOps work item state in #35
+- Empty assignment set passes an empty incoming list → stale unchecked Azure DevOps lines are removed; completed lines preserved via `shouldPreserveCompletedDeletes`
+- Auth: PAT only (Basic auth with `:${PAT}`), using manual organisation + project fields
+
 ## Firefox Bookmarks
 
 Owning job: [`src/jobs/firefox-bookmarks.ts`](../../src/jobs/firefox-bookmarks.ts).

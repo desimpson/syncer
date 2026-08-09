@@ -24,6 +24,9 @@ export type PluginSettings = {
   microsoftAuthAccountKind: MicrosoftAuthAccountKind;
   microsoftAuthWorkOrSchoolTenantId: string;
   microsoftOutlook?: MicrosoftOutlookSettings | undefined;
+  azureDevOpsOrganization: string;
+  azureDevOpsProjectName: string;
+  azureDevOpsPersonalAccessToken: string;
   firefoxBookmarks?: FirefoxBookmarksSettings | undefined;
 };
 

@@ -167,5 +167,8 @@ export const pluginSettingsSchema = z.object({
   microsoftAuthAccountKind: microsoftAuthAccountKindSchema,
   microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
   microsoftOutlook: microsoftOutlookSettingsSchema.optional(),
+  azureDevOpsOrganization: z.string().trim().default(""),
+  azureDevOpsProjectName: z.string().trim().default(""),
+  azureDevOpsPersonalAccessToken: z.string().trim().default(""),
   firefoxBookmarks: firefoxBookmarksSettingsSchema.optional(),
 });

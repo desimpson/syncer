@@ -78,6 +78,32 @@ describe("gmail-starred service", () => {
     expect(requestUrl).toHaveBeenCalledTimes(3);
   });
 
+  it("fetchStarredMessages respects a custom maxMessages limit", async () => {
+    vi.mocked(requestUrl).mockResolvedValueOnce(
+      gmailResponse(
+        200,
+        JSON.stringify({
+          messages: [
+            { id: "older", threadId: "t-older" },
+            { id: "newer", threadId: "t-newer" },
+          ],
+        }),
+      ),
+    );
+    vi.mocked(requestUrl)
+      .mockResolvedValueOnce(
+        gmailResponse(200, metadataBody("older", "100", "Old", "a@example.com")),
+      )
+      .mockResolvedValueOnce(
+        gmailResponse(200, metadataBody("newer", "200", "New", "b@example.com")),
+      );
+
+    const result = await fetchStarredMessages("token", 1);
+
+    expect(result.messages.map((message) => message.id)).toEqual(["newer"]);
+    expect(result.truncated).toBe(true);
+  });
+
   it("fetchStarredMessages paginates until candidate limit and marks truncated", async () => {
     // Arrange
     const firstPageIds = Array.from({ length: 100 }, (_, index) => ({

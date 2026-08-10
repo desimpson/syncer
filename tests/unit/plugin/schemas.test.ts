@@ -1,6 +1,9 @@
 import {
   createMarkdownFilePathSchema,
+  gmailStarredMaxItemsSchema,
   maximumSyncIntervalMinutes,
+  maximumGmailStarredMaxItems,
+  minimumGmailStarredMaxItems,
   minimumSyncIntervalMinutes,
   pluginSchema,
   syncIntervalSchema,
@@ -211,6 +214,7 @@ describe("pluginSettingsSchema", () => {
       expect(result.data.syncIntervalMinutes).toBe(5);
       expect(result.data.syncDocument).toBe("GTD.md");
       expect(result.data.syncHeading).toBe("## Inbox");
+      expect(result.data.gmailStarredMaxItems).toBe(100);
       expect(result.data.syncCompletionStatus).toBe(false);
       expect(result.data.googleTasks).toBeUndefined();
       expect(result.data.microsoftAuthAccountKind).toBe("personal");
@@ -325,6 +329,23 @@ describe("microsoftWorkOrSchoolTenantIdSchema", () => {
 
     // Assert
     expect(result.success).toBe(false);
+  });
+});
+
+describe("gmailStarredMaxItemsSchema", () => {
+  it("accepts whole numbers within bounds", () => {
+    const result = gmailStarredMaxItemsSchema.safeParse("150");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toBe(150);
+    }
+  });
+
+  it("rejects values below min and above max", () => {
+    const belowMin = gmailStarredMaxItemsSchema.safeParse(minimumGmailStarredMaxItems - 1);
+    const aboveMax = gmailStarredMaxItemsSchema.safeParse(maximumGmailStarredMaxItems + 1);
+    expect(belowMin.success).toBe(false);
+    expect(aboveMax.success).toBe(false);
   });
 });
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 
-/** Kept after sorting by internalDate within the candidate window. */
+/** Default kept after sorting by internalDate within the candidate window. */
 export const GMAIL_STARRED_MAX_MESSAGES = 100;
 
 /** Max list ids / metadata gets per sync cycle (2 × MAX). */
@@ -202,6 +202,7 @@ const compareMessagesByRecency = (
  */
 export const fetchStarredMessages = async (
   accessToken: string,
+  maxMessages = GMAIL_STARRED_MAX_MESSAGES,
 ): Promise<FetchStarredMessagesResult> => {
   const { candidateIds, listExhausted } = await collectStarredCandidateIds(accessToken);
 
@@ -214,8 +215,8 @@ export const fetchStarredMessages = async (
   const sortedMessages = [...messages];
 
   sortedMessages.sort(compareMessagesByRecency);
-  const keptMessages = sortedMessages.slice(0, GMAIL_STARRED_MAX_MESSAGES);
-  const truncated = !listExhausted || candidateIds.length > GMAIL_STARRED_MAX_MESSAGES;
+  const keptMessages = sortedMessages.slice(0, maxMessages);
+  const truncated = !listExhausted || candidateIds.length > maxMessages;
 
   return { messages: keptMessages, truncated };
 };

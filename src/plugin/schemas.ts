@@ -14,6 +14,8 @@ export const minimumSyncIntervalMinutes = 1;
  * Maximum sync interval in minutes.
  */
 export const maximumSyncIntervalMinutes = 24 * 60;
+export const minimumGmailStarredMaxItems = 1;
+export const maximumGmailStarredMaxItems = 200;
 
 const markdownExtensionRegex = /\.md$/;
 const h2HeadingRegex = /^##\s.+/;
@@ -72,6 +74,19 @@ export const headingSchema = z
   .transform((value) => normaliseHeadingToH2(value))
   .refine((value) => h2HeadingRegex.test(value), {
     message: "Heading must be H2 with text, e.g., '## Tasks'",
+  });
+
+/**
+ * Schema for the Gmail Starred max-item sync limit.
+ */
+export const gmailStarredMaxItemsSchema: z.ZodCoercedNumber<unknown> = z.coerce
+  .number("Must be a number.")
+  .int("Must be a whole number.")
+  .min(minimumGmailStarredMaxItems, {
+    message: `Must be at least ${minimumGmailStarredMaxItems}.`,
+  })
+  .max(maximumGmailStarredMaxItems, {
+    message: `Must be less than or equal to ${maximumGmailStarredMaxItems}.`,
   });
 
 /**
@@ -174,6 +189,7 @@ export const pluginSettingsSchema = z.object({
   syncIntervalMinutes: syncIntervalSchema.default(5),
   syncDocument: markdownFilePathShapeSchema.default("GTD.md"),
   syncHeading: headingSchema.default("## Inbox"),
+  gmailStarredMaxItems: gmailStarredMaxItemsSchema.default(100),
   syncCompletionStatus: z.boolean().default(false),
   enableDeleteSync: z.boolean().default(true),
   confirmDeleteSync: z.boolean().default(true),

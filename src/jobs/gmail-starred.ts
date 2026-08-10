@@ -395,7 +395,8 @@ export const createGmailStarredJob: SyncJobCreator = (
   name: "gmail-starred",
   task: async () => {
     const settings = await loadSettings();
-    const { gmailStarred, syncDocument, syncHeading, syncCompletionStatus } = settings;
+    const { gmailStarred, gmailStarredMaxItems, syncDocument, syncHeading, syncCompletionStatus } =
+      settings;
 
     if (gmailStarred === undefined) {
       return;
@@ -435,7 +436,7 @@ export const createGmailStarredJob: SyncJobCreator = (
     let messages: readonly GmailStarredMessage[];
     let truncated = false;
     try {
-      const fetchResult = await fetchStarredMessages(currentAccessToken);
+      const fetchResult = await fetchStarredMessages(currentAccessToken, gmailStarredMaxItems);
       messages = fetchResult.messages;
       truncated = fetchResult.truncated;
     } catch (error) {

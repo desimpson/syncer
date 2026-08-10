@@ -5,6 +5,7 @@ import { formatLogError, formatUiError } from "@/utils/error-formatters";
 import type { PluginSettings, PluginConfig } from "@/plugin/types";
 import {
   createMarkdownFilePathSchema,
+  gmailStarredMaxItemsSchema,
   headingSchema,
   microsoftWorkOrSchoolTenantIdSchema,
   syncIntervalSchema,
@@ -381,6 +382,26 @@ export class SettingsTab extends PluginSettingTab {
           }),
       );
     }
+
+    const { input, errorElement } = this.createTextSetting(
+      containerElement,
+      "Max synced starred emails",
+      "Sync keeps only the newest N starred messages in the sync note (max 200).",
+      settings.gmailStarredMaxItems.toString(),
+      "e.g., 100",
+    );
+    input.onChange(async (value) => {
+      const result = gmailStarredMaxItemsSchema.safeParse(value);
+      if (result.success) {
+        await this.plugin.updateSettings({ gmailStarredMaxItems: result.data });
+        errorElement.setText("");
+      } else {
+        errorElement.setText(formatUiError(result.error));
+        console.warn(
+          `Invalid Gmail Starred max items value: [${value}]. Error: [${formatLogError(result.error)}].`,
+        );
+      }
+    });
 
     /* eslint-enable obsidianmd/ui/sentence-case */
   }

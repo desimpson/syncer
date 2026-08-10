@@ -126,6 +126,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: makeGmailStarredSettings(),
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: true,
     };
     const loadSettings = vi.fn().mockResolvedValue(settings);
@@ -162,6 +163,7 @@ describe("createGmailStarredJob completion sync", () => {
 
     await job.task();
 
+    expect(fetchStarredMessages).toHaveBeenCalledWith("gmail-token", 100);
     expect(updateGmailMessageStarred).toHaveBeenCalledWith("gmail-token", "msg-1", false);
   });
 
@@ -170,6 +172,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: makeGmailStarredSettings(),
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: true,
     };
     const loadSettings = vi.fn().mockResolvedValue(settings);
@@ -218,6 +221,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: makeGmailStarredSettings(),
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: false,
     };
     const loadSettings = vi.fn().mockResolvedValue(settings);
@@ -250,6 +254,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: makeGmailStarredSettings(),
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: false,
     };
     const loadSettings = vi.fn().mockResolvedValue(settings);
@@ -283,6 +288,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: makeGmailStarredSettings(),
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: false,
     };
     const loadSettings = vi.fn().mockResolvedValue(settings);
@@ -318,6 +324,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: makeGmailStarredSettings(),
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: false,
     };
     const loadSettings = vi
@@ -353,6 +360,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: makeGmailStarredSettings(),
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: false,
     };
     const loadSettings = vi.fn().mockResolvedValue(settings);
@@ -393,6 +401,7 @@ describe("createGmailStarredJob completion sync", () => {
       gmailStarred: gmailSettings,
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
+      gmailStarredMaxItems: 100,
       syncCompletionStatus: false,
     };
     const loadSettings = vi

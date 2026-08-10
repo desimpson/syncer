@@ -1,7 +1,7 @@
 {
   "id": "syncer",
   "name": "Syncer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minAppVersion": "1.8.0",
   "description": "Sync external sources like Google Tasks to your vault. More integrations to come.",
   "author": "Daniel Simpson",

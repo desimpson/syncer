@@ -77,7 +77,7 @@ const getMicrosoftClientId = (mode) => {
 /**
  * Validates and returns the Google OAuth client ID for the current build mode.
  * Production builds require GOOGLE_CLIENT_ID_PROD.
- * Development builds require GOOGLE_CLIENT_ID_DEV.
+ * Development builds treat GOOGLE_CLIENT_ID_DEV as optional (Google Connect disabled if omitted).
  */
 const getValidatedClientId = (mode) => {
   const environmentVariableName =
@@ -85,9 +85,13 @@ const getValidatedClientId = (mode) => {
   const clientId = process.env[environmentVariableName];
 
   if (!clientId || clientId.trim() === "") {
-    throw new Error(
-      `Google client ID is required. Set ${environmentVariableName} environment variable.`,
-    );
+    if (mode === "production") {
+      throw new Error(
+        `Google client ID is required. Set ${environmentVariableName} environment variable.`,
+      );
+    }
+    console.info("Google Client ID not set (Google connect disabled until configured).");
+    return "";
   }
 
   const result = environmentSchema.safeParse({ GOOGLE_CLIENT_ID: clientId });
@@ -214,7 +218,9 @@ const run = async () => {
   // Get and validate the appropriate client ID for this build mode
   const clientId = getValidatedClientId(mode);
   const clientIdType = mode === "production" ? "PROD" : "DEV";
-  console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
+  if (clientId.length > 0) {
+    console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
+  }
 
   const microsoftClientId = getMicrosoftClientId(
     mode === "production" ? "production" : "development",

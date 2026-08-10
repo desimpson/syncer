@@ -1,15 +1,22 @@
 const getBrowserWindow = (): Window | undefined =>
   typeof window === "undefined" ? undefined : window;
 
-export type RuntimeTimeoutHandle = number | ReturnType<typeof globalThis.setTimeout>;
-export type RuntimeIntervalHandle = number | ReturnType<typeof globalThis.setInterval>;
+const getNodeGlobal = (): (typeof global & { fetch?: typeof fetch }) | undefined =>
+  typeof global === "undefined" ? undefined : global;
+
+export type RuntimeTimeoutHandle = number | NodeJS.Timeout;
+export type RuntimeIntervalHandle = number | NodeJS.Timeout;
 
 export const runtimeFetch: typeof fetch = (...arguments_) => {
   const browserWindow = getBrowserWindow();
   if (browserWindow !== undefined && typeof browserWindow.fetch === "function") {
     return browserWindow.fetch(...arguments_);
   }
-  return globalThis.fetch(...arguments_);
+  const nodeGlobal = getNodeGlobal();
+  if (nodeGlobal !== undefined && typeof nodeGlobal.fetch === "function") {
+    return nodeGlobal.fetch(...arguments_);
+  }
+  throw new Error("No fetch implementation available.");
 };
 
 export const runtimeOpen = (
@@ -31,7 +38,11 @@ export const runtimeSetTimeout = (
   if (browserWindow !== undefined && typeof browserWindow.setTimeout === "function") {
     return browserWindow.setTimeout(handler, timeout, ...arguments_);
   }
-  return globalThis.setTimeout(handler, timeout, ...arguments_);
+  const nodeGlobal = getNodeGlobal();
+  if (nodeGlobal !== undefined) {
+    return nodeGlobal.setTimeout(handler, timeout, ...arguments_);
+  }
+  throw new Error("No setTimeout implementation available.");
 };
 
 export const runtimeClearTimeout = (handle: RuntimeTimeoutHandle | undefined): void => {
@@ -44,7 +55,10 @@ export const runtimeClearTimeout = (handle: RuntimeTimeoutHandle | undefined): v
     browserWindow.clearTimeout(handle);
     return;
   }
-  globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout> | undefined);
+  const nodeGlobal = getNodeGlobal();
+  if (nodeGlobal !== undefined) {
+    nodeGlobal.clearTimeout(handle);
+  }
 };
 
 export const runtimeSetInterval = (
@@ -56,7 +70,11 @@ export const runtimeSetInterval = (
   if (browserWindow !== undefined && typeof browserWindow.setInterval === "function") {
     return browserWindow.setInterval(handler, timeout, ...arguments_);
   }
-  return globalThis.setInterval(handler, timeout, ...arguments_);
+  const nodeGlobal = getNodeGlobal();
+  if (nodeGlobal !== undefined) {
+    return nodeGlobal.setInterval(handler, timeout, ...arguments_);
+  }
+  throw new Error("No setInterval implementation available.");
 };
 
 export const runtimeClearInterval = (handle: RuntimeIntervalHandle | undefined): void => {
@@ -69,5 +87,8 @@ export const runtimeClearInterval = (handle: RuntimeIntervalHandle | undefined):
     browserWindow.clearInterval(handle);
     return;
   }
-  globalThis.clearInterval(handle as ReturnType<typeof globalThis.setInterval> | undefined);
+  const nodeGlobal = getNodeGlobal();
+  if (nodeGlobal !== undefined) {
+    nodeGlobal.clearInterval(handle);
+  }
 };

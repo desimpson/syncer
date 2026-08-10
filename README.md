@@ -131,7 +131,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Development builds require `GOOGLE_CLIENT_ID_DEV` (see `.env.example`). Optionally set `MICROSOFT_CLIENT_ID_DEV` to enable Outlook Connect.
+Set `GOOGLE_CLIENT_ID_DEV` and `MICROSOFT_CLIENT_ID_DEV` (see `.env.example`) to enable Google/Microsoft Connect in development builds. If omitted, the build still succeeds but Connect actions are disabled.
 
 Sync to your vault with:
 

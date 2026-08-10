@@ -392,6 +392,10 @@ export const createGoogleTasksJob: SyncJobCreator = (
       return;
     }
 
+    if (config.googleClientId.length === 0) {
+      return;
+    }
+
     let currentAccessToken: string;
     try {
       currentAccessToken = await ensureAccessToken(

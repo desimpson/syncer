@@ -52,7 +52,7 @@ describe("pluginSchema", () => {
     }
   });
 
-  it("rejects empty client credentials", () => {
+  it("accepts empty client credentials and defaults both IDs", () => {
     // Arrange
     const input = {
       GOOGLE_CLIENT_ID: "",
@@ -62,10 +62,10 @@ describe("pluginSchema", () => {
     const result = pluginSchema.safeParse(input);
 
     // Assert
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const messages = result.error.issues.map((index) => index.message);
-      expect(messages).toContain("Too small: expected string to have >=1 characters");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.GOOGLE_CLIENT_ID).toBe("");
+      expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
     }
   });
 });

@@ -288,13 +288,20 @@ export class SettingsTab extends PluginSettingTab {
     const { googleTasks } = settings;
     if (googleTasks === undefined) {
       setting.setName("No Google Tasks account connected");
-      setting.setDesc("Connect your Google Tasks account to sync tasks.");
-      setting.addButton((button) =>
+      setting.setDesc(
+        this.config.googleClientId.length === 0
+          ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_CLIENT_ID_DEV or GOOGLE_CLIENT_ID_PROD when building to enable Connect."
+          : "Connect your Google Tasks account to sync tasks.",
+      );
+      setting.addButton((button) => {
+        if (this.config.googleClientId.length === 0) {
+          button.setDisabled(true);
+        }
         button.setButtonText("Connect").onClick(async () => {
           await this.connectGoogleTasks();
           await this.render();
-        }),
-      );
+        });
+      });
     } else {
       setting.setName("Connected account");
       setting.setDesc(googleTasks.userInfo?.email ?? "");
@@ -315,6 +322,11 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async connectGoogleTasks(): Promise<void> {
+    if (this.config.googleClientId.length === 0) {
+      new Notice("Google client ID is not configured for this build.");
+      return;
+    }
+
     try {
       const credentials = await GoogleAuth.authenticate({
         clientId: this.config.googleClientId,

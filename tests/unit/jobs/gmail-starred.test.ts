@@ -392,7 +392,6 @@ describe("createGmailStarredJob completion sync", () => {
     expect(modalOpen).not.toHaveBeenCalled();
     expect(reconcileSyncSourceAtomically).not.toHaveBeenCalled();
   });
-
   it("reloads settings before persisting a refreshed access token", async () => {
     const gmailSettings = makeGmailStarredSettings();
     gmailSettings.credentials.expiryDate = Date.now() - 1;

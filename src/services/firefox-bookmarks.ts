@@ -497,6 +497,7 @@ const fetchBookmarksUnderFolderGuids = (
 
 const withPlacesDatabase = async <T>(
   profileDirectory: string,
+  // Retained for call-site compatibility and debug breadcrumbs.
   wasmDirectory: string,
   operation: (
     database: Database,
@@ -557,9 +558,6 @@ const withPlacesDatabase = async <T>(
       },
       debugContext,
     );
-    if (error instanceof Error && error.message.includes("sql-wasm.wasm")) {
-      throw new FirefoxBookmarksError(FIREFOX_NOTICE.wasmNotFound, error);
-    }
     console.error(`Failed to open Firefox places database: [${formatLogError(error)}].`);
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.couldNotOpenDatabase, error);
   } finally {

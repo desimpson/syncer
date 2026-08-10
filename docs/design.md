@@ -101,7 +101,7 @@ Hard constraints:
 - No Obsidian APIs in `services/` or `adaptors/`
 - New integrations must write through `reconcileSyncSourceAtomically` ([`src/sync/writer.ts`](../src/sync/writer.ts))
 
-Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js` (+ `sql-wasm.wasm` for Firefox).
+Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js` (sql.js WASM is bundled into `main.js`).
 
 ### 3.2 Sync pipeline
 
@@ -193,10 +193,10 @@ Full rules: [`docs/kb/sync-semantics.md`](kb/sync-semantics.md). Summary:
 
 ## 5. Authentication
 
-| Provider  | Flow                                     | Notes                                                                                                                      |
-| --------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Google    | Auth Code via ephemeral localhost server | **No PKCE** in `src/auth/google.ts`; UWP-style public client ID (no secret). README “PKCE” wording for Google is outdated. |
-| Microsoft | Auth Code + **PKCE (S256)** + `state`    | Token POSTs use Obsidian `requestUrl`; tenant segment from personal vs work/school settings                                |
+| Provider  | Flow                                     | Notes                                                                                       |
+| --------- | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Google    | Auth Code via ephemeral localhost server | **No PKCE** in `src/auth/google.ts`; UWP-style public client ID (no secret).                |
+| Microsoft | Auth Code + **PKCE (S256)** + `state`    | Token POSTs use Obsidian `requestUrl`; tenant segment from personal vs work/school settings |
 
 Refresh tokens are stored with credentials in plugin settings. Revoked refresh → clear credentials and prompt reconnect. Microsoft revoked-access UX hardening: [#65](https://github.com/desimpson/syncer/issues/65).
 
@@ -232,7 +232,7 @@ CI (`.github/workflows/build.yml`):
 - Non-`main`: build with GitHub Environment **`dev`**
 - `main`: build with Environment **`prod`**
 
-Release (`.github/workflows/release.yml`): version tags matching `[0-9]*`, prod secrets, attach `main.js` / `manifest.json` / `styles.css` / `sql-wasm.wasm`.
+Release (`.github/workflows/release.yml`): version tags matching `[0-9]*`, prod secrets, attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.
 
 Local vault install helper: `npm run sync` + `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`). Contributor bootstrap: [#70](https://github.com/desimpson/syncer/issues/70).
 

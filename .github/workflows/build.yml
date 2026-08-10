@@ -76,7 +76,6 @@ jobs:
             main.js
             manifest.json
             styles.css
-            sql-wasm.wasm
 
   build-prod:
     name: Build (Prod)
@@ -114,4 +113,3 @@ jobs:
             main.js
             manifest.json
             styles.css
-            sql-wasm.wasm

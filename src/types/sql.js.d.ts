@@ -11,6 +11,11 @@ declare module "sql.js/dist/sql-wasm.js" {
   export default function initSqlJs(config?: InitSqlJsConfig): Promise<SqlJsStatic>;
 }
 
+declare module "sql.js/dist/sql-wasm.wasm" {
+  const wasmBinary: Uint8Array;
+  export default wasmBinary;
+}
+
 declare module "sql.js" {
   export interface SqlJsStatic {
     Database: new (data?: ArrayLike<number> | Buffer | null) => Database;

@@ -2,8 +2,6 @@
 export const FIREFOX_NOTICE = {
   profilePathNotFound: "Firefox profile path not found.",
   placesMissingOrUnreadable: "places.sqlite missing or unreadable in the selected Firefox profile.",
-  wasmNotFound:
-    "sql-wasm.wasm is missing from the plugin folder. Run npm run build:dev and npm run sync, then reload the plugin.",
   couldNotOpenDatabase:
     "Could not open Firefox database. Try closing Firefox, then refresh folders again.",
   staleFolders: "Some selected bookmark folders were not found in the current profile.",

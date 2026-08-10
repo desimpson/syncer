@@ -33,6 +33,9 @@ For each new source integration:
 Run before tagging/release:
 
 - Build passes and produced plugin files load in Obsidian desktop
+- Git tag and `manifest.json` version match exactly (`x.y.z`, no `v` prefix)
+- GitHub release includes `main.js`, `manifest.json`, and `styles.css`
 - Manual sync works for each enabled integration in a real vault note
 - Completion/deletion toggles behave as documented for enabled integrations
 - No temporary debug diagnostics left enabled by default
+- For first public release, submit through `community.obsidian.md` and resolve all automated review findings before publish

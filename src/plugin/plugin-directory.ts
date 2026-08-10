@@ -11,7 +11,7 @@ const getVaultBasePath = (app: App): string | undefined => {
 };
 
 /**
- * Absolute path to the installed plugin folder (where `main.js` and `sql-wasm.wasm` live).
+ * Absolute path to the installed plugin folder (where `main.js` lives).
  *
  * In Obsidian desktop, `__dirname` points at Electron's asar renderer — not the plugin.
  * `manifest.dir` is vault-relative (e.g. `.obsidian/plugins/obsidian-syncer`). Resolve it

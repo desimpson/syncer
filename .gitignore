@@ -29,7 +29,6 @@ data.json
 
 # Build artifacts
 dist/
-sql-wasm.wasm
 
 # Environment files
 .envrc

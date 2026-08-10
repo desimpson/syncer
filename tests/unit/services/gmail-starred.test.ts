@@ -104,6 +104,37 @@ describe("gmail-starred service", () => {
     expect(result.truncated).toBe(true);
   });
 
+  it("fetchStarredMessages caps metadata fetches at 2x maxMessages", async () => {
+    const firstPageIds = Array.from({ length: 100 }, (_, index) => ({
+      id: `m-${index}`,
+      threadId: `t-${index}`,
+    }));
+
+    vi.mocked(requestUrl).mockResolvedValueOnce(
+      gmailResponse(200, JSON.stringify({ messages: firstPageIds, nextPageToken: "page-2" })),
+    );
+
+    for (let index = 0; index < 20; index += 1) {
+      vi.mocked(requestUrl).mockResolvedValueOnce(
+        gmailResponse(
+          200,
+          metadataBody(
+            `m-${index}`,
+            String(1000 - index),
+            `Subject ${index}`,
+            "sender@example.com",
+          ),
+        ),
+      );
+    }
+
+    const result = await fetchStarredMessages("token", 10);
+
+    expect(result.messages).toHaveLength(10);
+    expect(result.truncated).toBe(true);
+    expect(requestUrl).toHaveBeenCalledTimes(21);
+  });
+
   it("fetchStarredMessages paginates until candidate limit and marks truncated", async () => {
     // Arrange
     const firstPageIds = Array.from({ length: 100 }, (_, index) => ({

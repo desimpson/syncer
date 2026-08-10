@@ -134,14 +134,20 @@ const parseMessageListPage = (
 const parseMessageMetadata = (responseText: string): GmailStarredMessage =>
   gmailMessageMetadataSchema.parse(JSON.parse(responseText) as unknown);
 
+const resolveCandidateLimit = (maxMessages: number): number => {
+  const normalisedMax = Math.max(1, maxMessages);
+  return Math.min(GMAIL_STARRED_CANDIDATE_LIMIT, normalisedMax * 2);
+};
+
 const collectStarredCandidateIds = async (
   accessToken: string,
+  candidateLimit: number,
 ): Promise<{ readonly candidateIds: readonly string[]; readonly listExhausted: boolean }> => {
   const candidateIds: string[] = [];
   let pageToken: string | undefined;
   let listExhausted = true;
 
-  while (candidateIds.length < GMAIL_STARRED_CANDIDATE_LIMIT) {
+  while (candidateIds.length < candidateLimit) {
     const responseText = await gmailRequest(
       accessToken,
       buildStarredListUrl(pageToken),
@@ -151,7 +157,7 @@ const collectStarredCandidateIds = async (
 
     for (const entry of page.messages) {
       candidateIds.push(entry.id);
-      if (candidateIds.length >= GMAIL_STARRED_CANDIDATE_LIMIT) {
+      if (candidateIds.length >= candidateLimit) {
         break;
       }
     }
@@ -161,7 +167,7 @@ const collectStarredCandidateIds = async (
       break;
     }
 
-    if (candidateIds.length >= GMAIL_STARRED_CANDIDATE_LIMIT) {
+    if (candidateIds.length >= candidateLimit) {
       listExhausted = false;
       break;
     }
@@ -204,7 +210,11 @@ export const fetchStarredMessages = async (
   accessToken: string,
   maxMessages = GMAIL_STARRED_MAX_MESSAGES,
 ): Promise<FetchStarredMessagesResult> => {
-  const { candidateIds, listExhausted } = await collectStarredCandidateIds(accessToken);
+  const candidateLimit = resolveCandidateLimit(maxMessages);
+  const { candidateIds, listExhausted } = await collectStarredCandidateIds(
+    accessToken,
+    candidateLimit,
+  );
 
   const messages: GmailStarredMessage[] = [];
   for (const messageId of candidateIds) {

@@ -24,6 +24,9 @@ import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
   folder.path.length > 0 ? folder.path : folder.title;
 
+export const shouldDeferGmailStarredMaxItemsValidation = (value: string): boolean =>
+  value.trim().length === 0;
+
 const normaliseAzureDevOpsOrganizationInput = (value: string): string => {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
@@ -391,6 +394,11 @@ export class SettingsTab extends PluginSettingTab {
       "e.g., 100",
     );
     input.onChange(async (value) => {
+      if (shouldDeferGmailStarredMaxItemsValidation(value)) {
+        // Avoid noisy warnings while users temporarily clear the field before typing.
+        errorElement.setText("");
+        return;
+      }
       const result = gmailStarredMaxItemsSchema.safeParse(value);
       if (result.success) {
         await this.plugin.updateSettings({ gmailStarredMaxItems: result.data });

@@ -59,7 +59,7 @@ Owning job: [`src/jobs/gmail-starred.ts`](../../src/jobs/gmail-starred.ts).
 - Incoming feed = messages with Gmail system label `STARRED` only; connect/disconnect is the v1 include control
 - Identity: Gmail message `id` (API documents immutable) → `source: gmail-starred`; thread id is for web links only
 - Title: `Subject (Sender)`; link: `https://mail.google.com/mail/u/0/#all/{threadId}` (Gmail UI opens the thread, not a single message)
-- Soft-cap: list up to 200 candidate ids, metadata-get those only, sort by `internalDate` desc, then keep newest `gmailStarredMaxItems` (default 100, max 200) within that window — not globally exact newest-N across the whole mailbox
+- Soft-cap: list up to `min(200, gmailStarredMaxItems * 2)` candidate ids, metadata-get those only, sort by `internalDate` desc, then keep newest `gmailStarredMaxItems` (default 100, max 200) within that window — not globally exact newest-N across the whole mailbox
 - Unstar in Gmail → line removed on next sync unless Obsidian line is already `[x]` (completed-preserve)
 - Delete a synced line in Obsidian while still starred in Gmail → line reappears on next sync (Outlook parity; no `manuallyDeletedTaskIds` equivalent)
 - `syncCompletionStatus`: checking/unchecking in Obsidian unstars/re-stars in Gmail on the next sync

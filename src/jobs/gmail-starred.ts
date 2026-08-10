@@ -371,7 +371,7 @@ const handleGmailAuthorizationFailure = async (
   }
 
   notify(
-    "Gmail Starred sync was denied (403). Enable the Gmail API on your Google Cloud project and ensure gmail.modify is on the OAuth consent screen, then reconnect.",
+    "Gmail Starred sync was denied (403). Enable the Gmail API on your Google Cloud project and ensure gmail.modify is on the OAuth consent screen, then retry sync.",
   );
   console.warn(`Gmail API access denied (${error.status}): [${error.message}]. Credentials kept.`);
 };

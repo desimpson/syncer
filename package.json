@@ -1,6 +1,6 @@
 {
   "name": "syncer",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Sync references/links to Google Tasks, Gmail Starred, Outlook flagged mail, Azure DevOps work items, and Firefox Bookmarks into your vault.",
   "main": "main.js",
   "type": "module",

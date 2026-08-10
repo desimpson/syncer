@@ -8,10 +8,15 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  assetsInclude: ["**/*.wasm"],
   resolve: {
     alias: {
       // Ensure the 'obsidian' module resolves to our local test stub in all environments (CI/local)
       obsidian: path.resolve(__dirname, "tests/integration/mocks/obsidian.ts"),
+      "sql.js/dist/sql-wasm.wasm": path.resolve(
+        __dirname,
+        "tests/integration/mocks/sql-wasm-binary.ts",
+      ),
     },
   },
   test: {

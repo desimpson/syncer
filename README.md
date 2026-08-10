@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
+Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -18,6 +18,11 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Select which task lists to sync
   - Only incomplete Google Tasks are synced into Obsidian; when you complete a task in Google it drops out of the incoming feed and the corresponding line is removed from the items under the target heading in the Obsidian note on the next sync
   - Optional deletion sync (off by default): deleting a synced Google task in Obsidian can also delete it in Google Tasks (with optional confirmation)
+- Gmail Starred integration:
+  - OAuth 2.0 (Authorization Code)
+  - Syncs starred Gmail messages into Obsidian
+  - Configurable maximum number of starred messages to sync per run
+  - When completion status sync is enabled, checking/unchecking synced items in Obsidian updates the Gmail star state on the next sync
 - Microsoft Outlook integration:
   - OAuth 2.0 (Authorization Code with PKCE) via Microsoft identity platform
   - Syncs messages with an Outlook follow-up flag set to flagged
@@ -64,13 +69,19 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - **Sync interval (minutes)**: How often background sync runs
 - **Sync markdown file path**: Target note for synced items (sync reads the saved file on disk—save changes before running Manual sync)
 - **Sync heading**: H2 heading under which new items are inserted (input is normalised to `## …`)
-- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks and Microsoft Outlook (email flags) on the next sync
+- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, and Microsoft Outlook (email flags) on the next sync
 
 ### Google Tasks
 
 - Connect your Google account using the **Connect** button in the plugin's settings tab
 - Select task lists to sync via the multi-select input
 - **Sync task deletions** is off by default; enable it (and optional confirmation) if you want deleting a Google Tasks item in Obsidian to also delete it in Google Tasks
+
+### Gmail Starred
+
+- Connect your Google account using the **Connect** button in the plugin's settings tab
+- Set **Gmail Starred max items** to control how many starred messages are synced each run
+- Starred messages are synced into the target note under the sync heading
 
 ### Microsoft Outlook
 
@@ -136,7 +147,7 @@ It is also recommended to install the [Hot-Reload plugin](https://github.com/pje
 
 Syncer is a local plugin and does not run a Syncer backend service. Data access is limited to the integrations you configure:
 
-- **Network use**: Syncer calls Google Tasks APIs, Microsoft Graph APIs, and Azure DevOps APIs to read/update items for your connected accounts.
+- **Network use**: Syncer calls Google Tasks APIs, Gmail APIs, Microsoft Graph APIs, and Azure DevOps APIs to read/update items for your connected accounts.
 - **Account requirement**: external sync features require a corresponding Google, Microsoft, and/or Azure DevOps account.
 - **Outside-vault file access**: Firefox Bookmarks sync reads Firefox profile files (for example `places.sqlite`) outside your Obsidian vault to import selected bookmarks.
 - **Telemetry/ads**: Syncer does not include client-side telemetry or ad SDKs.

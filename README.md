@@ -152,7 +152,6 @@ This plugin includes code adapted from the following projects:
 1. Update version: `npm run version` (or `npm version patch|minor|major`)
 2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (Google and Microsoft client IDs required)
 3. Verify: `npm run release:check`
-4. Create release:
-   - **Automated**: `git tag 1.0.0 && git push origin 1.0.0` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.1.0` or `1.0.0`, not `v1.0.0`)
-   - **Manual**: Create GitHub release with `main.js`, `manifest.json`, `styles.css`
-5. Submit through [Obsidian Community directory](https://community.obsidian.md) (first release only), following [Submit your plugin](https://docs.obsidian.md/plugins/releasing/submit-plugin)
+4. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`)
+5. Verify the GitHub release contains `main.js`, `manifest.json`, `styles.css`, and the generated attestation bundle
+6. Submit the new plugin version through [Obsidian Community directory](https://community.obsidian.md), following [Submit your plugin](https://docs.obsidian.md/plugins/releasing/submit-plugin), then monitor automated review results

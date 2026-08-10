@@ -54,7 +54,6 @@
     "eslint-plugin-unicorn": "^61.0.2",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
-    "lint-staged": "^16.4.0",
     "obsidian": "^1.8.7",
     "prettier": "^3.6.2",
     "tslib": "^2.8.1",
@@ -63,13 +62,6 @@
     "vite": "^7.3.6",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.7"
-  },
-  "lint-staged": {
-    "**/*.{js,ts,mjs}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "**/*.{json,css,md}": "prettier --write --ignore-unknown"
   },
   "dependencies": {
     "sql.js": "^1.13.0",

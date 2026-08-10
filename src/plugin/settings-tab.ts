@@ -101,7 +101,15 @@ export class SettingsTab extends PluginSettingTab {
   /**
    * Renders the settings tab UI.
    */
-  public async display(): Promise<void> {
+  public display(): void {
+    void this.render();
+  }
+
+  public getSettingDefinitions() {
+    return [];
+  }
+
+  private async render(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
 
@@ -217,7 +225,6 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Sync completion status")
       .setDesc(
-        // eslint-disable-next-line obsidianmd/ui/sentence-case -- product names
         "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, and Microsoft Outlook (email flags) on the next sync.",
       )
       .addToggle((toggle) => {
@@ -231,14 +238,13 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Sync task deletions")
       .setDesc(
-        // eslint-disable-next-line obsidianmd/ui/sentence-case -- product names
         "When enabled, deleting a Google Tasks task in Obsidian will also delete it from Google Tasks.",
       )
       .addToggle((toggle) => {
         toggle.setValue(settings.enableDeleteSync).onChange(async (value) => {
           await this.plugin.updateSettings({ enableDeleteSync: value });
           // Refresh the display to show/hide the confirm setting
-          await this.display();
+          await this.render();
         });
       });
 
@@ -246,7 +252,6 @@ export class SettingsTab extends PluginSettingTab {
       new Setting(containerElement)
         .setName("Confirm task deletions")
         .setDesc(
-          // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
           "When enabled, you will be prompted to confirm before deleting tasks from Google Tasks.",
         )
         .addToggle((toggle) => {
@@ -269,28 +274,25 @@ export class SettingsTab extends PluginSettingTab {
             .onClick(async () => {
               await this.plugin.updateSettings({ manuallyDeletedTaskIds: [] });
               new Notice("Manually deleted tasks cache cleared.");
-              await this.display();
+              await this.render();
             }),
         );
     }
   }
 
   private async addGoogleTasksSettings(containerElement: HTMLElement) {
-    // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     new Setting(containerElement).setName("Google Tasks").setHeading();
     const setting = new Setting(containerElement);
 
     const settings = await this.plugin.loadSettings();
     const { googleTasks } = settings;
     if (googleTasks === undefined) {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       setting.setName("No Google Tasks account connected");
-      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       setting.setDesc("Connect your Google Tasks account to sync tasks.");
       setting.addButton((button) =>
         button.setButtonText("Connect").onClick(async () => {
           await this.connectGoogleTasks();
-          await this.display();
+          await this.render();
         }),
       );
     } else {
@@ -302,7 +304,7 @@ export class SettingsTab extends PluginSettingTab {
           .setWarning()
           .onClick(async () => {
             await this.disconnectGoogleTasks();
-            await this.display();
+            await this.render();
           }),
       );
     }
@@ -330,10 +332,8 @@ export class SettingsTab extends PluginSettingTab {
         },
       });
 
-      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       new Notice("Google Tasks account connected successfully.");
     } catch (error) {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       new Notice("Failed to connect Google Tasks.");
       console.error(`Error connecting Google Tasks: [${formatLogError(error)}].`);
     }
@@ -343,13 +343,10 @@ export class SettingsTab extends PluginSettingTab {
     // TODO: Save the lists but grey everything out, so when the user reconnects
     // they get their previous selections back
     await this.plugin.updateSettings({ googleTasks: undefined });
-    // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     new Notice("Google Tasks account disconnected.");
   }
 
   private async addGmailStarredSettings(containerElement: HTMLElement) {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Gmail product names in settings */
-
     new Setting(containerElement).setName("Gmail Starred").setHeading();
 
     const settings = await this.plugin.loadSettings();
@@ -369,7 +366,7 @@ export class SettingsTab extends PluginSettingTab {
         }
         button.setButtonText("Connect").onClick(async () => {
           await this.connectGmailStarred();
-          await this.display();
+          await this.render();
         });
       });
     } else {
@@ -381,7 +378,7 @@ export class SettingsTab extends PluginSettingTab {
           .setWarning()
           .onClick(async () => {
             await this.disconnectGmailStarred();
-            await this.display();
+            await this.render();
           }),
       );
     }
@@ -410,12 +407,9 @@ export class SettingsTab extends PluginSettingTab {
         );
       }
     });
-
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async connectGmailStarred(): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Gmail product names in notices */
     if (this.config.googleClientId.length === 0) {
       new Notice("Google client ID is not configured for this build.");
       return;
@@ -448,19 +442,14 @@ export class SettingsTab extends PluginSettingTab {
       new Notice("Failed to connect Gmail Starred.");
       console.error(`Error connecting Gmail Starred: [${formatLogError(error)}].`);
     }
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async disconnectGmailStarred(): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Gmail product names in notices */
     await this.plugin.updateSettings({ gmailStarred: undefined });
     new Notice("Gmail Starred account disconnected.");
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addMicrosoftOutlookSettings(containerElement: HTMLElement) {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in Outlook settings */
-
     new Setting(containerElement).setName("Microsoft Outlook").setHeading();
 
     const settings = await this.plugin.loadSettings();
@@ -478,7 +467,7 @@ export class SettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             const accountKind = value === "workSchool" ? "workSchool" : "personal";
             await this.plugin.updateSettings({ microsoftAuthAccountKind: accountKind });
-            await this.display();
+            await this.render();
           });
       });
 
@@ -528,7 +517,7 @@ export class SettingsTab extends PluginSettingTab {
         }
         button.setButtonText("Connect").onClick(async () => {
           await this.connectMicrosoftOutlook();
-          await this.display();
+          await this.render();
         });
       });
     } else {
@@ -547,15 +536,13 @@ export class SettingsTab extends PluginSettingTab {
           .setWarning()
           .onClick(async () => {
             await this.disconnectMicrosoftOutlook();
-            await this.display();
+            await this.render();
           }),
       );
     }
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async connectMicrosoftOutlook(): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
     if (this.config.microsoftClientId.length === 0) {
       new Notice("Outlook client ID is not configured for this build.");
       return;
@@ -595,19 +582,14 @@ export class SettingsTab extends PluginSettingTab {
       new Notice("Failed to connect Microsoft Outlook.");
       console.error(`Error connecting Microsoft Outlook: [${formatLogError(error)}].`);
     }
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async disconnectMicrosoftOutlook(): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Microsoft product names in notices */
     await this.plugin.updateSettings({ microsoftOutlook: undefined });
     new Notice("Microsoft Outlook account disconnected.");
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addAzureDevOpsSettings(containerElement: HTMLElement): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Azure DevOps product names in settings */
-
     new Setting(containerElement).setName("Azure DevOps").setHeading();
 
     const settings = await this.plugin.loadSettings();
@@ -690,12 +672,9 @@ export class SettingsTab extends PluginSettingTab {
           ? "No PAT set yet. Add PAT with Work Items (Read) scope."
           : "PAT is configured. Use Manual sync to fetch assigned work items.",
       );
-
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addFirefoxBookmarksSettings(containerElement: HTMLElement): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Firefox product names in settings */
     new Setting(containerElement).setName("Firefox Bookmarks").setHeading();
 
     if (!Platform.isDesktopApp) {
@@ -724,7 +703,7 @@ export class SettingsTab extends PluginSettingTab {
                 selectedFolderGuids: [],
               },
             });
-            await this.display();
+            await this.render();
           }),
         );
       return;
@@ -740,7 +719,7 @@ export class SettingsTab extends PluginSettingTab {
           .onClick(async () => {
             await this.plugin.updateSettings({ firefoxBookmarks: undefined });
             new Notice("Firefox Bookmarks sync disabled.");
-            await this.display();
+            await this.render();
           }),
       );
 
@@ -782,11 +761,9 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     await this.addFirefoxBookmarkFolderSelector(containerElement, firefoxBookmarks);
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async refreshFirefoxBookmarkFolders(_containerElement: HTMLElement): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Firefox product names in notices */
     const settings = await this.plugin.loadSettings();
     const { firefoxBookmarks } = settings;
     if (firefoxBookmarks === undefined) {
@@ -815,7 +792,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       new Notice(`Loaded ${folders.length} bookmark folder(s) from Firefox.`);
-      await this.display();
+      await this.render();
     } catch (error) {
       if (error instanceof FirefoxBookmarksError) {
         console.error(
@@ -828,14 +805,12 @@ export class SettingsTab extends PluginSettingTab {
       console.error(`Failed to refresh Firefox bookmark folders: [${formatLogError(error)}].`);
       new Notice("Failed to load Firefox bookmark folders.");
     }
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addFirefoxBookmarkFolderSelector(
     containerElement: HTMLElement,
     firefoxBookmarks: NonNullable<PluginSettings["firefoxBookmarks"]>,
   ): Promise<void> {
-    /* eslint-disable obsidianmd/ui/sentence-case -- Firefox folder picker UI */
     this.addSettingsSubheading(containerElement, "Select bookmark folders to sync");
 
     let selectedFolderGuids = [...firefoxBookmarks.selectedFolderGuids];
@@ -911,8 +886,8 @@ export class SettingsTab extends PluginSettingTab {
             text: "Remove",
             cls: "mod-warning firefox-bookmarks-remove-button",
           });
-          removeButton.addEventListener("click", async () => {
-            await updateSelected(
+          removeButton.addEventListener("click", () => {
+            void updateSelected(
               selectedFolderGuids.filter((selectedGuid) => selectedGuid !== guid),
             );
           });
@@ -1040,7 +1015,6 @@ export class SettingsTab extends PluginSettingTab {
       renderSearchResults();
       renderCount();
     }
-    /* eslint-enable obsidianmd/ui/sentence-case */
   }
 
   private async addGoogleTasksListSelector(containerElement: HTMLElement) {
@@ -1099,25 +1073,27 @@ export class SettingsTab extends PluginSettingTab {
           cls: `google-tasks-toggle-button${isSelected ? " is-selected" : ""}`,
         });
 
-        button.addEventListener("click", async () => {
-          const wasSelected = selectedListIds.includes(list.id);
-          let newSelection: string[];
+        button.addEventListener("click", () => {
+          void (async () => {
+            const wasSelected = selectedListIds.includes(list.id);
+            let newSelection: string[];
 
-          if (wasSelected) {
-            // Remove from selection
-            newSelection = selectedListIds.filter((id) => id !== list.id);
-            button.removeClass("is-selected");
-          } else {
-            // Add to selection
-            newSelection = [...selectedListIds, list.id];
-            button.addClass("is-selected");
-          }
+            if (wasSelected) {
+              // Remove from selection
+              newSelection = selectedListIds.filter((id) => id !== list.id);
+              button.removeClass("is-selected");
+            } else {
+              // Add to selection
+              newSelection = [...selectedListIds, list.id];
+              button.addClass("is-selected");
+            }
 
-          // Update count display
-          countElement.setText(`${newSelection.length} of ${lists.length} lists selected`);
+            // Update count display
+            countElement.setText(`${newSelection.length} of ${lists.length} lists selected`);
 
-          // Save to settings (this will update the selectedListIds variable)
-          await updateSelected(newSelection);
+            // Save to settings (this will update the selectedListIds variable)
+            await updateSelected(newSelection);
+          })();
         });
       });
 
@@ -1170,7 +1146,7 @@ export class SettingsTab extends PluginSettingTab {
           await this.plugin.updateSettings({ ...freshSettings, googleTasks: undefined });
           new AuthorizationExpiredModal(this.app).open();
           // Refresh the display to show the disconnected state
-          await this.display();
+          await this.render();
           return;
         }
         throw error;

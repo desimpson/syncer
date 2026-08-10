@@ -1,8 +1,13 @@
-/* eslint-disable import/no-nodejs-modules -- OAuth flow requires a local HTTP server for the callback */
 import { createServer } from "node:http";
 import type { ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { URLSearchParams } from "node:url";
+import {
+  runtimeClearTimeout,
+  runtimeFetch,
+  runtimeOpen,
+  runtimeSetTimeout,
+} from "@/utils/browser-runtime";
 import { formatLogError } from "@/utils/error-formatters";
 import type { GoogleCredentials, GoogleUserInfo } from "@/auth/types";
 import {
@@ -99,8 +104,7 @@ const exchangeCodeForTokens = async (
     grant_type: "authorization_code",
   });
 
-  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
-  const response = await fetch(GOOGLE_TOKEN_URL, {
+  const response = await runtimeFetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -182,31 +186,37 @@ const createAuthServer = (
   onSuccess: (credentials: GoogleCredentials) => void,
   onError: (error: Error) => void,
 ) =>
-  createServer(async (request, response) => {
-    try {
-      const requestUrl = request.url ?? "/";
-      const result = parseAuthRequest(requestUrl, redirectPath);
+  createServer((request, response) => {
+    void (async () => {
+      try {
+        const requestUrl = request.url ?? "/";
+        const result = parseAuthRequest(requestUrl, redirectPath);
 
-      // Handle success case early
-      if (!("type" in result)) {
-        const redirectUri = getRedirectUri(); // Get the redirectUri when we need it
-        const authenticatedClient = await exchangeCodeForTokens(clientId, result.code, redirectUri);
+        // Handle success case early
+        if (!("type" in result)) {
+          const redirectUri = getRedirectUri(); // Get the redirectUri when we need it
+          const authenticatedClient = await exchangeCodeForTokens(
+            clientId,
+            result.code,
+            redirectUri,
+          );
 
-        response.end(SUCCESS_MESSAGE);
-        onSuccess(authenticatedClient);
-        return;
+          response.end(SUCCESS_MESSAGE);
+          onSuccess(authenticatedClient);
+          return;
+        }
+
+        // Handle all error cases
+        handleAuthError(result, response);
+
+        // Only reject promise for actual OAuth errors, not invalid URLs
+        if (result.type !== "invalid_url") {
+          onError(new Error(result.message));
+        }
+      } catch (error) {
+        onError(error as Error);
       }
-
-      // Handle all error cases
-      handleAuthError(result, response);
-
-      // Only reject promise for actual OAuth errors, not invalid URLs
-      if (result.type !== "invalid_url") {
-        onError(new Error(result.message));
-      }
-    } catch (error) {
-      onError(error as Error);
-    }
+    })();
   });
 
 /**
@@ -273,7 +283,7 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
       const redirectUri = createRedirectUri(serverPort);
 
       const authUrl = generateAuthUrl(options.clientId, redirectUri, options.scopes);
-      window.open(authUrl, "_blank");
+      runtimeOpen(authUrl, "_blank");
     });
   });
 
@@ -287,8 +297,7 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
  *         conform to the expected schema
  */
 export const getUserInfo = async (accessToken: string): Promise<GoogleUserInfo> => {
-  // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
-  const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+  const response = await runtimeFetch("https://www.googleapis.com/oauth2/v3/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
@@ -330,10 +339,9 @@ export const refreshAccessToken = async (
   ): Promise<{ accessToken: string; expiryDate: number }> => {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10_000); // 10s timeout
+      const timeout = runtimeSetTimeout(() => controller.abort(), 10_000); // 10s timeout
 
-      // eslint-disable-next-line no-restricted-globals -- TODO: migrate to requestUrl
-      const response = await fetch(GOOGLE_TOKEN_URL, {
+      const response = await runtimeFetch(GOOGLE_TOKEN_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -342,7 +350,7 @@ export const refreshAccessToken = async (
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
+      runtimeClearTimeout(timeout);
 
       if (response.ok) {
         const json: unknown = await response.json();
@@ -387,7 +395,7 @@ export const refreshAccessToken = async (
             error,
           )}].`,
         );
-        await new Promise((r) => setTimeout(r, 1000)); // small delay before retry
+        await new Promise((r) => runtimeSetTimeout(r, 1000)); // small delay before retry
         return attempt(remainingRetries - 1);
       }
       throw new Error(`Token refresh failed after retries: [${formatLogError(error)}].`);

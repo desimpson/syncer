@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      attestations: write
+      id-token: write
     environment:
       name: prod
     env:
@@ -65,6 +67,15 @@ jobs:
             exit 1
           fi
 
+      - name: Generate release asset attestations
+        id: attest
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -72,6 +83,7 @@ jobs:
             main.js
             manifest.json
             styles.css
+            ${{ steps.attest.outputs.bundle-path }}
           name: ${{ steps.get_version.outputs.version }}
           tag_name: ${{ steps.get_version.outputs.tag }}
           generate_release_notes: true

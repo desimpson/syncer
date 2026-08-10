@@ -341,7 +341,7 @@ export default class SyncerPlugin extends Plugin {
     return new Promise((resolve) => {
       const modal = new DeleteTaskConfirmationModal(this.app, taskTitle);
       modal.open();
-      return modal.waitForConfirmation().then(resolve);
+      void modal.waitForConfirmation().then(resolve);
     });
   }
 
@@ -469,7 +469,7 @@ export default class SyncerPlugin extends Plugin {
 
       // Delete the task
       await deleteGoogleTask(accessToken, listId, taskId);
-      new Notice("Task deleted from Google Tasks"); // eslint-disable-line obsidianmd/ui/sentence-case -- product name
+      new Notice("Task deleted from Google Tasks");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       new Notice(`Failed to delete task from Google Tasks: ${message}`);

@@ -1,5 +1,6 @@
 import { requestUrl } from "obsidian";
 import { z } from "zod";
+import { runtimeSetTimeout } from "@/utils/browser-runtime";
 
 const API_VERSION = "7.1";
 const WORK_ITEMS_BATCH_SIZE = 200;
@@ -150,7 +151,7 @@ const azureDevOpsRequest = async (
 
     if (response.status === 429 && remainingRetries > 0) {
       const delayMs = parseRetryAfterMs(response.headers);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      await new Promise((resolve) => runtimeSetTimeout(resolve, delayMs));
       return attempt(remainingRetries - 1);
     }
 

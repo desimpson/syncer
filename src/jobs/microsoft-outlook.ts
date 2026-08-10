@@ -14,6 +14,7 @@ import { MICROSOFT_OUTLOOK_SOURCE, type SyncItem } from "@/sync/types";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import type { TFile, Vault } from "obsidian";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
+import { runtimeSetTimeout } from "@/utils/browser-runtime";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
 
@@ -70,7 +71,7 @@ const getSyncFileWithRetry = async (
     return file;
   }
 
-  await new Promise((resolve) => setTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
+  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
   const retryFile = vault.getFileByPath(syncDocument);
 
   if (retryFile === null) {

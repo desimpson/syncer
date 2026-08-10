@@ -84,10 +84,10 @@ const describeFileSnapshot = (fs: NodeFs, filePath: string): Record<string, unkn
 };
 
 const getChildProcessModule = (): ChildProcessModule | undefined => {
-  const globalWindow = globalThis as typeof globalThis & {
+  const browserWindow = window as Window & {
     require?: (moduleId: string) => unknown;
   };
-  return globalWindow.require?.("node:child_process") as ChildProcessModule | undefined;
+  return browserWindow.require?.("node:child_process") as ChildProcessModule | undefined;
 };
 
 /**

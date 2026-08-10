@@ -11,6 +11,7 @@ import { GoogleAuth, InvalidGrantError } from "@/auth";
 import { fetchGoogleTasks, updateGoogleTaskStatus } from "@/services/google-tasks";
 import type { SyncItem } from "@/sync/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
+import { runtimeSetTimeout } from "@/utils/browser-runtime";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
 
@@ -52,7 +53,7 @@ const getSyncFileWithRetry = async (
   }
 
   // Retry after a short delay in case vault is still initialising
-  await new Promise((resolve) => setTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
+  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
   const retryFile = vault.getFileByPath(syncDocument);
 
   if (retryFile === null) {

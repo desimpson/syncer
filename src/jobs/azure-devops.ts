@@ -9,6 +9,7 @@ import {
 import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { AZURE_DEVOPS_SOURCE } from "@/sync/types";
 import { reconcileSyncSourceAtomically, type AtomicReconcileResult } from "@/sync/writer";
+import { runtimeSetTimeout } from "@/utils/browser-runtime";
 import type { TFile, Vault } from "obsidian";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
@@ -110,7 +111,9 @@ const waitForStableSyncDocumentSnapshot = async (
 
   let previousSnapshot = initialSnapshot;
   for (let attempt = 1; attempt <= AZURE_DEVOPS_FILE_STABILITY_POLL_ATTEMPTS; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, AZURE_DEVOPS_FILE_STABILITY_POLL_DELAY_MS));
+    await new Promise((resolve) =>
+      runtimeSetTimeout(resolve, AZURE_DEVOPS_FILE_STABILITY_POLL_DELAY_MS),
+    );
     const currentSnapshot = await buildSyncDocumentSnapshot(vault, file, syncHeading);
     if (currentSnapshot === undefined) {
       return;
@@ -145,7 +148,7 @@ const getSyncFileWithRetry = async (
     return file;
   }
 
-  await new Promise((resolve) => setTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
+  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
   const retryFile = vault.getFileByPath(syncDocument);
 
   if (retryFile === null) {
@@ -189,7 +192,7 @@ const syncWorkItemsToFile = async (
       recheckAttempt += 1
     ) {
       const delayMs = AZURE_DEVOPS_NOOP_RECHECK_DELAY_MS * recheckAttempt;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      await new Promise((resolve) => runtimeSetTimeout(resolve, delayMs));
       reconcileResult = await reconcileSyncSourceAtomically(
         file,
         incoming,

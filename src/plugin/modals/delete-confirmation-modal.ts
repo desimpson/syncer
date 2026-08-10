@@ -21,7 +21,6 @@ export class DeleteTaskConfirmationModal extends Modal {
     const { contentEl } = this;
 
     contentEl.empty();
-    // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     new Setting(contentEl).setName("Delete Google Task?").setHeading();
 
     contentEl.createEl("p", {
@@ -31,7 +30,6 @@ export class DeleteTaskConfirmationModal extends Modal {
 
     const buttonContainer = contentEl.createDiv({ cls: "syncer-modal-button-container" });
 
-    // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
     const cancelButton = buttonContainer.createEl("button", { text: "No, keep in Google Tasks" });
     cancelButton.addEventListener("click", () => {
       this.resolvePromise?.(false);
@@ -39,7 +37,6 @@ export class DeleteTaskConfirmationModal extends Modal {
     });
 
     const deleteButton = buttonContainer.createEl("button", {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case -- product name
       text: "Yes, delete in Google Tasks",
       cls: "mod-cta",
     });

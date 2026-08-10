@@ -1,4 +1,6 @@
 import type { SyncJob } from "@/jobs/types";
+import { runtimeClearInterval, runtimeSetInterval } from "@/utils/browser-runtime";
+import type { RuntimeIntervalHandle } from "@/utils/browser-runtime";
 import { formatLogError } from "@/utils/error-formatters";
 
 /**
@@ -20,7 +22,7 @@ export type Scheduler = {
  * @returns A Scheduler instance with start, stop, and restart methods
  */
 export const createScheduler = (jobs: SyncJob[]): Scheduler => {
-  let intervalHandle: NodeJS.Timeout | undefined = undefined;
+  let intervalHandle: RuntimeIntervalHandle | undefined = undefined;
   let isRunning = false;
   let hasPendingRun = false;
 
@@ -48,10 +50,10 @@ export const createScheduler = (jobs: SyncJob[]): Scheduler => {
   };
 
   const start = (intervalMinutes: number) => {
-    if (intervalHandle) {
-      clearInterval(intervalHandle);
+    if (intervalHandle !== undefined) {
+      runtimeClearInterval(intervalHandle);
     }
-    intervalHandle = setInterval(
+    intervalHandle = runtimeSetInterval(
       () => {
         void runJobs();
       },
@@ -63,7 +65,7 @@ export const createScheduler = (jobs: SyncJob[]): Scheduler => {
 
   const stop = () => {
     if (intervalHandle !== undefined) {
-      clearInterval(intervalHandle);
+      runtimeClearInterval(intervalHandle);
       intervalHandle = undefined;
     }
   };

@@ -1,9 +1,9 @@
-/* eslint-disable import/no-nodejs-modules -- OAuth redirect flow requires a local HTTP server */
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import type { ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { requestUrl } from "obsidian";
+import { runtimeClearTimeout, runtimeOpen, runtimeSetTimeout } from "@/utils/browser-runtime";
 import { formatLogError } from "@/utils/error-formatters";
 import type { MicrosoftCredentials, MicrosoftUserInfo } from "@/auth/types";
 import { InvalidGrantError } from "@/auth/google";
@@ -230,38 +230,40 @@ const createAuthServer = (
   onSuccess: (credentials: MicrosoftCredentials) => void,
   onError: (error: Error) => void,
 ) =>
-  createServer(async (request, response) => {
-    try {
-      const requestUrlString = request.url ?? "/";
-      const result = parseAuthRequest(requestUrlString, redirectPath, oauthState);
+  createServer((request, response) => {
+    void (async () => {
+      try {
+        const requestUrlString = request.url ?? "/";
+        const result = parseAuthRequest(requestUrlString, redirectPath, oauthState);
 
-      if (!("type" in result)) {
-        const redirectUri = getRedirectUri();
-        const credentials = await exchangeCodeForTokens(
-          tenantSegment,
-          clientId,
-          result.code,
-          redirectUri,
-          codeVerifier,
-        );
+        if (!("type" in result)) {
+          const redirectUri = getRedirectUri();
+          const credentials = await exchangeCodeForTokens(
+            tenantSegment,
+            clientId,
+            result.code,
+            redirectUri,
+            codeVerifier,
+          );
 
-        response.end(SUCCESS_MESSAGE);
-        onSuccess(credentials);
-        return;
+          response.end(SUCCESS_MESSAGE);
+          onSuccess(credentials);
+          return;
+        }
+
+        handleAuthError(result, response);
+
+        if (result.type === "invalid_url" && result.message === "favicon") {
+          return;
+        }
+
+        if (result.type !== "invalid_url") {
+          onError(new Error(result.message));
+        }
+      } catch (error) {
+        onError(error as Error);
       }
-
-      handleAuthError(result, response);
-
-      if (result.type === "invalid_url" && result.message === "favicon") {
-        return;
-      }
-
-      if (result.type !== "invalid_url") {
-        onError(new Error(result.message));
-      }
-    } catch (error) {
-      onError(error as Error);
-    }
+    })();
   });
 
 /**
@@ -303,7 +305,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
         return;
       }
       didSettle = true;
-      clearTimeout(connectTimeout);
+      runtimeClearTimeout(connectTimeout);
       server.close();
       callback();
     };
@@ -323,7 +325,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
       },
     );
 
-    const connectTimeout = setTimeout(() => {
+    const connectTimeout = runtimeSetTimeout(() => {
       settleWith(() =>
         reject(new Error("Microsoft sign-in timed out. Please try connecting again.")),
       );
@@ -347,7 +349,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
         codeChallenge,
         oauthState,
       );
-      window.open(authUrl, "_blank");
+      runtimeOpen(authUrl, "_blank");
     });
   });
 
@@ -402,7 +404,7 @@ export const refreshAccessToken = async (
       const response = await Promise.race([
         postForm(tokenEndpoint(tenantSegment), formBody),
         new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Microsoft token request timed out.")), 10_000);
+          runtimeSetTimeout(() => reject(new Error("Microsoft token request timed out.")), 10_000);
         }),
       ]);
 
@@ -448,7 +450,7 @@ export const refreshAccessToken = async (
             error,
           )}].`,
         );
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => runtimeSetTimeout(r, 1000));
         return attempt(remainingRetries - 1);
       }
       throw new Error(`Microsoft token refresh failed after retries: [${formatLogError(error)}].`);

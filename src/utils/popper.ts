@@ -18,11 +18,17 @@ export function createPopper(referenceElement: HTMLElement, popperElement: HTMLE
   popperElement.classList.add("syncer-popper");
   const updatePosition = () => {
     const rect = referenceElement.getBoundingClientRect();
-    // eslint-disable-next-line obsidianmd/no-static-styles-assignment -- dynamic positioning requires inline styles
-    popperElement.style.position = "absolute";
-    popperElement.style.top = `${rect.bottom + window.scrollY}px`;
-    popperElement.style.left = `${rect.left + window.scrollX}px`;
-    popperElement.style.width = `${rect.width}px`;
+    const cssProperties = {
+      position: "absolute",
+      top: `${rect.bottom + window.scrollY}px`,
+      left: `${rect.left + window.scrollX}px`,
+      width: `${rect.width}px`,
+    };
+    if (typeof popperElement.setCssProps === "function") {
+      popperElement.setCssProps(cssProperties);
+      return;
+    }
+    Object.assign(popperElement.style, cssProperties);
   };
 
   // Initial positioning

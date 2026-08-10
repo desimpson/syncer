@@ -94,6 +94,15 @@ export default defineConfig([
       "@typescript-eslint/return-await": ["error", "in-try-catch"],
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
+      // Obsidian popout compatibility requires window-scoped APIs (fetch/timers/etc).
+      "unicorn/prefer-global-this": "off",
+    },
+  },
+  {
+    files: ["src/plugin/**/*.ts"],
+    rules: {
+      // Product names in UX copy intentionally use brand capitalisation.
+      "obsidianmd/ui/sentence-case": "off",
     },
   },
   {

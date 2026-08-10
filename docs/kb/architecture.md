@@ -14,7 +14,7 @@ Obsidian plugin that pulls external items into a target Markdown note under a co
 | `auth/`     | OAuth connect + token refresh                   | `google.ts`, `microsoft.ts`, `azure-devops.ts`                                                                                                 |
 | `utils/`    | Pure helpers / UI popper                        | `error-formatters.ts`, `heading-formatters.ts`, …                                                                                              |
 
-Path alias: `@/*` → `src/*`. Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js`.
+Path alias: `@/*` → `src/*`. Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js` (with sql.js WASM embedded).
 
 ## Sync pipeline
 

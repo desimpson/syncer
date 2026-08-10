@@ -6,12 +6,12 @@
 - Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` optional (Outlook Connect disabled if omitted)
 - Prod: `GOOGLE_CLIENT_ID_PROD` and `MICROSOFT_CLIENT_ID_PROD` both required (fail the build if either is missing)
 - See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`development` / `production` environment secrets)
-- Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, `styles.css`, and `sql-wasm.wasm`
+- Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, and `styles.css`
 - `electron` is an esbuild **external** only ([`esbuild.config.mjs`](../../esbuild.config.mjs)); Obsidian supplies Electron at runtime. Do not re-add it as an npm dependency for typing or audit cosmetics unless the plugin actually imports it
 
 ## Auth realities
 
-- Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`). README “PKCE” wording is misleading
+- Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`)
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
 - Azure DevOps uses PAT mode only: Basic auth with `:${PAT}`; requires organisation + project name settings and a PAT with Work Items read scope
 - Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
@@ -37,8 +37,7 @@
 
 ## Firefox Bookmarks
 
-- Copy `sql-wasm.wasm` alongside `main.js` when installing manually (esbuild copies it on build)
-- sql.js loader: [`src/services/sql-js-loader.ts`](../../src/services/sql-js-loader.ts) resolves WASM via [`plugin-directory.ts`](../../src/plugin/plugin-directory.ts) — join vault `FileSystemAdapter.getBasePath()` with vault-relative `manifest.dir`. Do **not** use `__dirname` (points at Electron asar in Obsidian)
+- sql.js WASM is bundled into `main.js` by esbuild (`.wasm` binary loader); no separate `sql-wasm.wasm` release asset is required
 - Profile auto-detect scans standard paths plus Snap/Flatpak on Linux; manual profile path always wins
 - Copy-on-read of `places.sqlite` + `-wal` into a unique temp dir (never copy `-shm` — Firefox’s live WAL index can make merges miss newest frames); cleaned in `finally`
 - While Firefox is open, new bookmarks live in the WAL. sql.js cannot read WAL sidecars — merge via `sqlite3 .backup` or Python `sqlite3.Connection.backup` before open. If both fail, sync sees a stale main DB (notice: close Firefox briefly)
@@ -51,4 +50,4 @@
 
 - Do not assume every integration is exported from barrel `index.ts` files
 - Product rules live in job comments and `sync-semantics.md` — README is user-facing, not the reconcile oracle
-- OAuth uses a localhost redirect (desktop-oriented in practice); `manifest.json` currently has `"isDesktopOnly": false`
+- OAuth uses a localhost redirect + Node modules, so `manifest.json` must stay aligned with desktop-only behavior (`"isDesktopOnly": true`)

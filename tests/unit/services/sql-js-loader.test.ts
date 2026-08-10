@@ -1,31 +1,29 @@
-import path from "node:path";
-import fs from "node:fs";
-import os from "node:os";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadSqlJs, openPlacesDatabase, resetSqlJsForTests } from "@/services/sql-js-loader";
 
-vi.mock("@/utils/desktop-fs", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Vitest importOriginal typing
-  const actual = await importOriginal<typeof import("@/utils/desktop-fs")>();
-  return {
-    ...actual,
-    getDesktopNodeModules: () => ({
-      fs,
-      path,
-      os,
-    }),
-  };
-});
+const { initSqlJsMock } = vi.hoisted(() => ({
+  initSqlJsMock: vi.fn(async () => ({
+    Database: class {
+      public close = vi.fn();
+    },
+  })),
+}));
+
+vi.mock("sql.js/dist/sql-wasm.js", () => ({
+  default: initSqlJsMock,
+}));
 
 describe("sql-js-loader", () => {
   beforeEach(() => {
+    initSqlJsMock.mockClear();
     resetSqlJsForTests();
   });
 
-  it("loads WASM from the plugin output directory and opens a database buffer", async () => {
-    const wasmDirectory = path.join(process.cwd(), "node_modules", "sql.js", "dist");
+  it("loads bundled WASM and opens a database buffer", async () => {
+    const wasmDirectory = "";
     const SQL = await loadSqlJs(wasmDirectory);
     expect(SQL.Database).toBeDefined();
+    expect(initSqlJsMock).toHaveBeenCalledTimes(1);
 
     const database = await openPlacesDatabase(new Uint8Array(), wasmDirectory);
     database.close();

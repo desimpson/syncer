@@ -56,6 +56,15 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building release for version: $VERSION (tag: $TAG_NAME)"
 
+      - name: Verify tag matches manifest version
+        run: |
+          TAG_NAME=${{ steps.get_version.outputs.tag }}
+          MANIFEST_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('manifest.json', 'utf8')).version")
+          if [ "$TAG_NAME" != "$MANIFEST_VERSION" ]; then
+            echo "Tag ($TAG_NAME) does not match manifest version ($MANIFEST_VERSION)."
+            exit 1
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -63,7 +72,6 @@ jobs:
             main.js
             manifest.json
             styles.css
-            sql-wasm.wasm
           name: ${{ steps.get_version.outputs.version }}
           tag_name: ${{ steps.get_version.outputs.tag }}
           generate_release_notes: true

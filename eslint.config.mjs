@@ -108,8 +108,8 @@ export default defineConfig([
   {
     files: ["src/utils/browser-runtime.ts"],
     rules: {
-      // Runtime helpers intentionally fall back to global APIs when window methods are unavailable in tests.
-      "obsidianmd/no-global-this": "off",
+      // Node test fallbacks use ambient fetch/timers; Obsidian runtime always takes the window path.
+      "no-restricted-globals": "off",
     },
   },
   {

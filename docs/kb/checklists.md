@@ -21,7 +21,7 @@ Small, repeatable checklists for this Obsidian plugin. Keep these lightweight.
 
 For each new source integration:
 
-- `services/`: fetch/read source data (no Obsidian API)
+- `services/`: fetch/read source data via Obsidian `requestUrl` (no vault/UI APIs)
 - `adaptors/`: map source DTOs to `SyncItem`
 - `jobs/`: settings/auth orchestration + call shared atomic reconcile
 - `plugin/`: settings UI wiring and notices

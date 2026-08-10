@@ -94,7 +94,7 @@ export default defineConfig([
       "@typescript-eslint/return-await": ["error", "in-try-catch"],
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
-      // Obsidian popout compatibility requires window-scoped APIs (fetch/timers/etc).
+      // Obsidian popout compatibility requires window-scoped APIs (timers/open/etc).
       "unicorn/prefer-global-this": "off",
     },
   },
@@ -103,13 +103,6 @@ export default defineConfig([
     rules: {
       // Product names in UX copy intentionally use brand capitalisation.
       "obsidianmd/ui/sentence-case": "off",
-    },
-  },
-  {
-    files: ["src/utils/browser-runtime.ts"],
-    rules: {
-      // Node test fallbacks use ambient fetch/timers; Obsidian runtime always takes the window path.
-      "no-restricted-globals": "off",
     },
   },
   {

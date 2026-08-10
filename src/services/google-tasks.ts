@@ -1,8 +1,10 @@
+import { requestUrl } from "obsidian";
 import { googleTasksListsResponseSchema, googleTasksResponseSchema } from "./schemas";
 import type { GoogleTask, GoogleTasksList } from "./types";
-import { runtimeFetch } from "@/utils/browser-runtime";
 
 const tasksBaseUrl = "https://tasks.googleapis.com/tasks/v1";
+
+const isSuccessStatus = (status: number): boolean => status >= 200 && status < 300;
 
 /**
  * Fetches a page of Google Tasks task lists for the authenticated user. Doesn't
@@ -16,12 +18,15 @@ const tasksBaseUrl = "https://tasks.googleapis.com/tasks/v1";
 export const fetchGoogleTasksLists = async (
   accessToken: string,
 ): Promise<readonly GoogleTasksList[]> => {
-  const response = await runtimeFetch(`${tasksBaseUrl}/users/@me/lists`, {
+  const response = await requestUrl({
+    url: `${tasksBaseUrl}/users/@me/lists`,
+    method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
+    throw: false,
   });
 
-  if (response.ok) {
-    const data: unknown = await response.json();
+  if (isSuccessStatus(response.status)) {
+    const data: unknown = JSON.parse(response.text);
     return googleTasksListsResponseSchema.parse(data).items;
   }
 
@@ -60,14 +65,17 @@ export const fetchGoogleTasks = async (
     showHidden: "false",
   }).toString();
 
-  const response = await runtimeFetch(`${tasksBaseUrl}/lists/${listId}/tasks?${query}`, {
+  const response = await requestUrl({
+    url: `${tasksBaseUrl}/lists/${listId}/tasks?${query}`,
+    method: "GET",
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    throw: false,
   });
 
-  if (response.ok) {
-    const data: unknown = await response.json();
+  if (isSuccessStatus(response.status)) {
+    const data: unknown = JSON.parse(response.text);
     return googleTasksResponseSchema.parse(data).items;
   }
 
@@ -103,16 +111,18 @@ export const updateGoogleTaskStatus = async (
       };
 
   // Update the task using PATCH to update only specific fields
-  const patchResponse = await runtimeFetch(`${tasksBaseUrl}/lists/${listId}/tasks/${taskId}`, {
+  const patchResponse = await requestUrl({
+    url: `${tasksBaseUrl}/lists/${listId}/tasks/${taskId}`,
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(updatePayload),
+    throw: false,
   });
 
-  if (!patchResponse.ok) {
+  if (!isSuccessStatus(patchResponse.status)) {
     throw new Error(`Failed to update task ${taskId} for list ${listId}: ${patchResponse.status}`);
   }
 };
@@ -130,14 +140,16 @@ export const deleteGoogleTask = async (
   listId: string,
   taskId: string,
 ): Promise<void> => {
-  const deleteResponse = await runtimeFetch(`${tasksBaseUrl}/lists/${listId}/tasks/${taskId}`, {
+  const deleteResponse = await requestUrl({
+    url: `${tasksBaseUrl}/lists/${listId}/tasks/${taskId}`,
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    throw: false,
   });
 
-  if (!deleteResponse.ok) {
+  if (!isSuccessStatus(deleteResponse.status)) {
     throw new Error(`Failed to delete task ${taskId} for list ${listId}: ${deleteResponse.status}`);
   }
 };

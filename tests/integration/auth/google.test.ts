@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { RequestUrlResponse } from "obsidian";
+import { requestUrl } from "obsidian";
 import { authenticate, type AuthOptions } from "@/auth/google";
 import { GoogleAuth } from "@/auth";
 
@@ -25,11 +27,30 @@ type MockResponse = {
   end: ReturnType<typeof vi.fn>;
 };
 
+const safeJson = (text: string): unknown => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+};
+
+const requestUrlResponse = (status: number, text: string): RequestUrlResponse => ({
+  status,
+  text,
+  headers: {},
+  arrayBuffer: new ArrayBuffer(0),
+  json: safeJson(text),
+});
+
 describe("authenticate", () => {
   let mockServer: MockServer;
   let mockRequest: MockRequest;
   let mockResponse: MockResponse;
-  let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -39,10 +60,6 @@ describe("authenticate", () => {
       value: { open: vi.fn() },
       writable: true,
     });
-
-    // Setup fetch mock
-    fetchMock = vi.fn();
-    globalThis.fetch = fetchMock;
 
     // Mock response object
     mockResponse = {
@@ -100,11 +117,9 @@ describe("authenticate", () => {
 
       mockServer.address.mockReturnValue(mockAddress);
 
-      // Mock the token exchange fetch request
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => mockTokenResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify(mockTokenResponse)),
+      );
 
       // Set up server to call the callback immediately with success
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => {
@@ -227,11 +242,9 @@ describe("authenticate", () => {
 
       mockServer.address.mockReturnValue(mockAddress);
 
-      // Mock the token exchange fetch request
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => mockTokenResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify(mockTokenResponse)),
+      );
 
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => {
         callback();
@@ -276,13 +289,7 @@ describe("authenticate", () => {
 
       mockServer.address.mockReturnValue(mockAddress);
 
-      // Mock the token exchange to fail
-      fetchMock.mockResolvedValue({
-        ok: false,
-        status: 400,
-        statusText: "Bad Request",
-        text: async () => "invalid_grant",
-      });
+      vi.mocked(requestUrl).mockResolvedValue(requestUrlResponse(400, "invalid_grant"));
 
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => {
         callback();
@@ -389,11 +396,9 @@ describe("authenticate", () => {
 
       mockServer.address.mockReturnValue(mockAddress);
 
-      // Mock the token exchange fetch request
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => mockTokenResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify(mockTokenResponse)),
+      );
 
       mockServer.listen.mockImplementation((port: number, callback: () => void) => {
         expect(port).toBe(0); // Should listen on port 0 for automatic assignment
@@ -441,11 +446,9 @@ describe("authenticate", () => {
 
       mockServer.address.mockReturnValue(mockAddress);
 
-      // Mock the token exchange fetch request
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => mockTokenResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify(mockTokenResponse)),
+      );
 
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => {
         callback();
@@ -476,38 +479,31 @@ describe("GoogleAuth", () => {
     vi.resetAllMocks();
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   describe("getUserInfo", () => {
     it("returns parsed user info on success", async () => {
       // Arrange
       const token = "fake-token";
       const googleResponse = { email: "john@example.com" };
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => googleResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify(googleResponse)),
+      );
 
       // Act
       const actual = GoogleAuth.getUserInfo(token);
 
       // Assert
       await expect(actual).resolves.toEqual({ email: "john@example.com" });
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      expect(requestUrl).toHaveBeenCalledWith({
+        url: "https://www.googleapis.com/oauth2/v3/userinfo",
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        throw: false,
+      });
     });
 
     it("throws when response not ok", async () => {
       // Arrange
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        statusText: "Unauthorized",
-      });
+      vi.mocked(requestUrl).mockResolvedValue(requestUrlResponse(401, "Unauthorized"));
 
       // Act & Assert
       await expect(GoogleAuth.getUserInfo("bad-token")).rejects.toThrow(
@@ -517,10 +513,9 @@ describe("GoogleAuth", () => {
 
     it("throws when schema validation fails", async () => {
       // Arrange
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ foo: "bar" }),
-      });
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify({ foo: "bar" })),
+      );
 
       // Act & Assert
       await expect(GoogleAuth.getUserInfo("fake-token")).rejects.toThrow();
@@ -531,10 +526,9 @@ describe("GoogleAuth", () => {
     it("returns access token on success", async () => {
       // Arrange
       const fakeResponse = { access_token: "new-token", expires_in: 3600 };
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => fakeResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify(fakeResponse)),
+      );
 
       // Act
       const result = await GoogleAuth.refreshAccessToken("id", "refresh");
@@ -545,31 +539,23 @@ describe("GoogleAuth", () => {
 
     it("retries on network failure and succeeds", async () => {
       // Arrange
-      let callCount = 0;
-      globalThis.fetch = vi.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount < 2) {
-          throw new TypeError("Network error");
-        }
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ access_token: "ok", expires_in: 100 }),
-        });
-      });
+      vi.mocked(requestUrl)
+        .mockRejectedValueOnce(new TypeError("Network error"))
+        .mockResolvedValueOnce(
+          requestUrlResponse(200, JSON.stringify({ access_token: "ok", expires_in: 100 })),
+        );
 
       // Act
       const result = await GoogleAuth.refreshAccessToken("id", "refresh", 2);
 
       // Assert
-      expect(callCount).toBe(2);
+      expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(2);
       expect(result).toEqual({ accessToken: "ok", expiryDate: expect.any(Number) });
     });
 
     it("fails after all retries", async () => {
       // Arrange
-      globalThis.fetch = vi.fn().mockImplementation(() => {
-        throw new TypeError("Network error");
-      });
+      vi.mocked(requestUrl).mockRejectedValue(new TypeError("Network error"));
 
       // Act & Assert
       await expect(GoogleAuth.refreshAccessToken("id", "refresh", 1)).rejects.toThrow(

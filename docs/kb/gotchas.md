@@ -11,11 +11,11 @@
 
 ## Auth realities
 
-- Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`)
+- Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`); token and API calls use Obsidian `requestUrl`
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
 - Azure DevOps uses PAT mode only: Basic auth with `:${PAT}`; requires organisation + project name settings and a PAT with Work Items read scope
 - Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
-- Google services still use global `fetch` in places; prefer matching the style of the file you touch
+- Provider HTTP in `auth/` and `services/` should use Obsidian `requestUrl` (not renderer `fetch`) so portal review and CORS stay aligned
 
 ## Sync / UI traps
 

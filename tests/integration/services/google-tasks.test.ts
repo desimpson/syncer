@@ -1,17 +1,35 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { RequestUrlResponse } from "obsidian";
+import { requestUrl } from "obsidian";
 import {
   fetchGoogleTasksLists,
   fetchGoogleTasks,
   updateGoogleTaskStatus,
 } from "@/services/google-tasks";
 
+const safeJson = (text: string): unknown => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+};
+
+const requestUrlResponse = (status: number, text: string): RequestUrlResponse => ({
+  status,
+  text,
+  headers: {},
+  arrayBuffer: new ArrayBuffer(0),
+  json: safeJson(text),
+});
+
 describe("Google Tasks API service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
   });
 
   describe("getGoogleTasksLists", () => {
@@ -24,28 +42,26 @@ describe("Google Tasks API service", () => {
           { id: "list-2", title: "Personal" },
         ],
       };
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(
+        requestUrlResponse(200, JSON.stringify(mockResponse)),
+      );
 
       // Act
       const result = await fetchGoogleTasksLists(token);
 
       // Assert
       expect(result).toEqual(mockResponse.items);
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "https://tasks.googleapis.com/tasks/v1/users/@me/lists",
-        { headers: { Authorization: "Bearer fake-token" } },
-      );
+      expect(requestUrl).toHaveBeenCalledWith({
+        url: "https://tasks.googleapis.com/tasks/v1/users/@me/lists",
+        method: "GET",
+        headers: { Authorization: "Bearer fake-token" },
+        throw: false,
+      });
     });
 
     it("throws error when response is not ok", async () => {
       // Arrange
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 403,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(requestUrlResponse(403, ""));
 
       // Act & Assert
       await expect(fetchGoogleTasksLists("bad-token")).rejects.toThrow(
@@ -56,10 +72,9 @@ describe("Google Tasks API service", () => {
     it("throws error when response JSON fails schema validation", async () => {
       // Arrange
       const invalidResponse = { foo: "bar" }; // missing items
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => invalidResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(
+        requestUrlResponse(200, JSON.stringify(invalidResponse)),
+      );
 
       // Act & Assert
       await expect(fetchGoogleTasksLists("fake-token")).rejects.toThrow();
@@ -77,29 +92,27 @@ describe("Google Tasks API service", () => {
           { id: "task-2", title: "Write report", webViewLink: "https://tasks.google.com/task-2" },
         ],
       };
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(
+        requestUrlResponse(200, JSON.stringify(mockResponse)),
+      );
 
       // Act
       const result = await fetchGoogleTasks(token, listId);
 
       // Assert
       expect(result).toEqual(mockResponse.items);
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=false&showHidden=false`,
-        { headers: { Authorization: "Bearer fake-token" } },
-      );
+      expect(requestUrl).toHaveBeenCalledWith({
+        url: `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=false&showHidden=false`,
+        method: "GET",
+        headers: { Authorization: "Bearer fake-token" },
+        throw: false,
+      });
     });
 
     it("throws error when response is not ok", async () => {
       // Arrange
       const listId = "bad-list";
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(requestUrlResponse(404, ""));
 
       // Act & Assert
       await expect(fetchGoogleTasks("bad-token", listId)).rejects.toThrow(
@@ -111,10 +124,9 @@ describe("Google Tasks API service", () => {
       // Arrange
       const listId = "list-123";
       const invalidResponse = { foo: "bar" }; // missing items
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => invalidResponse,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(
+        requestUrlResponse(200, JSON.stringify(invalidResponse)),
+      );
 
       // Act & Assert
       await expect(fetchGoogleTasks("fake-token", listId)).rejects.toThrow();
@@ -127,35 +139,30 @@ describe("Google Tasks API service", () => {
       const token = "fake-token";
       const listId = "list-123";
       const taskId = "task-456";
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-      });
-      globalThis.fetch = mockFetch;
+      vi.mocked(requestUrl).mockResolvedValueOnce(requestUrlResponse(200, "{}"));
 
       // Act
       await updateGoogleTaskStatus(token, listId, taskId, true);
 
       // Assert
-      expect(mockFetch).toHaveBeenCalledWith(
-        `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`,
-        {
+      expect(requestUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`,
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: expect.stringContaining('"status":"completed"'),
-        },
+          throw: false,
+        }),
       );
-      const call = mockFetch.mock.calls[0];
+      const call = vi.mocked(requestUrl).mock.calls[0]?.[0];
       expect(call).toBeDefined();
-      const bodyParameter = call?.[1];
-      expect(bodyParameter).toBeDefined();
-      expect(typeof bodyParameter?.body).toBe("string");
-      if (bodyParameter === undefined || typeof bodyParameter.body !== "string") {
-        throw new Error("Expected bodyParameter.body to be a string");
+      expect(typeof call).toBe("object");
+      if (typeof call !== "object" || call === null || typeof call.body !== "string") {
+        throw new Error("Expected call.body to be a string");
       }
-      const body = JSON.parse(bodyParameter.body);
+      const body = JSON.parse(call.body);
       expect(body.status).toBe("completed");
       expect(body.completed).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/); // ISO date format
     });
@@ -165,35 +172,30 @@ describe("Google Tasks API service", () => {
       const token = "fake-token";
       const listId = "list-123";
       const taskId = "task-456";
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-      });
-      globalThis.fetch = mockFetch;
+      vi.mocked(requestUrl).mockResolvedValueOnce(requestUrlResponse(200, "{}"));
 
       // Act
       await updateGoogleTaskStatus(token, listId, taskId, false);
 
       // Assert
-      expect(mockFetch).toHaveBeenCalledWith(
-        `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`,
-        {
+      expect(requestUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: `https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`,
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: expect.stringContaining('"status":"needsAction"'),
-        },
+          throw: false,
+        }),
       );
-      const call = mockFetch.mock.calls[0];
+      const call = vi.mocked(requestUrl).mock.calls[0]?.[0];
       expect(call).toBeDefined();
-      const bodyParameter = call?.[1];
-      expect(bodyParameter).toBeDefined();
-      expect(typeof bodyParameter?.body).toBe("string");
-      if (bodyParameter === undefined || typeof bodyParameter.body !== "string") {
-        throw new Error("Expected bodyParameter.body to be a string");
+      expect(typeof call).toBe("object");
+      if (typeof call !== "object" || call === null || typeof call.body !== "string") {
+        throw new Error("Expected call.body to be a string");
       }
-      const body = JSON.parse(bodyParameter.body);
+      const body = JSON.parse(call.body);
       expect(body.status).toBe("needsAction");
       expect(body.completed).toBeUndefined();
     });
@@ -203,10 +205,7 @@ describe("Google Tasks API service", () => {
       const token = "fake-token";
       const listId = "list-123";
       const taskId = "task-456";
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(requestUrlResponse(404, ""));
 
       // Act & Assert
       await expect(updateGoogleTaskStatus(token, listId, taskId, true)).rejects.toThrow(

@@ -1,8 +1,6 @@
 const getBrowserWindow = (): Window | undefined =>
   typeof window === "undefined" ? undefined : window;
 
-const getNodeFetch = (): typeof fetch | undefined =>
-  typeof fetch === "function" ? fetch : undefined;
 const getNodeSetTimeout = (): typeof setTimeout | undefined =>
   typeof setTimeout === "function" ? setTimeout : undefined;
 const getNodeClearTimeout = (): typeof clearTimeout | undefined =>
@@ -14,18 +12,6 @@ const getNodeClearInterval = (): typeof clearInterval | undefined =>
 
 export type RuntimeTimeoutHandle = number | NodeJS.Timeout;
 export type RuntimeIntervalHandle = number | NodeJS.Timeout;
-
-export const runtimeFetch: typeof fetch = (...arguments_) => {
-  const browserWindow = getBrowserWindow();
-  if (browserWindow !== undefined && typeof browserWindow.fetch === "function") {
-    return browserWindow.fetch(...arguments_);
-  }
-  const nodeFetch = getNodeFetch();
-  if (nodeFetch !== undefined) {
-    return nodeFetch(...arguments_);
-  }
-  throw new Error("No fetch implementation available.");
-};
 
 export const runtimeOpen = (
   ...arguments_: Parameters<Window["open"]>

@@ -2,12 +2,8 @@ import { createServer } from "node:http";
 import type { ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { URLSearchParams } from "node:url";
-import {
-  runtimeClearTimeout,
-  runtimeFetch,
-  runtimeOpen,
-  runtimeSetTimeout,
-} from "@/utils/browser-runtime";
+import { requestUrl } from "obsidian";
+import { runtimeOpen, runtimeSetTimeout } from "@/utils/browser-runtime";
 import { formatLogError } from "@/utils/error-formatters";
 import type { GoogleCredentials, GoogleUserInfo } from "@/auth/types";
 import {
@@ -90,6 +86,23 @@ const generateAuthUrl = (clientId: string, redirectUri: string, scopes: string):
 };
 
 /**
+ * POST form body to a URL via Obsidian's `requestUrl` (avoids renderer `fetch` / CORS issues).
+ */
+const postForm = async (
+  urlString: string,
+  formBody: string,
+): Promise<{ statusCode: number; body: string }> => {
+  const response = await requestUrl({
+    url: urlString,
+    method: "POST",
+    contentType: "application/x-www-form-urlencoded",
+    body: formBody,
+    throw: false,
+  });
+  return { statusCode: response.status, body: response.text };
+};
+
+/**
  * Exchange authorization code for tokens
  */
 const exchangeCodeForTokens = async (
@@ -104,20 +117,13 @@ const exchangeCodeForTokens = async (
     grant_type: "authorization_code",
   });
 
-  const response = await runtimeFetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: parameters.toString(),
-  });
+  const { statusCode, body: errorOrBody } = await postForm(GOOGLE_TOKEN_URL, parameters.toString());
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
+  if (statusCode < 200 || statusCode >= 300) {
+    throw new Error(`Token exchange failed: ${statusCode} ${errorOrBody}`);
   }
 
-  const json: unknown = await response.json();
+  const json: unknown = JSON.parse(errorOrBody);
   const data = json as TokenResponse;
 
   if (!data.access_token) {
@@ -136,8 +142,11 @@ const exchangeCodeForTokens = async (
   };
 };
 
-const parseAuthRequest = (requestUrl: string, expectedPath: string): AuthResult | AuthError => {
-  const url = new URL(requestUrl, "http://localhost:3000");
+const parseAuthRequest = (
+  requestUrlString: string,
+  expectedPath: string,
+): AuthResult | AuthError => {
+  const url = new URL(requestUrlString, "http://localhost:3000");
 
   if (url.pathname !== expectedPath) {
     return { type: "invalid_url", message: "Invalid callback URL" };
@@ -189,8 +198,8 @@ const createAuthServer = (
   createServer((request, response) => {
     void (async () => {
       try {
-        const requestUrl = request.url ?? "/";
-        const result = parseAuthRequest(requestUrl, redirectPath);
+        const requestUrlString = request.url ?? "/";
+        const result = parseAuthRequest(requestUrlString, redirectPath);
 
         // Handle success case early
         if (!("type" in result)) {
@@ -297,19 +306,22 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
  *         conform to the expected schema
  */
 export const getUserInfo = async (accessToken: string): Promise<GoogleUserInfo> => {
-  const response = await runtimeFetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+  const response = await requestUrl({
+    url: "https://www.googleapis.com/oauth2/v3/userinfo",
+    method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
+    throw: false,
   });
 
-  if (response.ok) {
-    const json: unknown = await response.json();
+  if (response.status >= 200 && response.status < 300) {
+    const json: unknown = JSON.parse(response.text);
     const { email } = googleUserInfoResponseSchema.parse(json);
     return {
       email,
     };
   }
 
-  throw new Error(`Failed to fetch user info: ${response.status} ${response.statusText}`);
+  throw new Error(`Failed to fetch user info: ${response.status} ${response.text}`);
 };
 
 // TODO: Let MCP server handle refreshing access tokens
@@ -338,22 +350,18 @@ export const refreshAccessToken = async (
     remainingRetries: number,
   ): Promise<{ accessToken: string; expiryDate: number }> => {
     try {
-      const controller = new AbortController();
-      const timeout = runtimeSetTimeout(() => controller.abort(), 10_000); // 10s timeout
+      const formBody = parameters.toString();
+      const response = await Promise.race([
+        postForm(GOOGLE_TOKEN_URL, formBody),
+        new Promise<never>((_, reject) => {
+          runtimeSetTimeout(() => reject(new Error("Google token request timed out.")), 10_000);
+        }),
+      ]);
 
-      const response = await runtimeFetch(GOOGLE_TOKEN_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: parameters.toString(),
-        signal: controller.signal,
-      });
+      const { statusCode, body: text } = response;
 
-      runtimeClearTimeout(timeout);
-
-      if (response.ok) {
-        const json: unknown = await response.json();
+      if (statusCode >= 200 && statusCode < 300) {
+        const json: unknown = JSON.parse(text);
         const data = refreshResponseSchema.parse(json);
         return {
           accessToken: data.access_token,
@@ -361,10 +369,8 @@ export const refreshAccessToken = async (
         };
       }
 
-      const text = await response.text();
-
       // Check for invalid_grant error (token expired or revoked)
-      if (response.status === 400) {
+      if (statusCode === 400) {
         try {
           const json: unknown = JSON.parse(text);
           const errorJson = googleErrorResponseSchema.parse(json);
@@ -382,7 +388,7 @@ export const refreshAccessToken = async (
         }
       }
 
-      throw new Error(`Failed to refresh token: ${response.status} ${text}`);
+      throw new Error(`Failed to refresh token: ${statusCode} ${text}`);
     } catch (error) {
       // Don't retry InvalidGrantError - it won't succeed
       if (error instanceof InvalidGrantError) {

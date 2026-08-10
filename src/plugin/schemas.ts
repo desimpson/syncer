@@ -14,6 +14,8 @@ export const minimumSyncIntervalMinutes = 1;
  * Maximum sync interval in minutes.
  */
 export const maximumSyncIntervalMinutes = 24 * 60;
+export const minimumGmailStarredMaxItems = 1;
+export const maximumGmailStarredMaxItems = 200;
 
 const markdownExtensionRegex = /\.md$/;
 const h2HeadingRegex = /^##\s.+/;
@@ -22,9 +24,9 @@ const h2HeadingRegex = /^##\s.+/;
  * Schema for validating and parsing the plugin configuration settings.
  */
 export const pluginSchema = z.object({
-  GOOGLE_TASKS_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_ID: z.string().min(1),
   /** Optional at build time; Outlook connect is disabled when empty. */
-  OUTLOOK_CLIENT_ID: z.string().default(""),
+  MICROSOFT_CLIENT_ID: z.string().default(""),
 });
 
 /**
@@ -72,6 +74,19 @@ export const headingSchema = z
   .transform((value) => normaliseHeadingToH2(value))
   .refine((value) => h2HeadingRegex.test(value), {
     message: "Heading must be H2 with text, e.g., '## Tasks'",
+  });
+
+/**
+ * Schema for the Gmail Starred max-item sync limit.
+ */
+export const gmailStarredMaxItemsSchema: z.ZodCoercedNumber<unknown> = z.coerce
+  .number("Must be a number.")
+  .int("Must be a whole number.")
+  .min(minimumGmailStarredMaxItems, {
+    message: `Must be at least ${minimumGmailStarredMaxItems}.`,
+  })
+  .max(maximumGmailStarredMaxItems, {
+    message: `Must be less than or equal to ${maximumGmailStarredMaxItems}.`,
   });
 
 /**
@@ -136,6 +151,21 @@ export const microsoftOutlookSettingsSchema = z.object({
   }),
 });
 
+/**
+ * Connected Gmail Starred account (separate from Google Tasks credentials).
+ */
+export const gmailStarredSettingsSchema = z.object({
+  userInfo: z.object({
+    email: z.email(),
+  }),
+  credentials: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiryDate: z.number().int(),
+    scope: z.string(),
+  }),
+});
+
 export const firefoxBookmarkFolderSettingsSchema = z.object({
   guid: z.string(),
   title: z.string(),
@@ -159,11 +189,13 @@ export const pluginSettingsSchema = z.object({
   syncIntervalMinutes: syncIntervalSchema.default(5),
   syncDocument: markdownFilePathShapeSchema.default("GTD.md"),
   syncHeading: headingSchema.default("## Inbox"),
+  gmailStarredMaxItems: gmailStarredMaxItemsSchema.default(100),
   syncCompletionStatus: z.boolean().default(false),
   enableDeleteSync: z.boolean().default(true),
   confirmDeleteSync: z.boolean().default(true),
   manuallyDeletedTaskIds: z.array(z.string()).default([]),
   googleTasks: googleTasksSettingsSchema.optional(),
+  gmailStarred: gmailStarredSettingsSchema.optional(),
   microsoftAuthAccountKind: microsoftAuthAccountKindSchema,
   microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
   microsoftOutlook: microsoftOutlookSettingsSchema.optional(),

@@ -49,8 +49,8 @@ jobs:
     environment:
       name: dev
     env:
-      GOOGLE_TASKS_CLIENT_ID_DEV: ${{ secrets.GOOGLE_TASKS_CLIENT_ID_DEV }}
-      OUTLOOK_CLIENT_ID_DEV: ${{ secrets.OUTLOOK_CLIENT_ID_DEV }}
+      GOOGLE_CLIENT_ID_DEV: ${{ secrets.GOOGLE_CLIENT_ID_DEV }}
+      MICROSOFT_CLIENT_ID_DEV: ${{ secrets.MICROSOFT_CLIENT_ID_DEV }}
 
     steps:
       - name: Checkout repository
@@ -87,8 +87,8 @@ jobs:
     environment:
       name: prod
     env:
-      GOOGLE_TASKS_CLIENT_ID_PROD: ${{ secrets.GOOGLE_TASKS_CLIENT_ID_PROD }}
-      OUTLOOK_CLIENT_ID_PROD: ${{ secrets.OUTLOOK_CLIENT_ID_PROD }}
+      GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
+      MICROSOFT_CLIENT_ID_PROD: ${{ secrets.MICROSOFT_CLIENT_ID_PROD }}
 
     steps:
       - name: Checkout repository

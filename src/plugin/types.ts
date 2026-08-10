@@ -1,6 +1,7 @@
 import type { GoogleTasksList } from "@/services/types";
 import type {
   GoogleAccessToken,
+  GoogleCredentials,
   GoogleUserInfo,
   MicrosoftCredentials,
   MicrosoftUserInfo,
@@ -14,6 +15,8 @@ import type { FirefoxBookmarkFolder } from "@/services/firefox-bookmarks";
  */
 export type PluginSettings = {
   googleTasks?: GoogleTasksSettings | undefined;
+  gmailStarred?: GmailStarredSettings | undefined;
+  gmailStarredMaxItems: number;
   syncIntervalMinutes: number;
   syncDocument: string;
   syncHeading: string;
@@ -35,7 +38,7 @@ export type PluginSettings = {
  */
 export type PluginConfig = {
   googleClientId: string;
-  outlookClientId: string;
+  microsoftClientId: string;
   pluginDirectory: string;
 };
 
@@ -47,6 +50,14 @@ export type GoogleTasksSettings = {
   credentials: GoogleAccessToken;
   availableLists: readonly GoogleTasksList[];
   selectedListIds: readonly string[];
+};
+
+/**
+ * Gmail Starred integration settings.
+ */
+export type GmailStarredSettings = {
+  userInfo: GoogleUserInfo;
+  credentials: GoogleCredentials;
 };
 
 /**

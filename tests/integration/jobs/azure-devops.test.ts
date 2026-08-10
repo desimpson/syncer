@@ -32,7 +32,7 @@ import { fetchAssignedWorkItems } from "@/services/azure-devops";
 
 const baseConfig = {
   googleClientId: "id",
-  outlookClientId: "",
+  microsoftClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

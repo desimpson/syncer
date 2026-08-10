@@ -61,7 +61,7 @@ Settings are Obsidian plugin data (`loadData` / `saveData`), validated by Zod in
 | Microsoft Outlook | credentials (incl. `tenantSegment`), account kind / tenant ID, `userInfo`                                                                       |
 | Firefox Bookmarks | profile paths, `availableFolders`, `selectedFolderGuids`                                                                                        |
 
-OAuth tokens live **in plugin settings**, not a separate OS keychain. Build-time client IDs (`GOOGLE_TASKS_CLIENT_ID`, `OUTLOOK_CLIENT_ID`) are injected by esbuild and validated via `pluginSchema`.
+OAuth tokens live **in plugin settings**, not a separate OS keychain. Build-time client IDs (`GOOGLE_CLIENT_ID`, `MICROSOFT_CLIENT_ID`) are injected by esbuild and validated via `pluginSchema`.
 
 There is **one connected account per OAuth source** today. Multi-account support is backlog ([#40](https://github.com/desimpson/syncer/issues/40)).
 
@@ -220,11 +220,11 @@ Sync always reads the **saved** note on disk — unsaved editor buffers are igno
 
 ## 7. Build, environments, and release
 
-| Mode    | npm script            | Client IDs                                                              |
-| ------- | --------------------- | ----------------------------------------------------------------------- |
-| `dev`   | `build:dev`           | `GOOGLE_TASKS_CLIENT_ID_DEV` required; `OUTLOOK_CLIENT_ID_DEV` optional |
-| `prod`  | `build:prod`          | both `*_PROD` required                                                  |
-| `watch` | `build:watch` / `dev` | same as `dev`                                                           |
+| Mode    | npm script            | Client IDs                                                          |
+| ------- | --------------------- | ------------------------------------------------------------------- |
+| `dev`   | `build:dev`           | `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` optional |
+| `prod`  | `build:prod`          | both `*_PROD` required                                              |
+| `watch` | `build:watch` / `dev` | same as `dev`                                                       |
 
 CI (`.github/workflows/build.yml`):
 

@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
+Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -18,6 +18,11 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Select which task lists to sync
   - Only incomplete Google Tasks are synced into Obsidian; when you complete a task in Google it drops out of the incoming feed and the corresponding line is removed from the items under the target heading in the Obsidian note on the next sync
   - Optional deletion sync: deleting a synced Google task in Obsidian can also delete it in Google Tasks (with optional confirmation)
+- Gmail Starred integration:
+  - OAuth 2.0 via the same Google application client ID as Google Tasks, with separate stored credentials
+  - Syncs messages with the Gmail `STARRED` label only
+  - When completion status sync is enabled, checking/unchecking items in Obsidian unstars/re-stars the message on the next sync
+  - Links open the Gmail thread in the browser
 - Microsoft Outlook integration:
   - OAuth 2.0 (Authorization Code with PKCE) via Microsoft identity platform
   - Syncs messages with an Outlook follow-up flag set to flagged
@@ -65,13 +70,19 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - **Sync interval (minutes)**: How often background sync runs
 - **Sync markdown file path**: Target note for synced items (sync reads the saved file on disk—save changes before running Manual sync)
 - **Sync heading**: H2 heading under which new items are inserted (input is normalised to `## …`)
-- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks and Microsoft Outlook (email flags) on the next sync
+- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, and Microsoft Outlook (email flags) on the next sync
 
 ### Google Tasks
 
 - Connect your Google account using the **Connect** button in the plugin's settings tab
 - Select task lists to sync via the multi-select input
 - Optionally enable **Sync task deletions** (and confirmation) so deleting a Google Tasks item in Obsidian also deletes it in Google Tasks
+
+### Gmail Starred
+
+- Connect your Gmail account using the **Connect** button under **Gmail Starred** (separate from Google Tasks)
+- Starred messages are synced into the target note under the sync heading
+- Enable **Gmail API** on your Google Cloud OAuth client and add test users if the app is in Testing mode
 
 ### Microsoft Outlook
 
@@ -121,7 +132,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Development builds require `GOOGLE_TASKS_CLIENT_ID_DEV` (see `.env.example`). Optionally set `OUTLOOK_CLIENT_ID_DEV` to enable Outlook Connect.
+Development builds require `GOOGLE_CLIENT_ID_DEV` (see `.env.example`). Optionally set `MICROSOFT_CLIENT_ID_DEV` to enable Outlook Connect.
 
 Sync to your vault with:
 
@@ -142,7 +153,7 @@ This plugin includes code adapted from the following projects:
 ## Releasing
 
 1. Update version: `npm run version` (or `npm version patch|minor|major`)
-2. Build production: `GOOGLE_TASKS_CLIENT_ID_PROD=your-id OUTLOOK_CLIENT_ID_PROD=your-id npm run build:prod` (Google Tasks and Outlook client IDs required)
+2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (Google and Microsoft client IDs required)
 3. Verify: `npm run release:check`
 4. Create release:
    - **Automated**: `git tag 1.0.0 && git push origin 1.0.0` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.1.0` or `1.0.0`, not `v1.0.0`)

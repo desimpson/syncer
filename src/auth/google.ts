@@ -36,6 +36,15 @@ export type AuthOptions = {
   scopes: string;
 };
 
+/** Required for Gmail Starred list + star/unstar write-back. */
+export const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
+
+export const hasGmailModifyScope = (scope: string): boolean =>
+  scope
+    .split(/\s+/)
+    .map((entry) => entry.trim())
+    .includes(GMAIL_MODIFY_SCOPE);
+
 type AuthResult = {
   code: string;
   redirectUri: string;

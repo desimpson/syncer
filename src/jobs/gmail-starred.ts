@@ -1,17 +1,19 @@
-import { mapOutlookMessageToSyncItem } from "@/adaptors/microsoft-outlook";
+import { mapGmailMessageToSyncItem } from "@/adaptors/gmail-starred";
 import type { SyncJobCreator } from "@/jobs/types";
-import { MicrosoftAuth, InvalidGrantError } from "@/auth";
-import type { PluginConfig, MicrosoftOutlookSettings, PluginSettings } from "@/plugin/types";
+import { GoogleAuth, InvalidGrantError } from "@/auth";
+import type { GmailStarredSettings, PluginConfig, PluginSettings } from "@/plugin/types";
 import {
-  fetchFlaggedMessages,
-  updateOutlookMessageFlag,
-  GraphAuthorizationError,
-  type OutlookFlaggedMessage,
-} from "@/services/outlook-mail";
+  fetchStarredMessages,
+  updateGmailMessageStarred,
+  GmailAuthorizationError,
+  GmailRateLimitError,
+  type GmailStarredMessage,
+} from "@/services/gmail-starred";
 import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
-import { MICROSOFT_OUTLOOK_SOURCE, type SyncItem } from "@/sync/types";
+import { GMAIL_STARRED_SOURCE, type SyncItem } from "@/sync/types";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
+import { formatUiError } from "@/utils/error-formatters";
 import type { TFile, Vault } from "obsidian";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 
@@ -22,15 +24,15 @@ type CompletionChange = {
   completed: boolean;
 };
 
-class OutlookDisconnectedError extends Error {
+class GmailStarredDisconnectedError extends Error {
   public constructor() {
-    super("Microsoft Outlook disconnected during sync");
-    this.name = "OutlookDisconnectedError";
+    super("Gmail Starred disconnected during sync");
+    this.name = "GmailStarredDisconnectedError";
   }
 }
 
 const ensureAccessToken = async (
-  outlook: MicrosoftOutlookSettings,
+  gmailStarred: GmailStarredSettings,
   config: PluginConfig,
   persist: (update: {
     accessToken: string;
@@ -38,22 +40,15 @@ const ensureAccessToken = async (
     refreshToken?: string;
   }) => Promise<void>,
 ): Promise<string> => {
-  const { credentials: token } = outlook;
+  const { credentials: token } = gmailStarred;
 
   if (token.expiryDate < Date.now()) {
-    const { accessToken, expiryDate, refreshToken } = await MicrosoftAuth.refreshAccessToken(
-      config.microsoftClientId,
-      {
-        refreshToken: token.refreshToken,
-        tenantSegment: token.tenantSegment,
-      },
+    const { accessToken, expiryDate } = await GoogleAuth.refreshAccessToken(
+      config.googleClientId,
+      token.refreshToken,
     );
 
-    await persist({
-      accessToken,
-      expiryDate,
-      ...(refreshToken === undefined ? {} : { refreshToken }),
-    });
+    await persist({ accessToken, expiryDate });
     return accessToken;
   }
 
@@ -75,22 +70,16 @@ const getSyncFileWithRetry = async (
 
   if (retryFile === null) {
     notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
-    console.warn(`Sync document [${syncDocument}] not found. Aborting Outlook sync.`);
+    console.warn(`Sync document [${syncDocument}] not found. Aborting Gmail Starred sync.`);
     return undefined;
   }
 
   return retryFile;
 };
 
-/**
- * Pure identity index for Outlook completion reconciliation.
- * Duplicate IDs: later entries win — pass existing before incoming so remote state takes precedence.
- */
-const buildOutlookMessageIdToListKeyMap = (items: readonly SyncItem[]): Map<string, string> =>
+const buildGmailMessageIdToListKeyMap = (items: readonly SyncItem[]): Map<string, string> =>
   new Map(
-    items
-      .filter((item) => item.source === MICROSOFT_OUTLOOK_SOURCE)
-      .map((item) => [item.id, item.id]),
+    items.filter((item) => item.source === GMAIL_STARRED_SOURCE).map((item) => [item.id, item.id]),
   );
 
 const detectChangeForTaskInBoth = (
@@ -148,13 +137,13 @@ type UpdateResult = {
   change: CompletionChange | undefined;
 };
 
-const applyCompletionChangesToGraph = async (
+const applyCompletionChangesToGmail = async (
   completionChanges: readonly CompletionChange[],
   accessToken: string,
 ): Promise<readonly UpdateResult[]> => {
   const results = await Promise.allSettled(
     completionChanges.map(({ messageId, completed }) =>
-      updateOutlookMessageFlag(accessToken, messageId, completed),
+      updateGmailMessageStarred(accessToken, messageId, !completed),
     ),
   );
 
@@ -164,23 +153,23 @@ const applyCompletionChangesToGraph = async (
   }));
 };
 
-const reportFailedOutlookPatches = (
+const reportFailedGmailPatches = (
   updateResults: readonly UpdateResult[],
   notify: (message: string) => void,
 ): void => {
   updateResults.forEach((item, index) => {
     if (item.change === undefined) {
-      console.error(`Missing Outlook completion change at index ${index}`);
+      console.error(`Missing Gmail Starred completion change at index ${index}`);
       return;
     }
     if (item.result.status !== "rejected") {
       return;
     }
     console.error(
-      `Failed to update Outlook flag for message ${item.change.messageId}:`,
+      `Failed to update Gmail star for message ${item.change.messageId}:`,
       item.result.reason,
     );
-    notify(`Failed to sync Outlook flag for message: ${item.change.messageId}`);
+    notify(`Failed to sync Gmail star for message: ${item.change.messageId}`);
   });
 };
 
@@ -194,13 +183,13 @@ const extractSuccessfulChanges = (
     )
     .map(({ change }) => change);
 
-const findGraphAuthorizationFailure = (
+const findGmailAuthorizationFailure = (
   updateResults: readonly UpdateResult[],
-): GraphAuthorizationError | undefined => {
+): GmailAuthorizationError | undefined => {
   for (const item of updateResults) {
     if (
       item.result.status === "rejected" &&
-      item.result.reason instanceof GraphAuthorizationError
+      item.result.reason instanceof GmailAuthorizationError
     ) {
       return item.result.reason;
     }
@@ -208,7 +197,7 @@ const findGraphAuthorizationFailure = (
   return undefined;
 };
 
-const applyCompletionChangesToOutlook = async (
+const applyCompletionChangesToStarredMail = async (
   completionChanges: readonly CompletionChange[],
   accessToken: string,
   notify: (message: string) => void,
@@ -217,13 +206,13 @@ const applyCompletionChangesToOutlook = async (
     return [];
   }
 
-  const updateResults = await applyCompletionChangesToGraph(completionChanges, accessToken);
-  const authFailure = findGraphAuthorizationFailure(updateResults);
+  const updateResults = await applyCompletionChangesToGmail(completionChanges, accessToken);
+  const authFailure = findGmailAuthorizationFailure(updateResults);
   if (authFailure !== undefined) {
     throw authFailure;
   }
 
-  reportFailedOutlookPatches(updateResults, notify);
+  reportFailedGmailPatches(updateResults, notify);
   return extractSuccessfulChanges(updateResults);
 };
 
@@ -270,7 +259,7 @@ const mergeCompletionFromMarkdown = async (
     return incoming;
   }
   const completionChanges = detectCompletionChanges(existing, incoming, messageIdToListKey);
-  const successfulChanges = await applyCompletionChangesToOutlook(
+  const successfulChanges = await applyCompletionChangesToStarredMail(
     completionChanges,
     accessToken,
     notify,
@@ -281,21 +270,21 @@ const mergeCompletionFromMarkdown = async (
 const isMissingFileError = (message: string): boolean =>
   /ENOENT|no such file or directory|not found/i.test(message);
 
-const syncOutlookMessagesToFile = async (
+const syncGmailMessagesToFile = async (
   file: TFile,
-  messages: readonly OutlookFlaggedMessage[],
+  messages: readonly GmailStarredMessage[],
   accessToken: string,
   syncHeading: string,
   syncDocument: string,
   syncCompletionStatus: boolean,
   notify: (message: string) => void,
 ) => {
-  const adaptor = mapOutlookMessageToSyncItem(syncHeading);
+  const adaptor = mapGmailMessageToSyncItem(syncHeading);
   const incoming = messages.map(adaptor);
 
   try {
-    const existing = await readMarkdownSyncItems(file, MICROSOFT_OUTLOOK_SOURCE);
-    const messageIdToListKey = buildOutlookMessageIdToListKeyMap([...existing, ...incoming]);
+    const existing = await readMarkdownSyncItems(file, GMAIL_STARRED_SOURCE);
+    const messageIdToListKey = buildGmailMessageIdToListKeyMap([...existing, ...incoming]);
     const updatedIncoming = await mergeCompletionFromMarkdown(
       syncCompletionStatus,
       existing,
@@ -307,7 +296,7 @@ const syncOutlookMessagesToFile = async (
     await reconcileSyncSourceAtomically(
       file,
       updatedIncoming,
-      MICROSOFT_OUTLOOK_SOURCE,
+      GMAIL_STARRED_SOURCE,
       syncHeading,
       shouldPreserveCompletedDeletes,
     );
@@ -317,7 +306,7 @@ const syncOutlookMessagesToFile = async (
       notify(
         `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
       );
-      console.error(`File missing during Outlook sync: [${message}]. Aborting sync.`);
+      console.error(`File missing during Gmail Starred sync: [${message}]. Aborting sync.`);
       return;
     }
     throw error;
@@ -339,17 +328,17 @@ const persistRefreshedToken =
     refreshToken?: string;
   }): Promise<void> => {
     const freshSettings = await loadSettings();
-    const { microsoftOutlook } = freshSettings;
-    if (microsoftOutlook === undefined) {
-      throw new OutlookDisconnectedError();
+    const { gmailStarred } = freshSettings;
+    if (gmailStarred === undefined) {
+      throw new GmailStarredDisconnectedError();
     }
 
     await saveSettings({
       ...freshSettings,
-      microsoftOutlook: {
-        ...microsoftOutlook,
+      gmailStarred: {
+        ...gmailStarred,
         credentials: {
-          ...microsoftOutlook.credentials,
+          ...gmailStarred.credentials,
           accessToken,
           expiryDate,
           ...(refreshToken === undefined ? {} : { refreshToken }),
@@ -358,20 +347,44 @@ const persistRefreshedToken =
     });
   };
 
-const clearOutlookCredentials = async (
+const clearGmailStarredCredentials = async (
   loadSettings: () => Promise<PluginSettings>,
   saveSettings: (s: PluginSettings) => Promise<void>,
   app: Parameters<SyncJobCreator>[5],
 ): Promise<void> => {
   const freshSettings = await loadSettings();
-  await saveSettings({ ...freshSettings, microsoftOutlook: undefined });
+  await saveSettings({ ...freshSettings, gmailStarred: undefined });
   new AuthorizationExpiredModal(app).open();
 };
 
+const handleGmailAuthorizationFailure = async (
+  error: GmailAuthorizationError,
+  notify: (message: string) => void,
+  loadSettings: () => Promise<PluginSettings>,
+  saveSettings: (s: PluginSettings) => Promise<void>,
+  app: Parameters<SyncJobCreator>[5],
+): Promise<void> => {
+  if (error.status === 401) {
+    console.warn(`Gmail access token rejected (${error.status}). Clearing credentials...`);
+    await clearGmailStarredCredentials(loadSettings, saveSettings, app);
+    return;
+  }
+
+  notify(
+    "Gmail Starred sync was denied (403). Enable the Gmail API on your Google Cloud project and ensure gmail.modify is on the OAuth consent screen, then retry sync.",
+  );
+  console.warn(`Gmail API access denied (${error.status}): [${error.message}]. Credentials kept.`);
+};
+
+const notifySyncFailure = (error: unknown, notify: (message: string) => void): void => {
+  const message = error instanceof Error ? formatUiError(error) : formatUiError(String(error));
+  notify(`Gmail Starred sync failed: ${message}`);
+};
+
 /**
- * Create a job to sync flagged Outlook messages into the Markdown sync note.
+ * Create a job to sync starred Gmail messages into the Markdown sync note.
  */
-export const createMicrosoftOutlookJob: SyncJobCreator = (
+export const createGmailStarredJob: SyncJobCreator = (
   loadSettings,
   saveSettings,
   config,
@@ -379,38 +392,40 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
   notify,
   app,
 ) => ({
-  name: "microsoft-outlook",
+  name: "gmail-starred",
   task: async () => {
     const settings = await loadSettings();
-    const { microsoftOutlook, syncDocument, syncHeading, syncCompletionStatus } = settings;
+    const { gmailStarred, gmailStarredMaxItems, syncDocument, syncHeading, syncCompletionStatus } =
+      settings;
 
-    if (microsoftOutlook === undefined) {
+    if (gmailStarred === undefined) {
       return;
     }
 
-    if (config.microsoftClientId.length === 0) {
+    if (config.googleClientId.length === 0) {
       return;
     }
 
     let currentAccessToken: string;
     try {
       currentAccessToken = await ensureAccessToken(
-        microsoftOutlook,
+        gmailStarred,
         config,
         persistRefreshedToken(loadSettings, saveSettings),
       );
     } catch (error) {
-      if (error instanceof OutlookDisconnectedError) {
+      if (error instanceof GmailStarredDisconnectedError) {
         return;
       }
       if (error instanceof InvalidGrantError) {
         console.warn(
-          "Microsoft Outlook refresh token has been expired or revoked. Clearing credentials...",
+          "Gmail Starred refresh token has been expired or revoked. Clearing credentials...",
         );
-        await clearOutlookCredentials(loadSettings, saveSettings, app);
+        await clearGmailStarredCredentials(loadSettings, saveSettings, app);
         return;
       }
-      throw error;
+      notifySyncFailure(error, notify);
+      return;
     }
 
     const file = await getSyncFileWithRetry(vault, syncDocument, notify);
@@ -418,22 +433,36 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
       return;
     }
 
-    let messages: readonly OutlookFlaggedMessage[];
+    let messages: readonly GmailStarredMessage[];
+    let truncated = false;
     try {
-      messages = await fetchFlaggedMessages(currentAccessToken);
+      const fetchResult = await fetchStarredMessages(currentAccessToken, gmailStarredMaxItems);
+      messages = fetchResult.messages;
+      truncated = fetchResult.truncated;
     } catch (error) {
-      if (error instanceof GraphAuthorizationError) {
-        console.warn(
-          `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
-        );
-        await clearOutlookCredentials(loadSettings, saveSettings, app);
+      if (error instanceof GmailAuthorizationError) {
+        await handleGmailAuthorizationFailure(error, notify, loadSettings, saveSettings, app);
         return;
       }
-      throw error;
+      if (error instanceof GmailRateLimitError) {
+        notify(
+          "Gmail Starred sync hit a rate limit. Try again later or reduce starred mail volume.",
+        );
+        console.warn(`Gmail Starred rate limit: [${error.message}].`);
+        return;
+      }
+      notifySyncFailure(error, notify);
+      return;
+    }
+
+    if (truncated) {
+      notify(
+        `Gmail Starred sync included the newest ${messages.length} starred messages from a limited window. Older stars may be omitted until they fall within the sync window.`,
+      );
     }
 
     try {
-      await syncOutlookMessagesToFile(
+      await syncGmailMessagesToFile(
         file,
         messages,
         currentAccessToken,
@@ -443,14 +472,11 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
         notify,
       );
     } catch (error) {
-      if (error instanceof GraphAuthorizationError) {
-        console.warn(
-          `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
-        );
-        await clearOutlookCredentials(loadSettings, saveSettings, app);
+      if (error instanceof GmailAuthorizationError) {
+        await handleGmailAuthorizationFailure(error, notify, loadSettings, saveSettings, app);
         return;
       }
-      throw error;
+      notifySyncFailure(error, notify);
     }
   },
 });

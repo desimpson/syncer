@@ -1,6 +1,6 @@
 {
   "name": "syncer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Sync external sources like Google Tasks to your vault. More integrations to come.",
   "main": "main.js",
   "type": "module",

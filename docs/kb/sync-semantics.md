@@ -39,7 +39,7 @@ Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).
 - Incoming feed = **incomplete** tasks from selected lists only
 - Completing a task in Google drops it from the feed → line removed on next sync unless the Obsidian line is already `[x]` (completed-preserve filters on `action.item.completed`)
 - `syncCompletionStatus`: push Obsidian checkbox changes to Google; uncomplete-in-Obsidian can restore a task completed in Google
-- `enableDeleteSync`: vault line removal can delete the Google task in Google Tasks (confirmation optional)
+- `enableDeleteSync` (default **off**): vault line removal can delete the Google task in Google Tasks; `confirmDeleteSync` (default **on** when enabled) prompts before remote delete
 - **SyncGuard** (`plugin/index.ts`): skip delete-detection while scheduled sync writes the file
 - **`manuallyDeletedTaskIds`**: prevent re-adding tasks the user deleted from Obsidian on a later sync
 - Deselecting a list drops those task IDs from incoming → delete actions for unmatched items file-wide by `id:source`; completed lines preserved via `shouldPreserveCompletedDeletes`

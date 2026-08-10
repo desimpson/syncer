@@ -180,7 +180,7 @@ Full rules: [`docs/kb/sync-semantics.md`](kb/sync-semantics.md). Summary:
 - Incoming = **incomplete** tasks from selected lists only
 - Completing in Google drops the task from the feed → line removed unless already completed in Obsidian
 - `syncCompletionStatus`: push checkbox changes to Google (including uncomplete restoring a Google-completed task)
-- `enableDeleteSync`: vault line removal can delete the Google task (confirmation optional)
+- `enableDeleteSync` (default off): vault line removal can delete the Google task; `confirmDeleteSync` (default on when enabled) prompts before remote delete
 - `manuallyDeletedTaskIds`: suppress re-create when the user declined remote delete
 - SyncGuard skips delete-detection while sync is rewriting the note
 

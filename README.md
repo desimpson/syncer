@@ -17,7 +17,7 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - OAuth 2.0 (Authorization Code)
   - Select which task lists to sync
   - Only incomplete Google Tasks are synced into Obsidian; when you complete a task in Google it drops out of the incoming feed and the corresponding line is removed from the items under the target heading in the Obsidian note on the next sync
-  - Optional deletion sync: deleting a synced Google task in Obsidian can also delete it in Google Tasks (with optional confirmation)
+  - Optional deletion sync (off by default): deleting a synced Google task in Obsidian can also delete it in Google Tasks (with optional confirmation)
 - Microsoft Outlook integration:
   - OAuth 2.0 (Authorization Code with PKCE) via Microsoft identity platform
   - Syncs messages with an Outlook follow-up flag set to flagged
@@ -70,7 +70,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 - Connect your Google account using the **Connect** button in the plugin's settings tab
 - Select task lists to sync via the multi-select input
-- Optionally enable **Sync task deletions** (and confirmation) so deleting a Google Tasks item in Obsidian also deletes it in Google Tasks
+- **Sync task deletions** is off by default; enable it (and optional confirmation) if you want deleting a Google Tasks item in Obsidian to also delete it in Google Tasks
 
 ### Microsoft Outlook
 

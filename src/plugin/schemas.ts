@@ -191,7 +191,7 @@ export const pluginSettingsSchema = z.object({
   syncHeading: headingSchema.default("## Inbox"),
   gmailStarredMaxItems: gmailStarredMaxItemsSchema.default(100),
   syncCompletionStatus: z.boolean().default(false),
-  enableDeleteSync: z.boolean().default(true),
+  enableDeleteSync: z.boolean().default(false),
   confirmDeleteSync: z.boolean().default(true),
   manuallyDeletedTaskIds: z.array(z.string()).default([]),
   googleTasks: googleTasksSettingsSchema.optional(),

@@ -106,6 +106,13 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/utils/browser-runtime.ts"],
+    rules: {
+      // Runtime helpers intentionally fall back to global APIs when window methods are unavailable in tests.
+      "obsidianmd/no-global-this": "off",
+    },
+  },
+  {
     files: ["vitest.config.ts", "vitest.*.config.ts"],
     rules: {
       // Vitest configs run in Node and resolve paths to mocks (e.g. obsidian stub).
@@ -129,6 +136,12 @@ export default defineConfig([
       "@typescript-eslint/no-shadow": "off",
       // Test assertions reference methods like expect(obj.method).toHaveBeenCalled()
       "@typescript-eslint/unbound-method": "off",
+      // Test fixtures and legacy suppression comments don't need prose descriptions.
+      "eslint-comments/require-description": "off",
+      // Test environment often stubs/uses browser APIs via global shims.
+      "obsidianmd/no-global-this": "off",
+      "obsidianmd/prefer-window-timers": "off",
+      "obsidianmd/prefer-create-el": "off",
     },
   },
 ]);

@@ -11,6 +11,10 @@ const toDoHostFromTenantSegment = (tenantSegment: string): ToDoLinkHost =>
  *
  * Primary: task deep link when `taskId` is non-empty.
  * Fallback: list-level deep link when `taskId` is missing or empty.
+ *
+ * @param tenantSegment - Stored OAuth tenant path (`consumers`, `organizations`, or tenant GUID)
+ * @param listId - To Do list id (used for list-level fallback links)
+ * @param taskId - Graph task id; empty/whitespace triggers list fallback
  */
 export const buildMicrosoftToDoTaskLink = (
   tenantSegment: string,
@@ -27,6 +31,8 @@ export const buildMicrosoftToDoTaskLink = (
 
 /**
  * Human-readable label for a stored Microsoft tenant segment (To Do settings UI).
+ *
+ * @param tenantSegment - Stored OAuth tenant path (`consumers`, `organizations`, or tenant GUID)
  */
 export const formatMicrosoftToDoTenantLabel = (tenantSegment: string): string => {
   if (tenantSegment === "consumers") {
@@ -39,7 +45,11 @@ export const formatMicrosoftToDoTenantLabel = (tenantSegment: string): string =>
 };
 
 /**
- * Maps a Microsoft To Do Graph task to a generic `SyncItem`.
+ * Creates a mapper from a Microsoft To Do Graph task to a generic `SyncItem`.
+ *
+ * @param heading - Target sync heading written into item metadata
+ * @param tenantSegment - Tenant segment used to choose the deep-link host
+ * @param listId - List id for deep-link fallback when task id is empty
  */
 export const createMicrosoftToDoTaskAdaptor =
   (

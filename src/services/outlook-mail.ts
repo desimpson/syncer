@@ -5,6 +5,7 @@ import {
   isGraphAuthorizationStatus,
 } from "@/services/microsoft-graph-errors";
 
+/** Re-export for Outlook job/tests that historically imported from this module. */
 export { GraphAuthorizationError } from "@/services/microsoft-graph-errors";
 
 const GRAPH_MESSAGES_BASE = "https://graph.microsoft.com/v1.0/me/messages";

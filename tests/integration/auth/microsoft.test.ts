@@ -146,9 +146,11 @@ describe("microsoft auth integration", () => {
     });
 
     it("includes Tasks scopes in authorize URL for To Do connect", async () => {
+      // Arrange
       mockServer.address.mockReturnValue(createMockAddress(4318));
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => callback());
 
+      // Act
       const authPromise = authenticate({
         clientId: "client-id",
         tenantSegment: "consumers",
@@ -171,6 +173,7 @@ describe("microsoft auth integration", () => {
       mockServer.callback?.(request, mockResponse);
       await authPromise;
 
+      // Assert
       expect(authUrl).toContain(encodeURIComponent("Tasks.ReadWrite"));
       expect(authUrl).not.toContain(encodeURIComponent("Mail.Read"));
     });

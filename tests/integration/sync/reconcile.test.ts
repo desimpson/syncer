@@ -85,6 +85,7 @@ describe("reconcileSyncSourceAtomically", () => {
   });
 
   it("does not recreate an item that already exists under another heading", async () => {
+    // Arrange
     let currentContent = [
       "## Inbox",
       "",
@@ -101,6 +102,7 @@ describe("reconcileSyncSourceAtomically", () => {
       vault: { process },
     } as unknown as TFile;
 
+    // Act
     const result = await reconcileSyncSourceAtomically(
       file,
       [makeSyncItem("a")],
@@ -108,6 +110,7 @@ describe("reconcileSyncSourceAtomically", () => {
       "## Inbox",
     );
 
+    // Assert
     const writtenItems = parseMarkdownSyncItemsFromContent(currentContent, "firefox-bookmarks");
     expect(result.actions.some((action) => action.operation === "create")).toBe(false);
     expect(result.actions.some((action) => action.operation === "update")).toBe(true);

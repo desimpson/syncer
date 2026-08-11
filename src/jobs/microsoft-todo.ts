@@ -395,6 +395,9 @@ const notifySyncFailure = (error: unknown, notify: (message: string) => void): v
 
 /**
  * Create a job to sync Microsoft To Do tasks into the Markdown sync note.
+ *
+ * Mirrors Google Tasks list + completion semantics: incomplete feed, optional
+ * Obsidian→To Do completion write-back, and `shouldPreserveCompletedDeletes`.
  */
 export const createMicrosoftToDoJob: SyncJobCreator = (
   loadSettings,

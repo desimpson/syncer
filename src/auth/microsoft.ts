@@ -76,7 +76,11 @@ const generatePkcePair = (): { codeVerifier: string; codeChallenge: string } => 
   return { codeVerifier, codeChallenge };
 };
 
+/**
+ * Options for Microsoft OAuth connect (PKCE authorization-code flow).
+ */
 export type MicrosoftAuthOptions = {
+  /** Entra application (client) ID shared with Outlook builds. */
   clientId: string;
   /** `consumers`, `organizations`, or a tenant GUID. */
   tenantSegment: string;
@@ -288,6 +292,9 @@ const createAuthServer = (
  *
  * Register **Mobile and desktop** redirect URIs in Entra for `http://localhost` (loopback);
  * ephemeral ports are accepted for localhost redirects.
+ *
+ * @param options - Client id, tenant segment, and space-delimited scopes
+ *   (`MICROSOFT_OUTLOOK_GRAPH_SCOPES` or `MICROSOFT_TO_DO_GRAPH_SCOPES`)
  */
 export const authenticate = async (options: MicrosoftAuthOptions): Promise<MicrosoftCredentials> =>
   new Promise((resolve, reject) => {

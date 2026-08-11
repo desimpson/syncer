@@ -132,6 +132,8 @@ const buildTasksUrl = (listId: string, completed: boolean): string => {
 
 /**
  * Fetches all Microsoft To Do lists for the signed-in user, following Graph pagination.
+ *
+ * @param accessToken - Valid Microsoft Graph access token with Tasks scopes
  */
 export const fetchMicrosoftToDoLists = (
   accessToken: string,
@@ -139,7 +141,12 @@ export const fetchMicrosoftToDoLists = (
   collectPaginatedLists(accessToken, `${GRAPH_TODO_BASE}/lists?$top=50`);
 
 /**
- * Fetches tasks for a list. When `completed` is false, returns the incomplete feed only.
+ * Fetches tasks for a list. When `completed` is false, returns the incomplete feed only
+ * (client-side filter after an unfiltered list — Graph rejects `$select` on this API).
+ *
+ * @param accessToken - Valid Microsoft Graph access token with Tasks scopes
+ * @param listId - To Do list id
+ * @param completed - When true, requests completed tasks via `$filter`; otherwise incomplete feed
  */
 export const fetchMicrosoftToDoTasks = async (
   accessToken: string,
@@ -155,6 +162,11 @@ export const fetchMicrosoftToDoTasks = async (
 
 /**
  * Marks a Microsoft To Do task completed or not started for Obsidian completion sync.
+ *
+ * @param accessToken - Valid Microsoft Graph access token with Tasks scopes
+ * @param listId - To Do list containing the task
+ * @param taskId - Task id to update
+ * @param completed - `true` → `status: completed`; `false` → `status: notStarted`
  */
 export const updateMicrosoftToDoTaskStatus = async (
   accessToken: string,
@@ -179,6 +191,7 @@ export const updateMicrosoftToDoTaskStatus = async (
   }
 };
 
+/** Convenience namespace for Microsoft To Do Graph helpers (settings UI / jobs). */
 export const MicrosoftToDoService = {
   fetchMicrosoftToDoLists,
   fetchMicrosoftToDoTasks,

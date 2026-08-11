@@ -1,6 +1,15 @@
+/**
+ * Microsoft Graph authorization failure (HTTP 401 or 403).
+ * Jobs typically clear the affected integration credentials and prompt reconnect.
+ */
 export class GraphAuthorizationError extends Error {
+  /** HTTP status from the Graph response (`401` or `403`). */
   public readonly status: number;
 
+  /**
+   * @param status - HTTP status (`401` or `403`)
+   * @param message - Short failure message for Notices/logs (never raw JSON bodies)
+   */
   public constructor(status: number, message: string) {
     super(message);
     this.name = "GraphAuthorizationError";
@@ -8,9 +17,18 @@ export class GraphAuthorizationError extends Error {
   }
 }
 
+/**
+ * Microsoft Graph rate-limit failure (HTTP 429).
+ * Jobs should notice the user and abort without clearing credentials.
+ */
 export class GraphRateLimitError extends Error {
+  /** HTTP status from the Graph response (`429`). */
   public readonly status: number;
 
+  /**
+   * @param status - HTTP status (`429`)
+   * @param message - Short failure message for Notices/logs (never raw JSON bodies)
+   */
   public constructor(status: number, message: string) {
     super(message);
     this.name = "GraphRateLimitError";
@@ -18,9 +36,11 @@ export class GraphRateLimitError extends Error {
   }
 }
 
+/** Returns true when `status` is a Graph authorization failure (401 or 403). */
 export const isGraphAuthorizationStatus = (status: number): boolean =>
   status === 401 || status === 403;
 
+/** Returns true when `status` is a Graph rate-limit response (429). */
 export const isGraphRateLimitStatus = (status: number): boolean => status === 429;
 
 const GRAPH_ERROR_MESSAGE_MAX_LENGTH = 160;

@@ -298,6 +298,7 @@ describe("pluginSettingsSchema", () => {
   });
 
   it("parses microsoftToDo nested settings and defaults list fields to empty arrays", () => {
+    // Arrange
     const input = {
       microsoftToDo: {
         userInfo: { email: "todo@example.com", displayName: "Todo User" },
@@ -311,8 +312,10 @@ describe("pluginSettingsSchema", () => {
       },
     };
 
+    // Act
     const parsed = pluginSettingsSchema.parse(input);
 
+    // Assert
     expect(parsed.microsoftToDo).toBeDefined();
     expect(parsed.microsoftToDo?.userInfo.email).toBe("todo@example.com");
     expect(parsed.microsoftToDo?.credentials.tenantSegment).toBe("consumers");

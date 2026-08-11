@@ -129,10 +129,12 @@ export const microsoftWorkOrSchoolTenantIdSchema = z
   })
   .default("");
 
+/** Shared Microsoft account-kind choice used by the next Outlook / To Do Connect. */
 export const microsoftAuthAccountKindSchema = z
   .enum(["personal", "workSchool"])
   .default("personal");
 
+/** Inferred account-kind type for settings and Connect flows. */
 export type MicrosoftAuthAccountKind = z.infer<typeof microsoftAuthAccountKindSchema>;
 
 /**

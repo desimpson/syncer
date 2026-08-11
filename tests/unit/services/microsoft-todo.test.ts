@@ -34,6 +34,7 @@ describe("microsoft-todo service", () => {
   });
 
   it("fetchMicrosoftToDoLists follows @odata.nextLink", async () => {
+    // Arrange
     vi.mocked(requestUrl)
       .mockResolvedValueOnce(
         graphResponse(
@@ -48,8 +49,10 @@ describe("microsoft-todo service", () => {
         graphResponse(200, JSON.stringify({ value: [{ id: "list-2", displayName: "Shopping" }] })),
       );
 
+    // Act
     const result = await fetchMicrosoftToDoLists("token");
 
+    // Assert
     expect(result).toEqual([
       { id: "list-1", displayName: "Tasks" },
       { id: "list-2", displayName: "Shopping" },
@@ -58,6 +61,7 @@ describe("microsoft-todo service", () => {
   });
 
   it("fetchMicrosoftToDoTasks paginates and drops completed tasks from the incomplete feed", async () => {
+    // Arrange
     vi.mocked(requestUrl)
       .mockResolvedValueOnce(
         graphResponse(
@@ -81,8 +85,10 @@ describe("microsoft-todo service", () => {
         ),
       );
 
+    // Act
     const result = await fetchMicrosoftToDoTasks("token", "list-1", false);
 
+    // Assert
     expect(result.map((task) => task.id)).toEqual(["t1", "t2"]);
     const firstUrl = vi.mocked(requestUrl).mock.calls[0]?.[0];
     expect(
@@ -96,6 +102,7 @@ describe("microsoft-todo service", () => {
   });
 
   it("fetchMicrosoftToDoTasks requests completed filter when showCompleted is true", async () => {
+    // Arrange
     vi.mocked(requestUrl).mockResolvedValueOnce(
       graphResponse(
         200,
@@ -105,8 +112,10 @@ describe("microsoft-todo service", () => {
       ),
     );
 
+    // Act
     await fetchMicrosoftToDoTasks("token", "list-1", true);
 
+    // Assert
     const firstUrl = vi.mocked(requestUrl).mock.calls[0]?.[0];
     expect(
       typeof firstUrl === "object" &&
@@ -119,26 +128,33 @@ describe("microsoft-todo service", () => {
   });
 
   it("throws GraphAuthorizationError on 401", async () => {
+    // Arrange
     vi.mocked(requestUrl).mockResolvedValueOnce(graphResponse(401, "Unauthorized"));
 
+    // Act / Assert
     await expect(fetchMicrosoftToDoLists("bad")).rejects.toBeInstanceOf(GraphAuthorizationError);
   });
 
   it("throws GraphRateLimitError on 429", async () => {
+    // Arrange
     vi.mocked(requestUrl).mockResolvedValueOnce(graphResponse(429, "Too Many Requests"));
 
+    // Act / Assert
     await expect(fetchMicrosoftToDoLists("bad")).rejects.toBeInstanceOf(GraphRateLimitError);
   });
 
   it("throws short generic error for other failures without Graph error shape", async () => {
+    // Arrange
     vi.mocked(requestUrl).mockResolvedValueOnce(graphResponse(503, '{"error":"busy"}'));
 
+    // Act / Assert
     await expect(fetchMicrosoftToDoLists("bad")).rejects.toThrow(
       "Microsoft To Do list lists failed: 503",
     );
   });
 
   it("includes Graph error code and message in failure (not raw JSON)", async () => {
+    // Arrange
     vi.mocked(requestUrl).mockResolvedValueOnce(
       graphResponse(
         400,
@@ -152,16 +168,20 @@ describe("microsoft-todo service", () => {
       ),
     );
 
+    // Act / Assert
     await expect(fetchMicrosoftToDoTasks("bad", "list-1")).rejects.toThrow(
       "Microsoft To Do list tasks failed: 400 BadRequest: Parsing OData Select and Expand failed.",
     );
   });
 
   it("updateMicrosoftToDoTaskStatus PATCHes completed status", async () => {
+    // Arrange
     vi.mocked(requestUrl).mockResolvedValueOnce(graphResponse(200, "{}"));
 
+    // Act
     await updateMicrosoftToDoTaskStatus("tok", "list-1", "task-1", true);
 
+    // Assert
     expect(requestUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         method: "PATCH",
@@ -172,10 +192,13 @@ describe("microsoft-todo service", () => {
   });
 
   it("updateMicrosoftToDoTaskStatus PATCHes notStarted when uncompleting", async () => {
+    // Arrange
     vi.mocked(requestUrl).mockResolvedValueOnce(graphResponse(200, "{}"));
 
+    // Act
     await updateMicrosoftToDoTaskStatus("tok", "list-1", "task-1", false);
 
+    // Assert
     expect(requestUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         body: JSON.stringify({ status: "notStarted" }),

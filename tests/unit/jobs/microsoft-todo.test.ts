@@ -113,6 +113,7 @@ describe("createMicrosoftToDoJob", () => {
   });
 
   it("no-ops when microsoftToDo is not configured", async () => {
+    // Arrange
     const loadSettings = vi.fn().mockResolvedValue({
       syncDocument: "GTD.md",
       syncHeading: "## Inbox",
@@ -127,12 +128,15 @@ describe("createMicrosoftToDoJob", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(fetchMicrosoftToDoTasks).not.toHaveBeenCalled();
   });
 
   it("no-ops when no lists are selected", async () => {
+    // Arrange
     const settings = {
       microsoftToDo: { ...makeToDoSettings(), selectedListIds: [] },
       syncDocument: "GTD.md",
@@ -148,12 +152,15 @@ describe("createMicrosoftToDoJob", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(fetchMicrosoftToDoTasks).not.toHaveBeenCalled();
   });
 
   it("shows rate-limit notice and keeps credentials on 429", async () => {
+    // Arrange
     const settings = {
       microsoftToDo: makeToDoSettings(),
       syncDocument: "GTD.md",
@@ -174,13 +181,16 @@ describe("createMicrosoftToDoJob", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(notify).toHaveBeenCalledWith("Microsoft To Do sync hit a rate limit. Try again later.");
     expect(modalOpen).not.toHaveBeenCalled();
   });
 
   it("clears credentials on Graph 401 during fetch", async () => {
+    // Arrange
     const settings = {
       microsoftToDo: makeToDoSettings(),
       syncDocument: "GTD.md",
@@ -206,8 +216,10 @@ describe("createMicrosoftToDoJob", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(saveSettings).toHaveBeenCalledWith(
       expect.objectContaining({ microsoftToDo: undefined }),
     );
@@ -215,6 +227,7 @@ describe("createMicrosoftToDoJob", () => {
   });
 
   it("keeps credentials and shows prefixed sync failure on read errors", async () => {
+    // Arrange
     const settings = {
       microsoftToDo: makeToDoSettings(),
       syncDocument: "GTD.md",
@@ -235,8 +248,10 @@ describe("createMicrosoftToDoJob", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(notify).toHaveBeenCalledWith(
       "Microsoft To Do sync failed: Microsoft To Do list tasks failed: 503",
     );
@@ -244,6 +259,7 @@ describe("createMicrosoftToDoJob", () => {
   });
 
   it("clears credentials on InvalidGrantError during refresh", async () => {
+    // Arrange
     const toDoSettings = makeToDoSettings();
     toDoSettings.credentials.expiryDate = Date.now() - 1;
     const settings = {
@@ -271,8 +287,10 @@ describe("createMicrosoftToDoJob", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(saveSettings).toHaveBeenCalledWith(
       expect.objectContaining({ microsoftToDo: undefined }),
     );
@@ -280,6 +298,7 @@ describe("createMicrosoftToDoJob", () => {
   });
 
   it("marks To Do task complete when markdown item is checked", async () => {
+    // Arrange
     const settings = {
       microsoftToDo: makeToDoSettings(),
       syncDocument: "GTD.md",
@@ -314,8 +333,10 @@ describe("createMicrosoftToDoJob", () => {
       mockApp,
     );
 
+    // Act
     await job.task();
 
+    // Assert
     expect(updateMicrosoftToDoTaskStatus).toHaveBeenCalledWith(
       "todo-token",
       "list-1",

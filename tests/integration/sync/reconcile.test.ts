@@ -83,4 +83,37 @@ describe("reconcileSyncSourceAtomically", () => {
       reconcileSyncSourceAtomically(file, [makeSyncItem("a")], "firefox-bookmarks", "## Inbox"),
     ).rejects.toThrow("disk write failed");
   });
+
+  it("does not recreate an item that already exists under another heading", async () => {
+    let currentContent = [
+      "## Inbox",
+      "",
+      "## Done",
+      `- [x] [Bookmark a](https://example.com/a) <!-- {"id":"a","source":"firefox-bookmarks","title":"Bookmark a","link":"https://example.com/a","heading":"## Inbox"} -->`,
+      "",
+    ].join("\n");
+    const process = vi.fn(async (_file: TFile, processor: (content: string) => string) => {
+      currentContent = processor(currentContent);
+      return currentContent;
+    });
+    const file = {
+      path: "GTD.md",
+      vault: { process },
+    } as unknown as TFile;
+
+    const result = await reconcileSyncSourceAtomically(
+      file,
+      [makeSyncItem("a")],
+      "firefox-bookmarks",
+      "## Inbox",
+    );
+
+    const writtenItems = parseMarkdownSyncItemsFromContent(currentContent, "firefox-bookmarks");
+    expect(result.actions.some((action) => action.operation === "create")).toBe(false);
+    expect(result.actions.some((action) => action.operation === "update")).toBe(true);
+    expect(writtenItems).toHaveLength(1);
+    expect(writtenItems[0]).toMatchObject({ id: "a", completed: false });
+    expect(currentContent).toContain("## Done");
+    expect(currentContent.match(/"id":"a"/g)).toHaveLength(1);
+  });
 });

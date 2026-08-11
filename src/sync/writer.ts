@@ -235,21 +235,9 @@ export const reconcileSyncSourceAtomically = async (
   let actions: readonly SyncAction[] = [];
 
   await file.vault.process(file, (content) => {
-    const lines = content.split("\n");
-    const headingIndex = findTargetHeadingIndex(lines, heading);
-    if (headingIndex === -1) {
-      existingItems = [];
-    } else {
-      const { sectionLines } = getSection(lines, headingIndex);
-      const kanbanSettingsRelativeIndex = sectionLines.findIndex((line) =>
-        kanbanSettingsStartRegex.test(line),
-      );
-      const taskCandidateLines =
-        kanbanSettingsRelativeIndex === -1
-          ? sectionLines
-          : sectionLines.slice(0, kanbanSettingsRelativeIndex);
-      existingItems = parseMarkdownSyncItemsFromContent(taskCandidateLines.join("\n"), syncSource);
-    }
+    // Identity is file-wide by `id:source` (Kanban may move lines to other headings
+    // like ## Done). Section-scoped reads re-created those ids under the sync heading.
+    existingItems = parseMarkdownSyncItemsFromContent(content, syncSource);
     actions = filterActions(generateSyncActions(incomingItems, existingItems), actionPredicate);
     return applySyncActionsToContent(content, actions, heading);
   });

@@ -65,6 +65,52 @@ If your plugin does not need CSS, delete this file.
   margin-top: 8px;
 }
 
+/* Microsoft To Do List Selector (same interaction as Google Tasks) */
+.microsoft-todo-toggle-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.microsoft-todo-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-size-interface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.microsoft-todo-toggle-button:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.microsoft-todo-toggle-button.is-selected {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.microsoft-todo-toggle-button.is-selected:hover {
+  background-color: var(--interactive-accent-hover);
+  border-color: var(--interactive-accent-hover);
+}
+
+.microsoft-todo-selection-count {
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
 /* Firefox Bookmarks folder picker (search-first; do not dump all folders) */
 .firefox-bookmarks-folder-selector {
   margin-top: 0.5em;

@@ -11,8 +11,11 @@ import {
   syncIntervalSchema,
 } from "./schemas";
 import { GoogleAuth, InvalidGrantError, MicrosoftAuth, hasGmailModifyScope } from "@/auth";
+import { MICROSOFT_TO_DO_GRAPH_SCOPES, MICROSOFT_OUTLOOK_GRAPH_SCOPES } from "@/auth/microsoft";
 import { GoogleTasksService } from "@/services";
-import type { GoogleTasksList } from "@/services/types";
+import { MicrosoftToDoService } from "@/services/microsoft-todo";
+import { formatMicrosoftToDoTenantLabel } from "@/adaptors/microsoft-todo";
+import type { GoogleTasksList, MicrosoftToDoList } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 import {
   fetchFirefoxBookmarkFolders,
@@ -134,6 +137,7 @@ export class SettingsTab extends PluginSettingTab {
     await this.addGoogleTasksSettings(containerElement);
     await this.addGmailStarredSettings(containerElement);
     await this.addMicrosoftOutlookSettings(containerElement);
+    await this.addMicrosoftToDoSettings(containerElement);
     await this.addAzureDevOpsSettings(containerElement);
     await this.addFirefoxBookmarksSettings(containerElement);
   }
@@ -225,7 +229,7 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Sync completion status")
       .setDesc(
-        "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, and Microsoft Outlook (email flags) on the next sync.",
+        "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, and Microsoft Outlook (email flags) on the next sync.",
       )
       .addToggle((toggle) => {
         toggle.setValue(settings.syncCompletionStatus).onChange(async (value) => {
@@ -578,6 +582,7 @@ export class SettingsTab extends PluginSettingTab {
       const credentials = await MicrosoftAuth.authenticate({
         clientId: this.config.microsoftClientId,
         tenantSegment,
+        scopes: MICROSOFT_OUTLOOK_GRAPH_SCOPES,
       });
 
       const userInfo = await MicrosoftAuth.getUserInfo(credentials.accessToken);
@@ -599,6 +604,258 @@ export class SettingsTab extends PluginSettingTab {
   private async disconnectMicrosoftOutlook(): Promise<void> {
     await this.plugin.updateSettings({ microsoftOutlook: undefined });
     new Notice("Microsoft Outlook account disconnected.");
+  }
+
+  private async addMicrosoftToDoSettings(containerElement: HTMLElement) {
+    new Setting(containerElement).setName("Microsoft To Do").setHeading();
+
+    const settings = await this.plugin.loadSettings();
+    const toDoRow = new Setting(containerElement);
+    const { microsoftToDo } = settings;
+
+    if (microsoftToDo === undefined) {
+      toDoRow.setName("No Microsoft To Do account connected");
+      toDoRow.setDesc(
+        this.config.microsoftClientId.length === 0
+          ? "The plugin build does not include a Microsoft application (client) ID. Set MICROSOFT_CLIENT_ID_DEV or MICROSOFT_CLIENT_ID_PROD when building to enable Connect."
+          : "Connect opens your browser to sign in with Microsoft. Uses the Outlook account type / tenant fields above; changing them affects the next Connect only. Already-connected Outlook and To Do keep their stored tenant.",
+      );
+      toDoRow.addButton((button) => {
+        if (this.config.microsoftClientId.length === 0) {
+          button.setDisabled(true);
+        }
+        button.setButtonText("Connect").onClick(async () => {
+          await this.connectMicrosoftToDo();
+          await this.render();
+        });
+      });
+    } else {
+      const display =
+        microsoftToDo.userInfo.displayName !== undefined &&
+        microsoftToDo.userInfo.displayName.length > 0
+          ? `${microsoftToDo.userInfo.displayName} · ${microsoftToDo.userInfo.email}`
+          : microsoftToDo.userInfo.email;
+      const tenantLabel = formatMicrosoftToDoTenantLabel(microsoftToDo.credentials.tenantSegment);
+      toDoRow.setName("Connected account");
+      toDoRow.setDesc(`${display} · ${tenantLabel}`);
+      toDoRow.addButton((button) =>
+        button
+          .setButtonText("Disconnect")
+          .setWarning()
+          .onClick(async () => {
+            await this.disconnectMicrosoftToDo();
+            await this.render();
+          }),
+      );
+    }
+
+    await this.addMicrosoftToDoListSelector(containerElement);
+  }
+
+  private async connectMicrosoftToDo(): Promise<void> {
+    if (this.config.microsoftClientId.length === 0) {
+      new Notice("Microsoft client ID is not configured for this build.");
+      return;
+    }
+
+    const settings = await this.plugin.loadSettings();
+    const tenantIdCheck = microsoftWorkOrSchoolTenantIdSchema.safeParse(
+      settings.microsoftAuthWorkOrSchoolTenantId,
+    );
+    if (!tenantIdCheck.success) {
+      new Notice("Fix the directory (tenant) ID before connecting.");
+      return;
+    }
+
+    try {
+      const tenantSegment = MicrosoftAuth.microsoftGraphTenantSegmentFromAuthSelection({
+        accountKind: settings.microsoftAuthAccountKind,
+        workOrSchoolTenantId: tenantIdCheck.data,
+      });
+
+      const credentials = await MicrosoftAuth.authenticate({
+        clientId: this.config.microsoftClientId,
+        tenantSegment,
+        scopes: MICROSOFT_TO_DO_GRAPH_SCOPES,
+      });
+
+      const userInfo = await MicrosoftAuth.getUserInfo(credentials.accessToken);
+
+      await this.plugin.updateSettings({
+        microsoftToDo: {
+          credentials,
+          userInfo,
+          availableLists: [],
+          selectedListIds: [],
+        },
+      });
+
+      new Notice("Microsoft To Do account connected successfully.");
+    } catch (error) {
+      new Notice("Failed to connect Microsoft To Do.");
+      console.error(`Error connecting Microsoft To Do: [${formatLogError(error)}].`);
+    }
+  }
+
+  private async disconnectMicrosoftToDo(): Promise<void> {
+    await this.plugin.updateSettings({ microsoftToDo: undefined });
+    new Notice("Microsoft To Do account disconnected.");
+  }
+
+  private async addMicrosoftToDoListSelector(containerElement: HTMLElement) {
+    const { microsoftToDo } = await this.plugin.loadSettings();
+    if (microsoftToDo === undefined) {
+      return;
+    }
+
+    this.addSettingsSubheading(containerElement, "Select To Do lists to sync");
+
+    let selectedListIds: readonly string[] = [...(microsoftToDo.selectedListIds ?? [])];
+
+    const listContainer = containerElement.createDiv({ cls: "microsoft-todo-list-selector" });
+
+    const updateSelected = async (newSelected: readonly string[]) => {
+      selectedListIds = [...newSelected];
+      const freshSettings = await this.plugin.loadSettings();
+      if (freshSettings.microsoftToDo !== undefined) {
+        await this.plugin.updateSettings({
+          microsoftToDo: {
+            ...freshSettings.microsoftToDo,
+            selectedListIds: [...selectedListIds],
+          },
+        });
+      }
+    };
+
+    const createListDropdown = (
+      lists: readonly MicrosoftToDoList[],
+      currentSelection: readonly string[],
+    ) => {
+      listContainer.empty();
+
+      if (lists.length === 0) {
+        listContainer.createEl("p", {
+          text: "No To Do lists found.",
+          cls: "setting-item-description",
+        });
+        return;
+      }
+
+      listContainer.createEl("p", {
+        text: "Click lists to select them for syncing:",
+        cls: "setting-item-description",
+      });
+
+      const toggleContainer = listContainer.createDiv("microsoft-todo-toggle-container");
+
+      lists.forEach((list) => {
+        const isSelected = currentSelection.includes(list.id);
+
+        const button = toggleContainer.createEl("button", {
+          text: list.displayName,
+          cls: `microsoft-todo-toggle-button${isSelected ? " is-selected" : ""}`,
+        });
+
+        button.addEventListener("click", () => {
+          void (async () => {
+            const wasSelected = selectedListIds.includes(list.id);
+            let newSelection: string[];
+
+            if (wasSelected) {
+              newSelection = selectedListIds.filter((id) => id !== list.id);
+              button.removeClass("is-selected");
+            } else {
+              newSelection = [...selectedListIds, list.id];
+              button.addClass("is-selected");
+            }
+
+            countElement.setText(`${newSelection.length} of ${lists.length} lists selected`);
+            await updateSelected(newSelection);
+          })();
+        });
+      });
+
+      const countElement = listContainer.createEl("p", {
+        text: `${currentSelection.length} of ${lists.length} lists selected`,
+        cls: "setting-item-description microsoft-todo-selection-count",
+      });
+    };
+
+    createListDropdown(microsoftToDo.availableLists ?? [], selectedListIds);
+
+    try {
+      let accessToken: string;
+      try {
+        const { credentials: token } = microsoftToDo;
+        if (token.expiryDate < Date.now()) {
+          const refreshed = await MicrosoftAuth.refreshAccessToken(this.config.microsoftClientId, {
+            refreshToken: token.refreshToken,
+            tenantSegment: token.tenantSegment,
+          });
+
+          const freshSettings = await this.plugin.loadSettings();
+          if (freshSettings.microsoftToDo !== undefined) {
+            await this.plugin.updateSettings({
+              microsoftToDo: {
+                ...freshSettings.microsoftToDo,
+                credentials: {
+                  ...freshSettings.microsoftToDo.credentials,
+                  accessToken: refreshed.accessToken,
+                  expiryDate: refreshed.expiryDate,
+                  ...(refreshed.refreshToken === undefined
+                    ? {}
+                    : { refreshToken: refreshed.refreshToken }),
+                },
+              },
+            });
+          }
+          accessToken = refreshed.accessToken;
+        } else {
+          accessToken = token.accessToken;
+        }
+      } catch (error) {
+        if (error instanceof InvalidGrantError) {
+          console.warn(
+            "Microsoft To Do refresh token has been expired or revoked. Clearing credentials...",
+          );
+          const freshSettings = await this.plugin.loadSettings();
+          await this.plugin.updateSettings({ ...freshSettings, microsoftToDo: undefined });
+          new AuthorizationExpiredModal(this.app, "Microsoft To Do").open();
+          await this.render();
+          return;
+        }
+        throw error;
+      }
+
+      const lists = await MicrosoftToDoService.fetchMicrosoftToDoLists(accessToken);
+
+      const freshSettingsForUpdate = await this.plugin.loadSettings();
+      const availableListIds = new Set(lists.map((list) => list.id));
+      const cleanedSelectedIds = selectedListIds.filter((id) => availableListIds.has(id));
+
+      if (freshSettingsForUpdate.microsoftToDo !== undefined) {
+        await this.plugin.updateSettings({
+          microsoftToDo: {
+            ...freshSettingsForUpdate.microsoftToDo,
+            availableLists: lists,
+            selectedListIds: cleanedSelectedIds,
+          },
+        });
+
+        const updatedSettings = await this.plugin.loadSettings();
+        if (updatedSettings.microsoftToDo?.selectedListIds !== undefined) {
+          selectedListIds = [...updatedSettings.microsoftToDo.selectedListIds];
+        }
+      }
+
+      createListDropdown(lists, cleanedSelectedIds);
+    } catch (error) {
+      console.error(`Failed to refresh Microsoft To Do lists. Error: [${formatLogError(error)}].`);
+      listContainer.createEl("p", {
+        text: "Failed to load To Do lists. Check your connection and try refreshing.",
+        cls: "setting-item-description mod-warning",
+      });
+    }
   }
 
   private async addAzureDevOpsSettings(containerElement: HTMLElement): Promise<void> {
@@ -1156,7 +1413,7 @@ export class SettingsTab extends PluginSettingTab {
           );
           const freshSettings = await this.plugin.loadSettings();
           await this.plugin.updateSettings({ ...freshSettings, googleTasks: undefined });
-          new AuthorizationExpiredModal(this.app).open();
+          new AuthorizationExpiredModal(this.app, "Google Tasks").open();
           // Refresh the display to show the disconnected state
           await this.render();
           return;

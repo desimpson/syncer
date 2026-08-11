@@ -44,6 +44,18 @@ Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).
 - **`manuallyDeletedTaskIds`**: prevent re-adding tasks the user deleted from Obsidian on a later sync
 - Deselecting a list drops those task IDs from incoming → delete actions for unmatched items file-wide by `id:source`; completed lines preserved via `shouldPreserveCompletedDeletes`
 
+## Microsoft To Do
+
+Owning job: [`src/jobs/microsoft-todo.ts`](../../src/jobs/microsoft-todo.ts).
+
+- Mirrors Google Tasks list + completion semantics (see Google Tasks section above)
+- Incoming feed = **incomplete** tasks from selected To Do lists only (`fetchMicrosoftToDoTasks` in `src/services/microsoft-todo.ts`)
+- Completing a task in To Do drops it from the feed → unchecked Obsidian line removed on next sync; **Syncer does not auto-check `[x]`** for remote completions (same deliberate tradeoff as Google Tasks)
+- `[x]` lines preserved via `shouldPreserveCompletedDeletes`
+- `syncCompletionStatus`: push Obsidian checkbox changes to To Do; uncomplete-in-Obsidian can restore a task completed in To Do (job also fetches completed tasks for `taskId → listId` mapping)
+- Deselecting a list or disconnecting: unmatched unchecked lines removed; completed preserved; disconnect clears `microsoftToDo` settings only (Outlook unaffected)
+- No vault→remote delete in v1; separate OAuth token from Outlook (Tasks scopes)
+
 ## Microsoft Outlook
 
 Owning job: [`src/jobs/microsoft-outlook.ts`](../../src/jobs/microsoft-outlook.ts).

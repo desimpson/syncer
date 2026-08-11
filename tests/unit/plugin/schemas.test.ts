@@ -220,6 +220,7 @@ describe("pluginSettingsSchema", () => {
       expect(result.data.microsoftAuthAccountKind).toBe("personal");
       expect(result.data.microsoftAuthWorkOrSchoolTenantId).toBe("");
       expect(result.data.microsoftOutlook).toBeUndefined();
+      expect(result.data.microsoftToDo).toBeUndefined();
       expect(result.data.azureDevOpsOrganization).toBe("");
       expect(result.data.azureDevOpsProjectName).toBe("");
       expect(result.data.azureDevOpsPersonalAccessToken).toBe("");
@@ -294,6 +295,29 @@ describe("pluginSettingsSchema", () => {
       const messages = result.error.issues.map((index) => index.message).join(" | ");
       expect(messages).toContain("Invalid email address");
     }
+  });
+
+  it("parses microsoftToDo nested settings and defaults list fields to empty arrays", () => {
+    const input = {
+      microsoftToDo: {
+        userInfo: { email: "todo@example.com", displayName: "Todo User" },
+        credentials: {
+          accessToken: "at",
+          refreshToken: "rt",
+          expiryDate: 3600,
+          scope: "Tasks.ReadWrite",
+          tenantSegment: "consumers",
+        },
+      },
+    };
+
+    const parsed = pluginSettingsSchema.parse(input);
+
+    expect(parsed.microsoftToDo).toBeDefined();
+    expect(parsed.microsoftToDo?.userInfo.email).toBe("todo@example.com");
+    expect(parsed.microsoftToDo?.credentials.tenantSegment).toBe("consumers");
+    expect(parsed.microsoftToDo?.availableLists).toEqual([]);
+    expect(parsed.microsoftToDo?.selectedListIds).toEqual([]);
   });
 });
 

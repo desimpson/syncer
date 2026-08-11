@@ -153,6 +153,32 @@ export const microsoftOutlookSettingsSchema = z.object({
 });
 
 /**
+ * Connected Microsoft To Do (Graph) account and list selection.
+ */
+export const microsoftToDoSettingsSchema = z.object({
+  userInfo: z.object({
+    email: z.email(),
+    displayName: z.string().optional(),
+  }),
+  credentials: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiryDate: z.number().int(),
+    scope: z.string(),
+    tenantSegment: z.string().min(1),
+  }),
+  availableLists: z
+    .array(
+      z.object({
+        id: z.string(),
+        displayName: z.string(),
+      }),
+    )
+    .default([]),
+  selectedListIds: z.array(z.string()).default([]),
+});
+
+/**
  * Connected Gmail Starred account (separate from Google Tasks credentials).
  */
 export const gmailStarredSettingsSchema = z.object({
@@ -200,6 +226,7 @@ export const pluginSettingsSchema = z.object({
   microsoftAuthAccountKind: microsoftAuthAccountKindSchema,
   microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
   microsoftOutlook: microsoftOutlookSettingsSchema.optional(),
+  microsoftToDo: microsoftToDoSettingsSchema.optional(),
   azureDevOpsOrganization: z.string().trim().default(""),
   azureDevOpsProjectName: z.string().trim().default(""),
   azureDevOpsPersonalAccessToken: z.string().trim().default(""),

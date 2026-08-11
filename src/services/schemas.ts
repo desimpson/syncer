@@ -36,3 +36,30 @@ export const googleTaskSchema = z.object({
 export const googleTasksResponseSchema = z.object({
   items: z.array(googleTaskSchema),
 });
+
+// --- Microsoft To Do Schemas ---
+
+/** Schema for a Microsoft To Do list item. */
+export const microsoftToDoListSchema = z.object({
+  id: z.string(),
+  displayName: z.string(),
+});
+
+/** Schema for a paginated Microsoft To Do lists response. */
+export const microsoftToDoListsPageSchema = z.object({
+  value: z.array(microsoftToDoListSchema),
+  "@odata.nextLink": z.string().optional(),
+});
+
+/** Schema for a Microsoft To Do task item. */
+export const microsoftToDoTaskSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  status: z.enum(["notStarted", "inProgress", "completed", "waitingOnOthers", "deferred"]),
+});
+
+/** Schema for a paginated Microsoft To Do tasks response. */
+export const microsoftToDoTasksPageSchema = z.object({
+  value: z.array(microsoftToDoTaskSchema),
+  "@odata.nextLink": z.string().optional(),
+});

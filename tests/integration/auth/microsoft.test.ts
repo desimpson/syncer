@@ -3,7 +3,13 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { RequestUrlResponse } from "obsidian";
 import { requestUrl } from "obsidian";
-import { authenticate, getUserInfo, refreshAccessToken } from "@/auth/microsoft";
+import {
+  authenticate,
+  getUserInfo,
+  refreshAccessToken,
+  MICROSOFT_OUTLOOK_GRAPH_SCOPES,
+  MICROSOFT_TO_DO_GRAPH_SCOPES,
+} from "@/auth/microsoft";
 import { InvalidGrantError } from "@/auth";
 
 vi.mock("node:http");
@@ -107,7 +113,11 @@ describe("microsoft auth integration", () => {
       );
 
       // Act
-      const authPromise = authenticate({ clientId: "client-id", tenantSegment: "organizations" });
+      const authPromise = authenticate({
+        clientId: "client-id",
+        tenantSegment: "organizations",
+        scopes: MICROSOFT_OUTLOOK_GRAPH_SCOPES,
+      });
       const authUrl = vi.mocked(window.open).mock.calls[0]?.[0];
       expect(authUrl).toBeDefined();
       const state = new URL(String(authUrl), "http://localhost").searchParams.get("state");
@@ -135,13 +145,47 @@ describe("microsoft auth integration", () => {
       expect(openUrl).toContain("login.microsoftonline.com/organizations/");
     });
 
+    it("includes Tasks scopes in authorize URL for To Do connect", async () => {
+      mockServer.address.mockReturnValue(createMockAddress(4318));
+      mockServer.listen.mockImplementation((_port: number, callback: () => void) => callback());
+
+      const authPromise = authenticate({
+        clientId: "client-id",
+        tenantSegment: "consumers",
+        scopes: MICROSOFT_TO_DO_GRAPH_SCOPES,
+      });
+      const authUrl = String(vi.mocked(window.open).mock.calls[0]?.[0]);
+      const state = new URL(authUrl, "http://localhost").searchParams.get("state");
+      request.url = `/?code=auth-code&state=${state ?? ""}`;
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(
+          200,
+          JSON.stringify({
+            access_token: "access-token",
+            refresh_token: "refresh-token",
+            expires_in: 3600,
+            scope: MICROSOFT_TO_DO_GRAPH_SCOPES,
+          }),
+        ),
+      );
+      mockServer.callback?.(request, mockResponse);
+      await authPromise;
+
+      expect(authUrl).toContain(encodeURIComponent("Tasks.ReadWrite"));
+      expect(authUrl).not.toContain(encodeURIComponent("Mail.Read"));
+    });
+
     it("rejects when callback state does not match", async () => {
       // Arrange
       mockServer.address.mockReturnValue(createMockAddress(4313));
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => callback());
 
       // Act
-      const authPromise = authenticate({ clientId: "client-id", tenantSegment: "common" });
+      const authPromise = authenticate({
+        clientId: "client-id",
+        tenantSegment: "common",
+        scopes: MICROSOFT_OUTLOOK_GRAPH_SCOPES,
+      });
       request.url = "/?code=auth-code&state=wrong-state";
       mockServer.callback?.(request, mockResponse);
 
@@ -154,7 +198,11 @@ describe("microsoft auth integration", () => {
       // Arrange
       mockServer.address.mockReturnValue(createMockAddress(4314));
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => callback());
-      const authUrl = authenticate({ clientId: "client-id", tenantSegment: "common" });
+      const authUrl = authenticate({
+        clientId: "client-id",
+        tenantSegment: "common",
+        scopes: MICROSOFT_OUTLOOK_GRAPH_SCOPES,
+      });
       const opened = vi.mocked(window.open).mock.calls[0]?.[0];
       const state = new URL(String(opened), "http://localhost").searchParams.get("state");
 
@@ -172,7 +220,11 @@ describe("microsoft auth integration", () => {
       mockServer.address.mockReturnValue(createMockAddress(4315));
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => callback());
       vi.mocked(requestUrl).mockResolvedValue(requestUrlResponse(400, "bad_request"));
-      const authPromise = authenticate({ clientId: "client-id", tenantSegment: "common" });
+      const authPromise = authenticate({
+        clientId: "client-id",
+        tenantSegment: "common",
+        scopes: MICROSOFT_OUTLOOK_GRAPH_SCOPES,
+      });
       const opened = vi.mocked(window.open).mock.calls[0]?.[0];
       const state = new URL(String(opened), "http://localhost").searchParams.get("state");
 
@@ -197,7 +249,11 @@ describe("microsoft auth integration", () => {
           }),
         ),
       );
-      const authPromise = authenticate({ clientId: "client-id", tenantSegment: "common" });
+      const authPromise = authenticate({
+        clientId: "client-id",
+        tenantSegment: "common",
+        scopes: MICROSOFT_OUTLOOK_GRAPH_SCOPES,
+      });
       const opened = vi.mocked(window.open).mock.calls[0]?.[0];
       const state = new URL(String(opened), "http://localhost").searchParams.get("state");
 
@@ -214,7 +270,11 @@ describe("microsoft auth integration", () => {
       vi.useFakeTimers();
       mockServer.address.mockReturnValue(createMockAddress(4317));
       mockServer.listen.mockImplementation((_port: number, callback: () => void) => callback());
-      const authPromise = authenticate({ clientId: "client-id", tenantSegment: "common" });
+      const authPromise = authenticate({
+        clientId: "client-id",
+        tenantSegment: "common",
+        scopes: MICROSOFT_OUTLOOK_GRAPH_SCOPES,
+      });
       const timeoutExpectation = expect(authPromise).rejects.toThrow(
         "Microsoft sign-in timed out. Please try connecting again.",
       );

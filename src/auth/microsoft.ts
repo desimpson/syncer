@@ -16,6 +16,13 @@ import {
 const GRAPH_SCOPES =
   "openid profile offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/User.Read";
 
+/** Delegated Graph scopes for Outlook flagged-mail sync. */
+export const MICROSOFT_OUTLOOK_GRAPH_SCOPES = GRAPH_SCOPES;
+
+/** Delegated Graph scopes for Microsoft To Do sync. */
+export const MICROSOFT_TO_DO_GRAPH_SCOPES =
+  "openid profile offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Tasks.ReadWrite";
+
 const SUCCESS_MESSAGE = "Authentication successful. You can close this tab and return to Obsidian.";
 const AUTH_CONNECT_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -73,9 +80,14 @@ export type MicrosoftAuthOptions = {
   clientId: string;
   /** `consumers`, `organizations`, or a tenant GUID. */
   tenantSegment: string;
+  /** Space-delimited OAuth scopes for this connect flow. */
+  scopes: string;
 };
 
-const parseTokenJson = (text: string): Omit<MicrosoftCredentials, "tenantSegment"> => {
+const parseTokenJson = (
+  text: string,
+  requestedScopes: string,
+): Omit<MicrosoftCredentials, "tenantSegment"> => {
   const json: unknown = JSON.parse(text);
   const data = microsoftTokenResponseSchema.parse(json);
 
@@ -87,7 +99,7 @@ const parseTokenJson = (text: string): Omit<MicrosoftCredentials, "tenantSegment
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
     expiryDate: Date.now() + data.expires_in * 1000,
-    scope: data.scope ?? GRAPH_SCOPES,
+    scope: data.scope ?? requestedScopes,
   };
 };
 
@@ -180,12 +192,13 @@ const buildAuthorizeUrl = (
   redirectUri: string,
   codeChallenge: string,
   state: string,
+  scopes: string,
 ): string => {
   const parameters = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
     redirect_uri: redirectUri,
-    scope: GRAPH_SCOPES,
+    scope: scopes,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
     state,
@@ -201,6 +214,7 @@ const exchangeCodeForTokens = async (
   code: string,
   redirectUri: string,
   codeVerifier: string,
+  scopes: string,
 ): Promise<MicrosoftCredentials> => {
   const formBody = new URLSearchParams({
     client_id: clientId,
@@ -216,7 +230,7 @@ const exchangeCodeForTokens = async (
     throw new Error(`Microsoft token exchange failed: ${statusCode} ${text}`);
   }
 
-  const tokens = parseTokenJson(text);
+  const tokens = parseTokenJson(text, scopes);
   return { ...tokens, tenantSegment };
 };
 
@@ -226,6 +240,7 @@ const createAuthServer = (
   redirectPath: string,
   oauthState: string,
   codeVerifier: string,
+  scopes: string,
   getRedirectUri: () => string,
   onSuccess: (credentials: MicrosoftCredentials) => void,
   onError: (error: Error) => void,
@@ -244,6 +259,7 @@ const createAuthServer = (
             result.code,
             redirectUri,
             codeVerifier,
+            scopes,
           );
 
           response.end(SUCCESS_MESSAGE);
@@ -291,6 +307,12 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
       return;
     }
 
+    const scopes = options.scopes.trim();
+    if (scopes.length === 0) {
+      reject(new Error("Microsoft OAuth scopes are empty."));
+      return;
+    }
+
     const redirectPath = "/";
     const { codeVerifier, codeChallenge } = generatePkcePair();
     const oauthState = base64UrlEncode(randomBytes(16));
@@ -316,6 +338,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
       redirectPath,
       oauthState,
       codeVerifier,
+      scopes,
       getRedirectUri,
       (credentials) => {
         settleWith(() => resolve(credentials));
@@ -348,6 +371,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
         redirectUri,
         codeChallenge,
         oauthState,
+        scopes,
       );
       runtimeOpen(authUrl, "_blank");
     });

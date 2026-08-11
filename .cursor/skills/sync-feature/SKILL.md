@@ -29,3 +29,4 @@ Work top-down through the layers that need changes:
 
 - Google: `src/jobs/google-tasks.ts`, `src/services/google-tasks.ts`, `src/adaptors/google-tasks.ts`, `src/auth/google.ts`
 - Outlook: `src/jobs/microsoft-outlook.ts`, `src/services/outlook-mail.ts`, `src/adaptors/microsoft-outlook.ts`, `src/auth/microsoft.ts`
+- To Do: `src/jobs/microsoft-todo.ts`, `src/services/microsoft-todo.ts`, `src/adaptors/microsoft-todo.ts`, `src/auth/microsoft.ts` (Tasks scopes)

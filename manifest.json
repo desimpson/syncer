@@ -3,7 +3,7 @@
 	"name": "Syncer",
 	"version": "0.2.2",
 	"minAppVersion": "1.8.0",
-	"description": "Sync references/links to Google Tasks, Gmail Starred, Outlook flagged mail, Azure DevOps work items, and Firefox Bookmarks into your vault.",
+	"description": "Sync references/links to Google Tasks, Gmail Starred, Microsoft To Do, Outlook flagged mail, Azure DevOps work items, and Firefox Bookmarks into your vault.",
 	"author": "Daniel Simpson",
 	"authorUrl": "https://github.com/desimpson",
 	"isDesktopOnly": true

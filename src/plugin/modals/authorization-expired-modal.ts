@@ -2,10 +2,13 @@ import { type App, Modal, Setting } from "obsidian";
 
 /**
  * A modal dialog that informs the user their account authorization has expired
- * and needs to be reconnected.
+ * and needs to be reconnected for a specific integration.
  */
 export class AuthorizationExpiredModal extends Modal {
-  public constructor(app: App) {
+  public constructor(
+    app: App,
+    private readonly integrationName: string,
+  ) {
     super(app);
   }
 
@@ -16,7 +19,7 @@ export class AuthorizationExpiredModal extends Modal {
     new Setting(contentEl).setName("Authorization expired").setHeading();
 
     contentEl.createEl("p", {
-      text: "Your account authorization has expired and cannot be refreshed. Reconnect in plugin settings.",
+      text: `Your ${this.integrationName} authorization in Syncer has expired and cannot be refreshed. Open Syncer settings and reconnect ${this.integrationName}.`,
       cls: "syncer-modal-message",
     });
 

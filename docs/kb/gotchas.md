@@ -16,7 +16,8 @@
 - Microsoft To Do reuses the **same Entra app / client ID** as Outlook but requests **Tasks.ReadWrite** (delegated) — add it to the existing app’s API permissions or Connect/consent will fail or Graph To Do calls return 403
 - Outlook and To Do store **separate** credential blobs and tokens; shared settings fields `microsoftAuthAccountKind` / `microsoftAuthWorkOrSchoolTenantId` only affect the **next** Connect (each integration persists its own `tenantSegment`)
 - To Do deep links use unofficial `to-do.live.com` / `to-do.office.com` patterns (task id URL, list-level fallback) — no runtime probing in v1
-- Graph `GET …/todo/lists/{id}/tasks` rejects `$select` (HTTP 400); incomplete feed is filtered client-side after an unfiltered list (see `src/services/microsoft-todo.ts`)
+- Graph `GET …/todo/lists/{id}/tasks` rejects `$select` (HTTP 400); incomplete feed uses a positive `$filter` OR of non-completed statuses (plus a client-side safety filter) — see `src/services/microsoft-todo.ts`
+- Graph **403** on To Do keeps credentials and Notices about `Tasks.ReadWrite` / consent; only **401** clears the To Do blob and opens the expired-auth modal
 - To Do Graph failures include a short `error.code` / `error.message` in the Notice via `summariseGraphErrorBody` (truncated; never raw JSON) — useful when Graph rejects unsupported query options
 - Azure DevOps uses PAT mode only: Basic auth with `:${PAT}`; requires organisation + project name settings and a PAT with Work Items read scope
 - Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures

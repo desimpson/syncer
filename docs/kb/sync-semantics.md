@@ -32,6 +32,8 @@ Jobs write via [`reconcileSyncSourceAtomically`](../../src/sync/writer.ts), whic
 
 This avoids stale pre-read races where actions are planned from an older `vault.read` snapshot and then applied to newer file content, and avoids re-creating tasks that already exist under another heading.
 
+**Kanban / moved lines:** file-wide identity means an incomplete remote item updates an existing line under e.g. `## Done` in place (checkbox can become `[ ]`) instead of creating a duplicate under the sync heading. With `syncCompletionStatus` **off** (default), Syncer does **not** push local `[x]` to the provider first — enable that setting if Kanban Done cards should write completion remote-ward before reconcile.
+
 ## Google Tasks
 
 Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).

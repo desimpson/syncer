@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { googleOAuthTokenResponseSchema } from "@/services/schemas";
+import { googleOAuthTokenResponseSchema, microsoftToDoTaskSchema } from "@/services/schemas";
 import { refreshResponseSchema, googleUserInfoResponseSchema } from "@/auth/schemas";
 
 describe("googleOAuthTokenResponseSchema", () => {
@@ -62,5 +62,44 @@ describe("refreshResponseSchema", () => {
 
     // Assert
     expect(result.success).toBe(false);
+  });
+});
+
+describe("microsoftToDoTaskSchema", () => {
+  it("defaults nullish or blank titles to (Untitled)", () => {
+    // Arrange / Act / Assert — Graph may send JSON null titles
+    expect(
+      microsoftToDoTaskSchema.parse(
+        JSON.parse('{"id":"t1","title":null,"status":"notStarted"}') as unknown,
+      ),
+    ).toEqual({
+      id: "t1",
+      title: "(Untitled)",
+      status: "notStarted",
+    });
+    expect(
+      microsoftToDoTaskSchema.parse({ id: "t2", title: undefined, status: "inProgress" }),
+    ).toEqual({
+      id: "t2",
+      title: "(Untitled)",
+      status: "inProgress",
+    });
+    expect(microsoftToDoTaskSchema.parse({ id: "t3", title: "  ", status: "inProgress" })).toEqual({
+      id: "t3",
+      title: "(Untitled)",
+      status: "inProgress",
+    });
+  });
+
+  it("treats unknown status as notStarted", () => {
+    // Arrange
+    const input = { id: "t3", title: "Odd", status: "mystery" };
+
+    // Act
+    const parsed = microsoftToDoTaskSchema.parse(input);
+
+    // Assert
+    expect(parsed.status).toBe("notStarted");
+    expect(parsed.title).toBe("Odd");
   });
 });

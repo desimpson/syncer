@@ -226,7 +226,7 @@ describe("createMicrosoftToDoJob", () => {
     expect(modalOpen).toHaveBeenCalled();
   });
 
-  it("keeps credentials and shows prefixed sync failure on read errors", async () => {
+  it("keeps credentials and notices on Graph 403 during fetch", async () => {
     // Arrange
     const settings = {
       microsoftToDo: makeToDoSettings(),
@@ -235,13 +235,14 @@ describe("createMicrosoftToDoJob", () => {
       syncCompletionStatus: false,
     };
     const notify = vi.fn();
+    const saveSettings = vi.fn();
     vi.mocked(fetchMicrosoftToDoTasks).mockRejectedValue(
-      new Error("Microsoft To Do list tasks failed: 503"),
+      new GraphAuthorizationError(403, "Microsoft To Do list tasks failed: 403"),
     );
 
     const job = createMicrosoftToDoJob(
       vi.fn().mockResolvedValue(settings),
-      vi.fn(),
+      saveSettings,
       baseConfig,
       makeVault(makeFile()),
       notify,
@@ -252,10 +253,98 @@ describe("createMicrosoftToDoJob", () => {
     await job.task();
 
     // Assert
-    expect(notify).toHaveBeenCalledWith(
-      "Microsoft To Do sync failed: Microsoft To Do list tasks failed: 503",
-    );
+    expect(saveSettings).not.toHaveBeenCalled();
     expect(modalOpen).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining("Microsoft To Do sync was denied (403)"),
+    );
+  });
+
+  it("continues syncing when one selected list fails with a non-auth error", async () => {
+    // Arrange
+    const settings = {
+      microsoftToDo: {
+        ...makeToDoSettings(),
+        selectedListIds: ["list-1", "list-bad"],
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: false,
+    };
+    const file = makeFile();
+    vi.mocked(fetchMicrosoftToDoTasks).mockImplementation(async (_token, listId) => {
+      if (listId === "list-bad") {
+        throw new Error("Microsoft To Do list tasks failed: 404");
+      }
+      return [{ id: "task-1", title: "Task 1", status: "notStarted" as const }];
+    });
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
+
+    const job = createMicrosoftToDoJob(
+      vi.fn().mockResolvedValue(settings),
+      vi.fn(),
+      baseConfig,
+      makeVault(file),
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(reconcileSyncSourceAtomically).toHaveBeenCalledWith(
+      file,
+      expect.arrayContaining([
+        expect.objectContaining({ id: "task-1", source: "microsoft-to-do" }),
+      ]),
+      "microsoft-to-do",
+      "## Inbox",
+      expect.any(Function),
+    );
+  });
+
+  it("soft-fails a list on non-auth read errors and keeps credentials", async () => {
+    // Arrange
+    const settings = {
+      microsoftToDo: makeToDoSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: false,
+    };
+    const file = makeFile();
+    const notify = vi.fn();
+    const saveSettings = vi.fn();
+    vi.mocked(fetchMicrosoftToDoTasks).mockRejectedValue(
+      new Error("Microsoft To Do list tasks failed: 503"),
+    );
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([]);
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
+
+    const job = createMicrosoftToDoJob(
+      vi.fn().mockResolvedValue(settings),
+      saveSettings,
+      baseConfig,
+      makeVault(file),
+      notify,
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(modalOpen).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalledWith(expect.stringContaining("sync failed"));
+    expect(reconcileSyncSourceAtomically).toHaveBeenCalledWith(
+      file,
+      [],
+      "microsoft-to-do",
+      "## Inbox",
+      expect.any(Function),
+    );
   });
 
   it("clears credentials on InvalidGrantError during refresh", async () => {

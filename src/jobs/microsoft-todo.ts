@@ -99,25 +99,57 @@ const fetchTasksForList = async (
   return { listId, tasks };
 };
 
+type FetchedTasksByList = { listId: string; tasks: readonly MicrosoftToDoTask[] };
+
+/**
+ * Settles per-list fetches so one deleted/inaccessible list does not abort the run.
+ * Escalates account-level 401/403 and 429; other failures yield an empty task list.
+ */
+const settleTasksByList = async (
+  selectedListIds: readonly string[],
+  fetchFunction: (listId: string) => Promise<readonly MicrosoftToDoTask[]>,
+): Promise<readonly FetchedTasksByList[]> => {
+  const settled = await Promise.allSettled(
+    selectedListIds.map((listId) => fetchTasksForList(listId, fetchFunction)),
+  );
+
+  const fetched: FetchedTasksByList[] = [];
+  for (const [index, result] of settled.entries()) {
+    if (result.status === "fulfilled") {
+      fetched.push(result.value);
+      continue;
+    }
+
+    const reason: unknown = result.reason;
+    if (reason instanceof GraphAuthorizationError || reason instanceof GraphRateLimitError) {
+      throw reason;
+    }
+
+    const listId = selectedListIds[index] ?? "(unknown)";
+    console.warn(
+      `Microsoft To Do list [${listId}] failed; treating as empty: [${formatLogError(reason)}].`,
+    );
+    fetched.push({ listId, tasks: [] });
+  }
+
+  return fetched;
+};
+
 const fetchAllSelectedTasks = async (
   accessToken: string,
   selectedListIds: readonly string[],
   syncCompletionStatus: boolean,
 ): Promise<{
-  tasksByList: readonly { listId: string; tasks: readonly MicrosoftToDoTask[] }[];
+  tasksByList: readonly FetchedTasksByList[];
   taskIdToListIdMap: Map<string, string>;
 }> => {
-  const fetchedTasksByList = await Promise.all(
-    selectedListIds.map((listId) =>
-      fetchTasksForList(listId, (id) => fetchMicrosoftToDoTasks(accessToken, id, false)),
-    ),
+  const fetchedTasksByList = await settleTasksByList(selectedListIds, (id) =>
+    fetchMicrosoftToDoTasks(accessToken, id, false),
   );
 
   const fetchedCompletedTasksByList = syncCompletionStatus
-    ? await Promise.all(
-        selectedListIds.map((listId) =>
-          fetchTasksForList(listId, (id) => fetchMicrosoftToDoTasks(accessToken, id, true)),
-        ),
+    ? await settleTasksByList(selectedListIds, (id) =>
+        fetchMicrosoftToDoTasks(accessToken, id, true),
       )
     : [];
 
@@ -388,6 +420,32 @@ const clearMicrosoftToDoCredentials = async (
   new AuthorizationExpiredModal(app, "Microsoft To Do").open();
 };
 
+/**
+ * Clears credentials only on HTTP 401. Keeps them on 403 (missing Tasks.ReadWrite / consent).
+ */
+const handleMicrosoftToDoAuthorizationFailure = async (
+  error: GraphAuthorizationError,
+  notify: (message: string) => void,
+  loadSettings: () => Promise<PluginSettings>,
+  saveSettings: (s: PluginSettings) => Promise<void>,
+  app: Parameters<SyncJobCreator>[5],
+): Promise<void> => {
+  if (error.status === 401) {
+    console.warn(
+      `Microsoft Graph access token rejected (${error.status}). Clearing Microsoft To Do credentials...`,
+    );
+    await clearMicrosoftToDoCredentials(loadSettings, saveSettings, app);
+    return;
+  }
+
+  notify(
+    "Microsoft To Do sync was denied (403). Add delegated Tasks.ReadWrite on the Entra app (admin consent if required), then reconnect Microsoft To Do.",
+  );
+  console.warn(
+    `Microsoft Graph access denied (${error.status}): [${error.message}]. Credentials kept.`,
+  );
+};
+
 const notifySyncFailure = (error: unknown, notify: (message: string) => void): void => {
   const message = error instanceof Error ? formatUiError(error) : formatUiError(String(error));
   notify(`Microsoft To Do sync failed: ${message}`);
@@ -464,10 +522,13 @@ export const createMicrosoftToDoJob: SyncJobCreator = (
       taskIdToListIdMap = fetchResult.taskIdToListIdMap;
     } catch (error) {
       if (error instanceof GraphAuthorizationError) {
-        console.warn(
-          `Microsoft Graph authorization failed (${error.status}). Clearing Microsoft To Do credentials...`,
+        await handleMicrosoftToDoAuthorizationFailure(
+          error,
+          notify,
+          loadSettings,
+          saveSettings,
+          app,
         );
-        await clearMicrosoftToDoCredentials(loadSettings, saveSettings, app);
         return;
       }
       if (error instanceof GraphRateLimitError) {
@@ -494,10 +555,13 @@ export const createMicrosoftToDoJob: SyncJobCreator = (
       );
     } catch (error) {
       if (error instanceof GraphAuthorizationError) {
-        console.warn(
-          `Microsoft Graph authorization failed (${error.status}). Clearing Microsoft To Do credentials...`,
+        await handleMicrosoftToDoAuthorizationFailure(
+          error,
+          notify,
+          loadSettings,
+          saveSettings,
+          app,
         );
-        await clearMicrosoftToDoCredentials(loadSettings, saveSettings, app);
         return;
       }
       if (error instanceof GraphRateLimitError) {

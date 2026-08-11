@@ -51,11 +51,32 @@ export const microsoftToDoListsPageSchema = z.object({
   "@odata.nextLink": z.string().optional(),
 });
 
+const microsoftToDoTaskStatuses = [
+  "notStarted",
+  "inProgress",
+  "completed",
+  "waitingOnOthers",
+  "deferred",
+] as const;
+
 /** Schema for a Microsoft To Do task item. */
 export const microsoftToDoTaskSchema = z.object({
   id: z.string(),
-  title: z.string(),
-  status: z.enum(["notStarted", "inProgress", "completed", "waitingOnOthers", "deferred"]),
+  title: z
+    .string()
+    .nullish()
+    .transform((value) => {
+      const trimmed = value?.trim() ?? "";
+      return trimmed.length > 0 ? trimmed : "(Untitled)";
+    }),
+  status: z.string().transform((value) => {
+    for (const status of microsoftToDoTaskStatuses) {
+      if (value === status) {
+        return status;
+      }
+    }
+    return "notStarted";
+  }),
 });
 
 /** Schema for a paginated Microsoft To Do tasks response. */

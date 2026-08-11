@@ -97,7 +97,8 @@ describe("microsoft-todo service", () => {
         "url" in firstUrl &&
         typeof firstUrl.url === "string" &&
         !firstUrl.url.includes("$select") &&
-        !firstUrl.url.includes("$filter"),
+        firstUrl.url.includes("status%20eq%20'notStarted'") &&
+        firstUrl.url.includes("status%20eq%20'inProgress'"),
     ).toBe(true);
   });
 

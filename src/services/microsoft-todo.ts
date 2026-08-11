@@ -118,16 +118,17 @@ const collectPaginatedTasks = async (
 };
 
 /**
- * Graph To Do list-tasks rejects `$select` (HTTP 400). Prefer `$filter=status eq 'completed'`
- * for the completed map; incomplete feed is filtered client-side so `inProgress` /
- * `waitingOnOthers` / `deferred` stay in the inbox (`ne` is unreliable on this API).
+ * Graph To Do list-tasks rejects `$select` (HTTP 400). Prefer positive `$filter` OR of
+ * non-completed statuses for the incomplete feed (`ne` is unreliable on this API).
+ * Completed map uses `$filter=status eq 'completed'`. Client-side filter remains a safety net.
  */
+const INCOMPLETE_STATUS_FILTER =
+  "status eq 'notStarted' or status eq 'inProgress' or status eq 'waitingOnOthers' or status eq 'deferred'";
+
 const buildTasksUrl = (listId: string, completed: boolean): string => {
   const base = `${GRAPH_TODO_BASE}/lists/${encodeURIComponent(listId)}/tasks?$top=50`;
-  if (!completed) {
-    return base;
-  }
-  return `${base}&$filter=${encodeURIComponent("status eq 'completed'")}`;
+  const filter = completed ? "status eq 'completed'" : INCOMPLETE_STATUS_FILTER;
+  return `${base}&$filter=${encodeURIComponent(filter)}`;
 };
 
 /**
@@ -142,7 +143,7 @@ export const fetchMicrosoftToDoLists = (
 
 /**
  * Fetches tasks for a list. When `completed` is false, returns the incomplete feed only
- * (client-side filter after an unfiltered list — Graph rejects `$select` on this API).
+ * (Graph `$filter` OR of non-completed statuses, plus a client-side safety filter).
  *
  * @param accessToken - Valid Microsoft Graph access token with Tasks scopes
  * @param listId - To Do list id

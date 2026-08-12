@@ -28,7 +28,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies
@@ -43,8 +43,11 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build plugin (prod)
-        run: npm run build:prod
+      - name: Verify committed OAuth client IDs
+        run: npm run check:oauth-clients
+
+      - name: Build plugin (prod, deterministic)
+        run: npm run verify:prod-build
 
       - name: Verify release readiness
         run: npm run release:check

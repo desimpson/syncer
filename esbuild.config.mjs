@@ -1,8 +1,24 @@
 import esbuild from "esbuild";
 import console from "node:console";
+import { readFileSync } from "node:fs";
 import { builtinModules } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { z } from "zod";
+
+const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
+const productionOAuthClientsPath = path.join(rootDirectory, "oauth-clients.prod.json");
+
+const productionOAuthClientsSchema = z.object({
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  MICROSOFT_CLIENT_ID: z.string().min(1),
+});
+
+const readCommittedProductionOAuthClients = () => {
+  const raw = readFileSync(productionOAuthClientsPath, "utf8");
+  return productionOAuthClientsSchema.parse(JSON.parse(raw));
+};
 
 // Load environment variables from .env (if present)
 try {
@@ -65,13 +81,15 @@ const getMicrosoftClientId = (mode) => {
   const clientId = process.env[environmentVariableName];
   const trimmed = typeof clientId === "string" ? clientId.trim() : "";
 
-  if (mode === "production" && trimmed.length === 0) {
-    throw new Error(
-      `Microsoft client ID is required for production builds. Set ${environmentVariableName} environment variable.`,
-    );
+  if (trimmed.length > 0) {
+    return trimmed;
   }
 
-  return trimmed;
+  if (mode === "production") {
+    return readCommittedProductionOAuthClients().MICROSOFT_CLIENT_ID;
+  }
+
+  return "";
 };
 
 /**
@@ -84,25 +102,23 @@ const getValidatedClientId = (mode) => {
     mode === "production" ? "GOOGLE_CLIENT_ID_PROD" : "GOOGLE_CLIENT_ID_DEV";
   const clientId = process.env[environmentVariableName];
 
-  if (!clientId || clientId.trim() === "") {
-    if (mode === "production") {
-      throw new Error(
-        `Google client ID is required. Set ${environmentVariableName} environment variable.`,
-      );
+  if (clientId && clientId.trim() !== "") {
+    const result = environmentSchema.safeParse({ GOOGLE_CLIENT_ID: clientId });
+    if (!result.success) {
+      const issues = result.error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join("; ");
+      throw new Error(`Invalid Google client ID: ${issues}`);
     }
-    console.info("Google Client ID not set (Google connect disabled until configured).");
-    return "";
+    return result.data.GOOGLE_CLIENT_ID;
   }
 
-  const result = environmentSchema.safeParse({ GOOGLE_CLIENT_ID: clientId });
-  if (!result.success) {
-    const issues = result.error.issues
-      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-      .join("; ");
-    throw new Error(`Invalid Google client ID: ${issues}`);
+  if (mode === "production") {
+    return readCommittedProductionOAuthClients().GOOGLE_CLIENT_ID;
   }
 
-  return result.data.GOOGLE_CLIENT_ID;
+  console.info("Google Client ID not set (Google connect disabled until configured).");
+  return "";
 };
 
 /**

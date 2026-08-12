@@ -1,5 +1,4 @@
 import { Notice, Platform, PluginSettingTab, Setting, TextComponent, type App } from "obsidian";
-import { FileSuggest } from "@/plugin/suggesters/file-suggest";
 import type SyncerPlugin from "@/plugin";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
 import type { PluginSettings, PluginConfig } from "@/plugin/types";
@@ -169,12 +168,10 @@ export class SettingsTab extends PluginSettingTab {
     const { input, errorElement } = this.createTextSetting(
       containerElement,
       "Sync markdown file path",
-      "Path to the markdown file you want to sync external data to. Sync saves this note if it is open with unsaved edits, then reads the on-disk file.",
+      "Vault-relative path to the markdown file you want to sync external data to (for example, GTD.md). Sync saves this note if it is open with unsaved edits, then reads the on-disk file.",
       settings.syncDocument,
       "e.g., GTD.md",
     );
-
-    new FileSuggest(this.app, input.inputEl);
 
     input.onChange(async (value) => {
       const schema = createMarkdownFilePathSchema(this.app.vault);
@@ -953,6 +950,11 @@ export class SettingsTab extends PluginSettingTab {
       });
       return;
     }
+
+    containerElement.createEl("p", {
+      text: "Firefox Bookmarks reads profile files outside your vault (for example places.sqlite and WAL sidecars) via the local filesystem, scoped to the selected or auto-detected profile and temporary hot-copy files. Syncer does not write back to the live Firefox database.",
+      cls: "setting-item-description mod-warning",
+    });
 
     const settings = await this.plugin.loadSettings();
     const { firefoxBookmarks } = settings;

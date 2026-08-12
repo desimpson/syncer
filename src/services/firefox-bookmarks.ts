@@ -1,5 +1,12 @@
 import { getDesktopNodeModules } from "@/utils/desktop-fs";
 import {
+  createFirefoxPathGuard,
+  FIREFOX_PROFILE_READ_BASENAMES,
+  FIREFOX_TEMP_READ_BASENAMES,
+  type FirefoxPathGuard,
+} from "@/utils/firefox-fs-guard";
+import { resolveTrustedBinary } from "@/utils/trusted-binary";
+import {
   firefoxDebugError,
   firefoxDebugLog,
   firefoxDebugWarn,
@@ -65,22 +72,38 @@ type ChildProcessModule = {
   execFileSync: (file: string, arguments_: readonly string[], options: { stdio: "pipe" }) => Buffer;
 };
 
-const readFileToBuffer = (fs: NodeFs, filePath: string): Buffer => {
-  const contents = fs.readFileSync(filePath);
+const readFileToBuffer = (
+  fs: NodeFs,
+  guard: FirefoxPathGuard,
+  filePath: string,
+  allowedBasenames: ReadonlySet<string>,
+): Buffer => {
+  const safePath = guard.assertReadablePath(filePath, allowedBasenames);
+  const contents = fs.readFileSync(safePath);
   return Buffer.isBuffer(contents) ? contents : Buffer.from(contents);
 };
 
-const describeFileSnapshot = (fs: NodeFs, filePath: string): Record<string, unknown> => {
-  if (!fs.existsSync(filePath)) {
-    return { path: filePath, exists: false };
+const describeFileSnapshot = (
+  fs: NodeFs,
+  guard: FirefoxPathGuard,
+  filePath: string,
+  allowedBasenames: ReadonlySet<string>,
+): Record<string, unknown> => {
+  try {
+    const safePath = guard.assertReadablePath(filePath, allowedBasenames);
+    if (!fs.existsSync(safePath)) {
+      return { path: safePath, exists: false };
+    }
+    const stats = fs.statSync(safePath);
+    return {
+      path: safePath,
+      exists: true,
+      size: stats.size,
+      mtimeMs: stats.mtimeMs,
+    };
+  } catch {
+    return { path: filePath, exists: false, guarded: false };
   }
-  const stats = fs.statSync(filePath);
-  return {
-    path: filePath,
-    exists: true,
-    size: stats.size,
-    mtimeMs: stats.mtimeMs,
-  };
 };
 
 const getChildProcessModule = (): ChildProcessModule | undefined => {
@@ -97,6 +120,8 @@ const getChildProcessModule = (): ChildProcessModule | undefined => {
 const tryMergeWalDatabaseCopy = (
   fs: NodeFs,
   path: NodePath,
+  os: NodeOs,
+  guard: FirefoxPathGuard,
   temporaryDirectory: string,
   debugContext?: FirefoxDebugContext,
 ): Uint8Array | undefined => {
@@ -111,26 +136,40 @@ const tryMergeWalDatabaseCopy = (
   firefoxDebugLog(
     "tryMergeWalDatabaseCopy: start",
     {
-      source: describeFileSnapshot(fs, sourcePath),
-      wal: describeFileSnapshot(fs, `${sourcePath}-wal`),
-      shm: describeFileSnapshot(fs, `${sourcePath}-shm`),
+      source: describeFileSnapshot(fs, guard, sourcePath, FIREFOX_TEMP_READ_BASENAMES),
+      wal: describeFileSnapshot(fs, guard, `${sourcePath}-wal`, FIREFOX_TEMP_READ_BASENAMES),
+      shm: describeFileSnapshot(fs, guard, `${sourcePath}-shm`, FIREFOX_TEMP_READ_BASENAMES),
     },
     debugContext,
   );
 
+  const sqliteBinary = resolveTrustedBinary(fs, path, os, "sqlite3");
+  const pythonBinary = resolveTrustedBinary(fs, path, os, "python3");
+
   const mergeAttempts: readonly { label: string; run: () => void }[] = [
-    {
-      label: "sqlite3",
-      run: () => {
-        childProcess.execFileSync("sqlite3", [sourcePath, `.backup ${mergedPath}`], {
-          stdio: "pipe",
-        });
-      },
-    },
-    {
-      label: "python3",
-      run: () => {
-        const script = `
+    ...(sqliteBinary === undefined
+      ? []
+      : [
+          {
+            label: "sqlite3",
+            run: () => {
+              const safeSource = guard.assertReadablePath(sourcePath, FIREFOX_TEMP_READ_BASENAMES);
+              const safeMerged = guard.assertWritablePath(mergedPath, FIREFOX_TEMP_READ_BASENAMES);
+              childProcess.execFileSync(sqliteBinary, [safeSource, `.backup ${safeMerged}`], {
+                stdio: "pipe",
+              });
+            },
+          },
+        ]),
+    ...(pythonBinary === undefined
+      ? []
+      : [
+          {
+            label: "python3",
+            run: () => {
+              const safeSource = guard.assertReadablePath(sourcePath, FIREFOX_TEMP_READ_BASENAMES);
+              const safeMerged = guard.assertWritablePath(mergedPath, FIREFOX_TEMP_READ_BASENAMES);
+              const script = `
 import sqlite3, sys
 src, dst = sys.argv[1], sys.argv[2]
 src_conn = sqlite3.connect(src)
@@ -140,28 +179,40 @@ with dst_conn:
 dst_conn.close()
 src_conn.close()
 `;
-        childProcess.execFileSync("python3", ["-c", script, sourcePath, mergedPath], {
-          stdio: "pipe",
-        });
-      },
-    },
+              childProcess.execFileSync(pythonBinary, ["-c", script, safeSource, safeMerged], {
+                stdio: "pipe",
+              });
+            },
+          },
+        ]),
   ];
+
+  if (mergeAttempts.length === 0) {
+    firefoxDebugWarn(
+      "tryMergeWalDatabaseCopy: no trusted sqlite3/python3 binary found",
+      undefined,
+      debugContext,
+    );
+    return undefined;
+  }
 
   for (const attempt of mergeAttempts) {
     try {
-      if (fs.existsSync(mergedPath)) {
-        fs.rmSync(mergedPath, { recursive: false, force: true });
+      if (fs.existsSync(guard.assertWritablePath(mergedPath, FIREFOX_TEMP_READ_BASENAMES))) {
+        fs.rmSync(guard.assertRemovablePath(mergedPath), { recursive: false, force: true });
       }
       const startedAt = Date.now();
       attempt.run();
-      if (fs.existsSync(mergedPath)) {
-        const mergedBuffer = new Uint8Array(readFileToBuffer(fs, mergedPath));
+      if (fs.existsSync(guard.assertReadablePath(mergedPath, FIREFOX_TEMP_READ_BASENAMES))) {
+        const mergedBuffer = new Uint8Array(
+          readFileToBuffer(fs, guard, mergedPath, FIREFOX_TEMP_READ_BASENAMES),
+        );
         firefoxDebugLog(
           "tryMergeWalDatabaseCopy: merge succeeded",
           {
             via: attempt.label,
             elapsedMs: Date.now() - startedAt,
-            merged: describeFileSnapshot(fs, mergedPath),
+            merged: describeFileSnapshot(fs, guard, mergedPath, FIREFOX_TEMP_READ_BASENAMES),
             mergedBufferByteLength: mergedBuffer.byteLength,
           },
           debugContext,
@@ -198,27 +249,42 @@ const copyPlacesDatabase = (
   profileDirectory: string,
   debugContext?: FirefoxDebugContext,
 ): PlacesCopyResult => {
+  const guard = createFirefoxPathGuard({
+    fs,
+    path,
+    firefoxProfileIniRoots: getFirefoxProfilesIniRoots(os.homedir(), process.platform),
+    profileDirectory,
+  });
+
   const placesPath = path.join(profileDirectory, "places.sqlite");
   if (!fs.existsSync(placesPath)) {
     throw new FirefoxBookmarksError(FIREFOX_NOTICE.placesMissingOrUnreadable);
   }
+  guard.assertReadablePath(placesPath, FIREFOX_PROFILE_READ_BASENAMES);
 
-  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "syncer-firefox-"));
+  const temporaryDirectory = guard.createTempDirectory(path.join(os.tmpdir(), "syncer-firefox-"));
   try {
     const walPath = `${placesPath}-wal`;
-    const shmPath = `${placesPath}-shm`;
     const copiedPlacesPath = path.join(temporaryDirectory, "places.sqlite");
     const copiedWalPath = path.join(temporaryDirectory, "places.sqlite-wal");
-    const walSidecarsPresent = fs.existsSync(walPath);
+    const walSidecarsPresent =
+      fs.existsSync(walPath) &&
+      (() => {
+        try {
+          guard.assertReadablePath(walPath, FIREFOX_PROFILE_READ_BASENAMES);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
     firefoxDebugLog(
       "copyPlacesDatabase: source snapshot",
       {
         profileDirectory,
         temporaryDirectory,
         walSidecarsPresent,
-        places: describeFileSnapshot(fs, placesPath),
-        wal: describeFileSnapshot(fs, walPath),
-        shm: describeFileSnapshot(fs, shmPath),
+        places: describeFileSnapshot(fs, guard, placesPath, FIREFOX_PROFILE_READ_BASENAMES),
+        wal: describeFileSnapshot(fs, guard, walPath, FIREFOX_PROFILE_READ_BASENAMES),
       },
       debugContext,
     );
@@ -229,25 +295,43 @@ const copyPlacesDatabase = (
       const source =
         relativeName === "places.sqlite" ? placesPath : path.join(profileDirectory, relativeName);
       const destination = path.join(temporaryDirectory, relativeName);
-      fs.copyFileSync(source, destination);
+      fs.copyFileSync(
+        guard.assertReadablePath(source, FIREFOX_PROFILE_READ_BASENAMES),
+        guard.assertWritablePath(destination, FIREFOX_TEMP_READ_BASENAMES),
+      );
     }
     if (walSidecarsPresent) {
       // Re-copy WAL after the main DB so frames written during the main copy are included.
-      fs.copyFileSync(walPath, copiedWalPath);
+      fs.copyFileSync(
+        guard.assertReadablePath(walPath, FIREFOX_PROFILE_READ_BASENAMES),
+        guard.assertWritablePath(copiedWalPath, FIREFOX_TEMP_READ_BASENAMES),
+      );
     }
     firefoxDebugLog(
       "copyPlacesDatabase: hot-copy complete",
       {
         elapsedMs: Date.now() - copyStartedAt,
-        copiedPlaces: describeFileSnapshot(fs, copiedPlacesPath),
-        copiedWal: describeFileSnapshot(fs, copiedWalPath),
-        liveWalAfterCopy: describeFileSnapshot(fs, walPath),
+        copiedPlaces: describeFileSnapshot(
+          fs,
+          guard,
+          copiedPlacesPath,
+          FIREFOX_TEMP_READ_BASENAMES,
+        ),
+        copiedWal: describeFileSnapshot(fs, guard, copiedWalPath, FIREFOX_TEMP_READ_BASENAMES),
+        liveWalAfterCopy: describeFileSnapshot(fs, guard, walPath, FIREFOX_PROFILE_READ_BASENAMES),
       },
       debugContext,
     );
 
     if (walSidecarsPresent) {
-      const mergedBuffer = tryMergeWalDatabaseCopy(fs, path, temporaryDirectory, debugContext);
+      const mergedBuffer = tryMergeWalDatabaseCopy(
+        fs,
+        path,
+        os,
+        guard,
+        temporaryDirectory,
+        debugContext,
+      );
       if (mergedBuffer !== undefined) {
         firefoxDebugLog(
           "copyPlacesDatabase: using merged buffer",
@@ -265,7 +349,7 @@ const copyPlacesDatabase = (
       );
     }
 
-    const buffer = readFileToBuffer(fs, copiedPlacesPath);
+    const buffer = readFileToBuffer(fs, guard, copiedPlacesPath, FIREFOX_TEMP_READ_BASENAMES);
     firefoxDebugLog(
       "copyPlacesDatabase: using main sqlite copy",
       {
@@ -280,7 +364,7 @@ const copyPlacesDatabase = (
       walMerged: false,
     };
   } finally {
-    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    fs.rmSync(guard.assertRemovablePath(temporaryDirectory), { recursive: true, force: true });
   }
 };
 
@@ -571,17 +655,22 @@ const readProfilesIniCandidates = (): FirefoxProfileCandidate[] => {
     return [];
   }
 
-  const { fs, os } = nodeModules;
+  const { fs, os, path } = nodeModules;
   const roots = getFirefoxProfilesIniRoots(os.homedir(), process.platform);
+  const guard = createFirefoxPathGuard({
+    fs,
+    path,
+    firefoxProfileIniRoots: roots,
+  });
   const candidates: FirefoxProfileCandidate[] = [];
 
   for (const root of roots) {
     const iniPath = `${root}/profiles.ini`;
-    if (!fs.existsSync(iniPath)) {
-      continue;
-    }
-
     try {
+      if (!fs.existsSync(iniPath)) {
+        continue;
+      }
+      guard.assertReadablePath(iniPath, FIREFOX_PROFILE_READ_BASENAMES);
       const content = fs.readFileSync(iniPath, "utf8");
       if (typeof content !== "string") {
         continue;
@@ -602,9 +691,24 @@ const resolveProfileDirectory = (manualProfilePath: string | undefined): string 
   const trimmedManual = manualProfilePath?.trim();
   if (trimmedManual !== undefined && trimmedManual.length > 0) {
     const nodeModules = getDesktopNodeModules();
-    if (nodeModules?.fs.existsSync(trimmedManual) !== true) {
+    if (nodeModules === undefined) {
       throw new FirefoxBookmarksError(FIREFOX_NOTICE.profilePathNotFound);
     }
+    const { fs, path, os } = nodeModules;
+    if (!fs.existsSync(trimmedManual)) {
+      throw new FirefoxBookmarksError(FIREFOX_NOTICE.profilePathNotFound);
+    }
+    const guard = createFirefoxPathGuard({
+      fs,
+      path,
+      firefoxProfileIniRoots: getFirefoxProfilesIniRoots(os.homedir(), process.platform),
+      profileDirectory: trimmedManual,
+    });
+    const placesPath = path.join(trimmedManual, "places.sqlite");
+    if (!fs.existsSync(placesPath)) {
+      throw new FirefoxBookmarksError(FIREFOX_NOTICE.profilePathNotFound);
+    }
+    guard.assertReadablePath(placesPath, FIREFOX_PROFILE_READ_BASENAMES);
     return trimmedManual;
   }
 

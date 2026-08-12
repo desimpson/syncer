@@ -366,7 +366,7 @@ const clearOutlookCredentials = async (
 ): Promise<void> => {
   const freshSettings = await loadSettings();
   await saveSettings({ ...freshSettings, microsoftOutlook: undefined });
-  new AuthorizationExpiredModal(app).open();
+  new AuthorizationExpiredModal(app, "Microsoft Outlook").open();
 };
 
 /**

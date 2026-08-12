@@ -26,7 +26,10 @@ The plugin is **local-only**. OAuth runs on the user’s machine (ephemeral loca
 | Source            | Direction                                            | What syncs                                     |
 | ----------------- | ---------------------------------------------------- | ---------------------------------------------- |
 | Google Tasks      | Mostly pull; optional completion + delete write-back | Incomplete tasks from selected lists           |
+| Gmail Starred     | Mostly pull; optional star write-back                | Starred messages (newest N)                    |
+| Microsoft To Do   | Mostly pull; optional completion write-back          | Incomplete tasks from selected To Do lists     |
 | Microsoft Outlook | Mostly pull; optional flag write-back                | Messages with Outlook follow-up flag `flagged` |
+| Azure DevOps      | One-way pull                                         | Work items assigned to the connected user      |
 | Firefox Bookmarks | One-way pull (desktop)                               | Bookmarks under selected folders (recursive)   |
 
 ---
@@ -59,6 +62,7 @@ Settings are Obsidian plugin data (`loadData` / `saveData`), validated by Zod in
 | Global            | `syncIntervalMinutes`, `syncDocument`, `syncHeading`, `syncCompletionStatus`, `enableDeleteSync`, `confirmDeleteSync`, `manuallyDeletedTaskIds` |
 | Google Tasks      | credentials, `availableLists`, `selectedListIds`, `userInfo.email`                                                                              |
 | Microsoft Outlook | credentials (incl. `tenantSegment`), account kind / tenant ID, `userInfo`                                                                       |
+| Microsoft To Do   | credentials (incl. `tenantSegment`), `availableLists`, `selectedListIds`, `userInfo`; shares account-kind fields with Outlook for next Connect |
 | Firefox Bookmarks | profile paths, `availableFolders`, `selectedFolderGuids`                                                                                        |
 
 OAuth tokens live **in plugin settings**, not a separate OS keychain. Build-time client IDs (`GOOGLE_CLIENT_ID`, `MICROSOFT_CLIENT_ID`) are injected by esbuild and validated via `pluginSchema`.
@@ -119,7 +123,7 @@ onload (plugin/index.ts)
 **Typical job steps**
 
 1. Load settings; no-op if disconnected / unconfigured
-2. Refresh access token if expired; on `InvalidGrantError` clear credentials + auth-expired modal
+2. Refresh access token if expired; on `InvalidGrantError` clear credentials + auth-expired modal (names Syncer + the integration)
 3. Resolve sync file in the vault
 4. Services fetch remote items
 5. Adaptors map to `SyncItem[]`
@@ -132,7 +136,7 @@ onload (plugin/index.ts)
 | ---------------- | ----------------------- | -------------------------------------------------------------- |
 | `SyncItem`       | `src/sync/types.ts`     | `{ id, source, title, link, heading, completed }`              |
 | `SyncAction`     | `src/sync/types.ts`     | create / update / delete over a `SyncItem`                     |
-| `SyncSource`     | `src/sync/types.ts`     | `"google-tasks" \| "microsoft-outlook" \| "firefox-bookmarks"` |
+| `SyncSource`     | `src/sync/types.ts`     | `"google-tasks" \| "gmail-starred" \| "microsoft-to-do" \| "microsoft-outlook" \| "azure-devops" \| "firefox-bookmarks"` |
 | `SyncJob`        | `src/jobs/types.ts`     | `{ name, task }`                                               |
 | `SyncAdaptor<T>` | `src/adaptors/types.ts` | `(heading) => (dto) => SyncItem`                               |
 
@@ -144,7 +148,7 @@ Settings use `syncHeading`; domain `SyncItem` still uses `heading` ([#48](https:
 src/
 ├── plugin/       # entrypoint, settings tab, schemas, modals, suggesters
 ├── sync/         # scheduler, actions, reader, writer, sync-guard
-├── jobs/         # google-tasks, microsoft-outlook, firefox-bookmarks
+├── jobs/         # google-tasks, gmail-starred, microsoft-todo, microsoft-outlook, azure-devops, firefox-bookmarks
 ├── services/     # API clients + Firefox sqlite/profile helpers
 ├── adaptors/     # DTO → SyncItem
 ├── auth/         # google, microsoft
@@ -184,9 +188,10 @@ Full rules: [`docs/kb/sync-semantics.md`](kb/sync-semantics.md). Summary:
 - `manuallyDeletedTaskIds`: suppress re-create when the user declined remote delete
 - SyncGuard skips delete-detection while sync is rewriting the note
 
-### Outlook / Firefox
+### Outlook / To Do / Firefox
 
 - Outlook: flagged mail only; completion sync toggles the Outlook flag; no vault→remote delete path
+- To Do: mirrors Google Tasks incomplete-feed + completion pushback; remote complete removes unchecked lines (no auto `[x]`); separate Tasks OAuth token from Outlook
 - Firefox: local profile SQLite via sql.js (+ WAL merge helpers); checkbox is local-only
 
 ---
@@ -261,7 +266,7 @@ Grouped; numbers are GitHub issues. This is not a commitment calendar.
 
 ### Near-term integrations (examples)
 
-Tracked under the [top-10 rollout](https://github.com/desimpson/syncer/issues/64) and individual issues, including Gmail Starred ([#56](https://github.com/desimpson/syncer/issues/56), labels [#95](https://github.com/desimpson/syncer/issues/95)/[#96](https://github.com/desimpson/syncer/issues/96)), Azure DevOps ([#35](https://github.com/desimpson/syncer/issues/35), [#94](https://github.com/desimpson/syncer/issues/94)), Microsoft To Do ([#54](https://github.com/desimpson/syncer/issues/54)), Todoist ([#55](https://github.com/desimpson/syncer/issues/55)), GitHub ([#57](https://github.com/desimpson/syncer/issues/57)), and others (Jira, Linear, Slack, Asana, calendars-adjacent tools, etc.).
+Tracked under the [top-10 rollout](https://github.com/desimpson/syncer/issues/64) and individual issues, including Todoist ([#55](https://github.com/desimpson/syncer/issues/55)), GitHub ([#57](https://github.com/desimpson/syncer/issues/57)), and others (Jira, Linear, Slack, Asana, calendars-adjacent tools, etc.). Gmail Starred, Azure DevOps, and Microsoft To Do are shipped in the current product (see §1).
 
 New sources should follow the existing **job → service → adaptor → atomic reconcile** template; prefer inbox lines unless a source’s product case clearly needs a different vault shape.
 
@@ -278,7 +283,7 @@ New sources should follow the existing **job → service → adaptor → atomic 
 These echo the early design’s open questions, updated for the current product:
 
 1. **How far should two-way sync go?**  
-   Completion write-back exists for Google Tasks and Outlook; vault→Google delete sync is optional. Creating remote items from Obsidian, or editing titles remotely from the note, is not supported. Real-time bidirectional investigation: [#51](https://github.com/desimpson/syncer/issues/51).
+   Completion write-back exists for Google Tasks, Gmail Starred, Microsoft To Do, and Outlook; vault→Google delete sync is optional. Creating remote items from Obsidian, or editing titles remotely from the note, is not supported. Real-time bidirectional investigation: [#51](https://github.com/desimpson/syncer/issues/51).
 
 2. **Real-time sync without a backend?**  
    Local-only constraint rules out hosted webhooks. Practical options are shorter polling intervals and richer failure UX ([#34](https://github.com/desimpson/syncer/issues/34)), not a Syncer cloud.

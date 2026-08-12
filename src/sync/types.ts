@@ -28,13 +28,21 @@ export type SyncAction = {
  * The different supported sync sources.
  */
 export type SyncSource =
-  "google-tasks" | "microsoft-outlook" | "gmail-starred" | "firefox-bookmarks" | "azure-devops";
+  | "google-tasks"
+  | "microsoft-outlook"
+  | "microsoft-to-do"
+  | "gmail-starred"
+  | "firefox-bookmarks"
+  | "azure-devops";
 
 /** `SyncItem.source` / markdown metadata value for Gmail Starred. */
 export const GMAIL_STARRED_SOURCE = "gmail-starred" satisfies SyncSource;
 
 /** `SyncItem.source` / markdown metadata value for Microsoft Outlook. */
 export const MICROSOFT_OUTLOOK_SOURCE = "microsoft-outlook" satisfies SyncSource;
+
+/** `SyncItem.source` / markdown metadata value for Microsoft To Do. */
+export const MICROSOFT_TO_DO_SOURCE = "microsoft-to-do" satisfies SyncSource;
 
 /** `SyncItem.source` / markdown metadata value for Firefox Bookmarks. */
 export const FIREFOX_BOOKMARKS_SOURCE = "firefox-bookmarks" satisfies SyncSource;

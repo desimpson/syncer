@@ -1,4 +1,4 @@
-import type { GoogleTasksList } from "@/services/types";
+import type { GoogleTasksList, MicrosoftToDoList } from "@/services/types";
 import type {
   GoogleAccessToken,
   GoogleCredentials,
@@ -27,6 +27,7 @@ export type PluginSettings = {
   microsoftAuthAccountKind: MicrosoftAuthAccountKind;
   microsoftAuthWorkOrSchoolTenantId: string;
   microsoftOutlook?: MicrosoftOutlookSettings | undefined;
+  microsoftToDo?: MicrosoftToDoSettings | undefined;
   azureDevOpsOrganization: string;
   azureDevOpsProjectName: string;
   azureDevOpsPersonalAccessToken: string;
@@ -66,6 +67,16 @@ export type GmailStarredSettings = {
 export type MicrosoftOutlookSettings = {
   userInfo: MicrosoftUserInfo;
   credentials: MicrosoftCredentials;
+};
+
+/**
+ * Microsoft To Do (Graph) integration settings.
+ */
+export type MicrosoftToDoSettings = {
+  userInfo: MicrosoftUserInfo;
+  credentials: MicrosoftCredentials;
+  availableLists: readonly MicrosoftToDoList[];
+  selectedListIds: readonly string[];
 };
 
 /**

@@ -26,11 +26,13 @@ Written by [`src/sync/writer.ts`](../../src/sync/writer.ts):
 Jobs write via [`reconcileSyncSourceAtomically`](../../src/sync/writer.ts), which:
 
 1. runs inside one `vault.process` callback,
-2. parses existing items from callback `content`,
-3. computes reconcile actions against that same snapshot,
-4. applies updates/deletes/creates before returning new content.
+2. parses existing items for the source from the **whole** file snapshot (not only the sync heading — Kanban may move lines to e.g. `## Done`),
+3. computes reconcile actions against that same snapshot (`id:source` identity is file-wide),
+4. applies updates/deletes/creates before returning new content (new creates still insert under the configured sync heading).
 
-This avoids stale pre-read races where actions are planned from an older `vault.read` snapshot and then applied to newer file content.
+This avoids stale pre-read races where actions are planned from an older `vault.read` snapshot and then applied to newer file content, and avoids re-creating tasks that already exist under another heading.
+
+**Kanban / moved lines:** file-wide identity means an incomplete remote item updates an existing line under e.g. `## Done` in place (checkbox can become `[ ]`) instead of creating a duplicate under the sync heading. With `syncCompletionStatus` **off** (default), Syncer does **not** push local `[x]` to the provider first — enable that setting if Kanban Done cards should write completion remote-ward before reconcile.
 
 ## Google Tasks
 
@@ -43,6 +45,18 @@ Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).
 - **SyncGuard** (`plugin/index.ts`): skip delete-detection while scheduled sync writes the file
 - **`manuallyDeletedTaskIds`**: prevent re-adding tasks the user deleted from Obsidian on a later sync
 - Deselecting a list drops those task IDs from incoming → delete actions for unmatched items file-wide by `id:source`; completed lines preserved via `shouldPreserveCompletedDeletes`
+
+## Microsoft To Do
+
+Owning job: [`src/jobs/microsoft-todo.ts`](../../src/jobs/microsoft-todo.ts).
+
+- Mirrors Google Tasks list + completion semantics (see Google Tasks section above)
+- Incoming feed = **incomplete** tasks from selected To Do lists only (`fetchMicrosoftToDoTasks` in `src/services/microsoft-todo.ts`)
+- Completing a task in To Do drops it from the feed → unchecked Obsidian line removed on next sync; **Syncer does not auto-check `[x]`** for remote completions (same deliberate tradeoff as Google Tasks)
+- `[x]` lines preserved via `shouldPreserveCompletedDeletes`
+- `syncCompletionStatus`: push Obsidian checkbox changes to To Do; uncomplete-in-Obsidian can restore a task completed in To Do (job also fetches completed tasks for `taskId → listId` mapping)
+- Deselecting a list or disconnecting: unmatched unchecked lines removed; completed preserved; disconnect clears `microsoftToDo` settings only (Outlook unaffected)
+- No vault→remote delete in v1; separate OAuth token from Outlook (Tasks scopes)
 
 ## Microsoft Outlook
 

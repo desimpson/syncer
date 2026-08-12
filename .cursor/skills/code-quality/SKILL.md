@@ -19,7 +19,7 @@ Project-specific checklist. Read [`docs/kb/conventions.md`](docs/kb/conventions.
 ## Implementation
 
 - Validate at boundaries with Zod (`*Schema`); prefer `z.infer`
-- Names: `createXJob`, `mapXToSyncItem`, source strings `"google-tasks"` / `"microsoft-outlook"`
+- Names: `createXJob`, `mapXToSyncItem`, source strings `"google-tasks"` / `"microsoft-to-do"` / `"microsoft-outlook"`
 - British spelling already in repo: `normalise`, `initialise`
 - Errors: domain types + `formatUiError` / `formatLogError`; follow existing invalid-grant clear-credentials pattern in jobs
 - Match import style of the file you edit (barrels are incomplete — do not mass-migrate)

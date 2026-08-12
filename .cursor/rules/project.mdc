@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Syncer
 
-Obsidian plugin that syncs Google Tasks and Outlook flagged mail into a target Markdown note under a configurable heading.
+Obsidian plugin that syncs Google Tasks, Gmail Starred, Microsoft To Do, Outlook flagged mail, Azure DevOps work items, and Firefox Bookmarks into a target Markdown note under a configurable heading.
 
 ## Start here
 

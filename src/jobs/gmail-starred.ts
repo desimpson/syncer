@@ -355,7 +355,7 @@ const clearGmailStarredCredentials = async (
 ): Promise<void> => {
   const freshSettings = await loadSettings();
   await saveSettings({ ...freshSettings, gmailStarred: undefined });
-  new AuthorizationExpiredModal(app).open();
+  new AuthorizationExpiredModal(app, "Gmail Starred").open();
 };
 
 const handleGmailAuthorizationFailure = async (

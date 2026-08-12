@@ -426,7 +426,7 @@ export const createGoogleTasksJob: SyncJobCreator = (
         );
         const freshSettings = await loadSettings();
         await saveSettings({ ...freshSettings, googleTasks: undefined });
-        new AuthorizationExpiredModal(app).open();
+        new AuthorizationExpiredModal(app, "Google Tasks").open();
         return;
       }
       throw error;

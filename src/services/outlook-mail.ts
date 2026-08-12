@@ -1,5 +1,12 @@
 import { requestUrl } from "obsidian";
 import { z } from "zod";
+import {
+  GraphAuthorizationError,
+  isGraphAuthorizationStatus,
+} from "@/services/microsoft-graph-errors";
+
+/** Re-export for Outlook job/tests that historically imported from this module. */
+export { GraphAuthorizationError } from "@/services/microsoft-graph-errors";
 
 const GRAPH_MESSAGES_BASE = "https://graph.microsoft.com/v1.0/me/messages";
 
@@ -26,18 +33,6 @@ const outlookMessagesPageSchema = z.object({
 });
 
 export type OutlookFlaggedMessage = z.infer<typeof outlookMessageSchema>;
-
-export class GraphAuthorizationError extends Error {
-  public readonly status: number;
-
-  public constructor(status: number, message: string) {
-    super(message);
-    this.name = "GraphAuthorizationError";
-    this.status = status;
-  }
-}
-
-const isGraphAuthorizationStatus = (status: number): boolean => status === 401 || status === 403;
 
 const throwGraphResponseError = (
   operation: string,

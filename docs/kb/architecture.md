@@ -8,9 +8,9 @@ Obsidian plugin that pulls external items into a target Markdown note under a co
 | ----------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `plugin/`   | Lifecycle, settings UI, vault delete-detection  | `plugin/index.ts`, `settings-tab.ts`, `schemas.ts`, `plugin-directory.ts`                                                  |
 | `sync/`     | Generic reconcile + file I/O (no provider APIs) | `scheduler.ts`, `actions.ts`, `reader.ts`, `writer.ts`, `sync-guard.ts`                                                    |
-| `jobs/`     | Per-integration orchestration                   | `google-tasks.ts`, `microsoft-outlook.ts`, `azure-devops.ts`, `firefox-bookmarks.ts`                                       |
-| `services/` | Provider HTTP clients + local SQLite (Firefox)  | `google-tasks.ts`, `outlook-mail.ts`, `azure-devops.ts`, `firefox-bookmarks.ts`, `firefox-profiles.ts`, `sql-js-loader.ts` |
-| `adaptors/` | Source DTO → `SyncItem`                         | `google-tasks.ts`, `microsoft-outlook.ts`, `azure-devops.ts`, `firefox-bookmarks.ts`                                       |
+| `jobs/`     | Per-integration orchestration                   | `google-tasks.ts`, `gmail-starred.ts`, `microsoft-todo.ts`, `microsoft-outlook.ts`, `azure-devops.ts`, `firefox-bookmarks.ts` |
+| `services/` | Provider HTTP clients + local SQLite (Firefox)  | `google-tasks.ts`, `gmail-starred.ts`, `outlook-mail.ts`, `microsoft-todo.ts`, `microsoft-graph-errors.ts`, `azure-devops.ts`, … |
+| `adaptors/` | Source DTO → `SyncItem`                         | `google-tasks.ts`, `gmail-starred.ts`, `microsoft-todo.ts`, `microsoft-outlook.ts`, `azure-devops.ts`, `firefox-bookmarks.ts` |
 | `auth/`     | OAuth connect + token refresh                   | `google.ts`, `microsoft.ts`, `azure-devops.ts`                                                                             |
 | `utils/`    | Pure helpers / UI popper                        | `error-formatters.ts`, `heading-formatters.ts`, …                                                                          |
 
@@ -20,7 +20,7 @@ Path alias: `@/*` → `src/*`. Bundle entry: `esbuild.config.mjs` → `src/plugi
 
 ```
 onload (plugin/index.ts)
-  → createGoogleTasksJob / createMicrosoftOutlookJob / createAzureDevOpsJob / createFirefoxBookmarksJob
+  → createGoogleTasksJob / createGmailStarredJob / createMicrosoftOutlookJob / createMicrosoftToDoJob / createAzureDevOpsJob / createFirefoxBookmarksJob
   → wrap each job in SyncGuard (suppress delete-detection during writes)
   → createScheduler(jobs).start(syncIntervalMinutes)
        │
@@ -50,4 +50,4 @@ Side path (Google Tasks only): vault `modify` listener in `plugin/index.ts` may 
 
 - `SyncItem` / `SyncAction` / `SyncSource` — [`src/sync/types.ts`](../../src/sync/types.ts)
 - `SyncJob` / `SyncJobCreator` — [`src/jobs/types.ts`](../../src/jobs/types.ts)
-- Sources today: `"google-tasks"`, `"microsoft-outlook"`, `"azure-devops"`, `"firefox-bookmarks"`
+- Sources today: `"google-tasks"`, `"gmail-starred"`, `"microsoft-to-do"`, `"microsoft-outlook"`, `"azure-devops"`, `"firefox-bookmarks"`

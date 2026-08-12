@@ -5,6 +5,7 @@ import { SyncGuard } from "@/sync/sync-guard";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import { createGmailStarredJob } from "@/jobs/gmail-starred";
 import { createMicrosoftOutlookJob } from "@/jobs/microsoft-outlook";
+import { createMicrosoftToDoJob } from "@/jobs/microsoft-todo";
 import { createAzureDevOpsJob } from "@/jobs/azure-devops";
 import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
@@ -54,6 +55,14 @@ export default class SyncerPlugin extends Plugin {
         this.app,
       ),
       createMicrosoftOutlookJob(
+        this.loadSettings,
+        this.saveSettings,
+        this.config,
+        this.app.vault,
+        (message) => new Notice(message),
+        this.app,
+      ),
+      createMicrosoftToDoJob(
         this.loadSettings,
         this.saveSettings,
         this.config,

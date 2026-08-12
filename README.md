@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
+Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -28,6 +28,11 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Syncs messages with an Outlook follow-up flag set to flagged
   - Personal (Outlook.com / Hotmail / Live) or work/school accounts (optional Entra tenant ID)
   - When completion status sync is enabled, checking/unchecking items in Obsidian updates the Outlook flag on the next sync
+- Microsoft To Do integration:
+  - Separate OAuth consent from Outlook (Tasks scopes on the same Entra app — add delegated **Tasks.ReadWrite**)
+  - Select which To Do lists to sync
+  - Incomplete tasks only; completing in To Do removes the Obsidian line (checkbox is not auto-checked)
+  - When completion status sync is enabled, checking/unchecking in Obsidian updates task status in To Do on the next sync
 - Azure DevOps integration:
   - Personal Access Token (PAT) authentication
   - One organisation + one project per settings profile
@@ -69,7 +74,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - **Sync interval (minutes)**: How often background sync runs
 - **Sync markdown file path**: Target note for synced items (sync reads the saved file on disk—save changes before running Manual sync)
 - **Sync heading**: H2 heading under which new items are inserted (input is normalised to `## …`)
-- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, and Microsoft Outlook (email flags) on the next sync
+- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, and Microsoft Outlook (email flags) on the next sync. With Kanban boards that move cards to a Done column, enable this if you want local `[x]` to write back before Syncer reconciles against the incomplete remote feed (otherwise a still-open remote task can uncheck the card in place).
 
 ### Google Tasks
 
@@ -88,6 +93,14 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - Choose **Outlook account type** (personal or work/school); for work/school you may optionally set a Directory (tenant) ID
 - Connect your Microsoft account using the **Connect** button (requires the plugin to be built with a Microsoft application client ID)
 - Flagged messages are synced into the target note under the sync heading
+- Connect / disconnect Outlook independently of Microsoft To Do
+
+### Microsoft To Do
+
+- Connect after adding **Tasks.ReadWrite** (delegated) to your existing Syncer Entra app (same client ID as Outlook)
+- Select one or more To Do lists to sync; account type / tenant fields above apply to the next Connect only
+- Incomplete tasks from selected lists sync under the sync heading
+- Disconnect clears To Do credentials only — Outlook and existing note lines are unaffected
 
 ### Azure DevOps
 

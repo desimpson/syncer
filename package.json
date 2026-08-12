@@ -5,7 +5,7 @@
   "main": "main.js",
   "type": "module",
   "scripts": {
-    "build": "npm run build:dev",
+    "build": "npm run build:prod",
     "build:dev": "npm run typecheck && node esbuild.config.mjs --mode dev",
     "build:prod": "npm run typecheck && node esbuild.config.mjs --mode prod",
     "build:watch": "npm run typecheck && node esbuild.config.mjs --mode watch",
@@ -27,7 +27,9 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts --watch",
     "typecheck": "tsc --noEmit --skipLibCheck",
     "version": "node scripts/version-bump.mjs && git add manifest.json versions.json",
-    "release:check": "node scripts/release.mjs"
+    "release:check": "node scripts/release.mjs",
+    "check:oauth-clients": "node scripts/check-oauth-clients.mjs",
+    "verify:prod-build": "node scripts/verify-production-build-determinism.mjs"
   },
   "keywords": [
     "obsidian",

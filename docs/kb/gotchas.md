@@ -46,6 +46,7 @@
 - Do **not** query `moz_bookmarks_roots` — removed in Firefox 31; tags root is `guid = 'tags________'` on `moz_bookmarks` ([`firefox-bookmarks.ts`](../../src/services/firefox-bookmarks.ts))
 - Stale selected folder GUIDs → soft warning; valid folders still sync
 - Folder picker search ranks shallow title matches first and collapses descendants under a hit (`searchFirefoxBookmarkFolders` in [`firefox-profiles.ts`](../../src/services/firefox-profiles.ts)) — selecting a parent already syncs subfolders recursively
+- Outside-vault reads are scoped in [`firefox-fs-guard.ts`](../../src/utils/firefox-fs-guard.ts): basename allowlist, `realpath` containment, and a single process-owned `mkdtemp` temp dir per read (not every `syncer-firefox-*` under shared `/tmp`)
 
 ## Release / tags
 

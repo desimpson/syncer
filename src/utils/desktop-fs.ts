@@ -5,6 +5,8 @@ export type NodeFs = {
   mkdtempSync: (prefix: string) => string;
   copyFileSync: (source: string, destination: string) => void;
   rmSync: (path: string, options: { recursive: boolean; force: boolean }) => void;
+  realpathSync: (filePath: string) => string;
+  readdirSync: (path: string) => string[];
 };
 
 export type NodeOs = {
@@ -15,6 +17,8 @@ export type NodeOs = {
 export type NodePath = {
   join: (...segments: string[]) => string;
   isAbsolute: (filePath: string) => boolean;
+  dirname: (filePath: string) => string;
+  normalize: (filePath: string) => string;
 };
 
 type DesktopNodeModules = {

@@ -1,5 +1,4 @@
 import type { App, PluginManifest } from "obsidian";
-import { getDesktopNodeModules } from "@/utils/desktop-fs";
 
 const getVaultBasePath = (app: App): string | undefined => {
   const adapter = app.vault?.adapter as { getBasePath?: () => string } | undefined;
@@ -9,6 +8,12 @@ const getVaultBasePath = (app: App): string | undefined => {
   const basePath = adapter.getBasePath();
   return typeof basePath === "string" && basePath.trim().length > 0 ? basePath : undefined;
 };
+
+const isAbsolutePath = (filePath: string): boolean =>
+  filePath.startsWith("/") || /^[A-Za-z]:[\\/]/u.test(filePath);
+
+const joinPaths = (basePath: string, relativePath: string): string =>
+  `${basePath.replace(/[/\\]$/u, "")}/${relativePath.replace(/^[/\\]/u, "")}`;
 
 /**
  * Absolute path to the installed plugin folder (where `main.js` lives).
@@ -23,12 +28,7 @@ export const resolvePluginDirectory = (app: App, manifest: PluginManifest): stri
     return "";
   }
 
-  const nodeModules = getDesktopNodeModules();
-  const isAbsolute =
-    nodeModules?.path.isAbsolute(manifestDirectory) ??
-    (manifestDirectory.startsWith("/") || /^[A-Za-z]:[\\/]/u.test(manifestDirectory));
-
-  if (isAbsolute) {
+  if (isAbsolutePath(manifestDirectory)) {
     return manifestDirectory;
   }
 
@@ -37,9 +37,5 @@ export const resolvePluginDirectory = (app: App, manifest: PluginManifest): stri
     return manifestDirectory;
   }
 
-  if (nodeModules !== undefined) {
-    return nodeModules.path.join(vaultBasePath, manifestDirectory);
-  }
-
-  return `${vaultBasePath.replace(/[/\\]$/u, "")}/${manifestDirectory}`;
+  return joinPaths(vaultBasePath, manifestDirectory);
 };

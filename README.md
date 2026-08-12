@@ -170,19 +170,20 @@ Syncer is a local plugin: it does not run a Syncer backend, proxy, or hosted API
   - Google: `accounts.google.com`, `oauth2.googleapis.com`, `www.googleapis.com`, `tasks.googleapis.com`, `gmail.googleapis.com`
   - Microsoft: `login.microsoftonline.com`, `graph.microsoft.com`
   - Azure DevOps: `dev.azure.com`
-- **Outside-vault file access**: Firefox Bookmarks sync reads Firefox profile files (for example `places.sqlite` and related WAL files) outside your Obsidian vault to import selected bookmarks.
+
+> [!WARNING]
+> **Outside-vault filesystem access (Firefox Bookmarks).** On Obsidian desktop, enabling Firefox Bookmarks sync reads Firefox profile files outside your vault (for example `places.sqlite` and WAL sidecars) via the local filesystem, scoped to the selected or auto-detected profile and temporary hot-copy files. Syncer does not write back to the live Firefox database. See [SECURITY.md](SECURITY.md) for details.
+
 - **Telemetry / ads**: Syncer does not include client-side telemetry, analytics SDKs, or ads.
 
 ## Attribution
 
-This plugin includes code adapted from the following projects:
-
-- **Periodic Notes** ([liamcain/obsidian-periodic-notes](https://github.com/liamcain/obsidian-periodic-notes)) - The `Suggest` and `FileSuggest` components used in the settings tab are based on code from this plugin.
+No third-party UI components are currently bundled in the settings tab.
 
 ## Releasing
 
 1. Bump version with **`npm version patch|minor|major`** (or `npm version x.y.z`). This updates `package.json` / `manifest.json` / `versions.json`, commits, and creates an **annotated** git tag (required). Do not use `git tag x.y.z` without `-a` — `git push --follow-tags` only pushes annotated tags.
-2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (Google and Microsoft client IDs required)
+2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; local env vars may override for development)
 3. Verify: `npm run release:check` (fails if the version tag exists but is lightweight)
 4. Confirm the tag is annotated: `git cat-file -t x.y.z` must print `tag` (not `commit`). If you ever need a manual tag: `git tag -a x.y.z -m "x.y.z"`.
 5. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`). If `--follow-tags` skips the tag, push it explicitly: `git push origin x.y.z`.

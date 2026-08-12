@@ -2,17 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, PluginManifest } from "obsidian";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 
-vi.mock("@/utils/desktop-fs", () => ({
-  getDesktopNodeModules: () => ({
-    fs: {},
-    os: {},
-    path: {
-      join: (...segments: string[]) => segments.join("/").replaceAll("//", "/"),
-      isAbsolute: (filePath: string) => filePath.startsWith("/"),
-    },
-  }),
-}));
-
 const makeApp = (basePath: string | undefined): App =>
   ({
     vault: {
@@ -32,7 +21,6 @@ describe("resolvePluginDirectory", () => {
 
   it("joins vault base path with vault-relative manifest.dir", () => {
     const app = makeApp("/home/user/Documents/Obsidian Dev Vault");
-    // Obsidian supplies vault-relative plugin dirs; shape mirrored for join logic only.
     const manifest = { dir: "plugins/obsidian-syncer" } as PluginManifest;
 
     expect(resolvePluginDirectory(app, manifest)).toBe(

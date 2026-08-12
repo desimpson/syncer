@@ -54,14 +54,16 @@ This plugin fetches data from external sources and syncs them to a target Markdo
 
 ## Installation
 
-Manual install into a vault:
+Install **Syncer** from Obsidian’s Community plugins browser, or from the [Community directory](https://community.obsidian.md/plugins/syncer).
+
+### From source
 
 1. Build the plugin (see [Development](#development) below)
 1. Copy these files to your vault: `Vault/.obsidian/plugins/syncer/`
    - `manifest.json`
    - `main.js`
    - `styles.css`
-1. Enable “Syncer” in Obsidian → Settings → Community plugins
+1. Enable **Syncer** in Obsidian → Settings → Community plugins
 
 ## Configuration
 

@@ -15,9 +15,9 @@ jobs:
       id-token: write
     environment:
       name: prod
-    env:
-      GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
-      MICROSOFT_CLIENT_ID_PROD: ${{ secrets.MICROSOFT_CLIENT_ID_PROD }}
+    # Prod OAuth client IDs come from committed oauth-clients.prod.json so Observer
+    # rebuilds match the published main.js. Do not inject GOOGLE/MICROSOFT_CLIENT_ID_PROD
+    # secrets here — that would diverge from a clean-checkout build.
 
     steps:
       - name: Checkout repository

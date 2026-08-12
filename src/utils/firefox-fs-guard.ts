@@ -32,15 +32,20 @@ const pathBasename = (filePath: string): string => {
 
 const pathSeparator = (filePath: string): "/" | "\\" => (filePath.includes("\\") ? "\\" : "/");
 
+const normaliseForComparison = (filePath: string): string =>
+  process.platform === "win32" ? filePath.toLowerCase() : filePath;
+
 export const isCanonicalPathUnderRoot = (canonicalPath: string, canonicalRoot: string): boolean => {
-  if (canonicalPath === canonicalRoot) {
+  const pathForComparison = normaliseForComparison(canonicalPath);
+  const rootForComparison = normaliseForComparison(canonicalRoot);
+  if (pathForComparison === rootForComparison) {
     return true;
   }
   const separator = pathSeparator(canonicalRoot);
-  const rootWithSeparator = canonicalRoot.endsWith(separator)
-    ? canonicalRoot
-    : `${canonicalRoot}${separator}`;
-  return canonicalPath.startsWith(rootWithSeparator);
+  const rootWithSeparator = rootForComparison.endsWith(separator)
+    ? rootForComparison
+    : `${rootForComparison}${separator}`;
+  return pathForComparison.startsWith(rootWithSeparator);
 };
 
 export const canonicalizePath = (fs: NodeFs, filePath: string): string => {
@@ -81,15 +86,35 @@ export type CreateFirefoxPathGuardOptions = {
  * Scoped path guard for Firefox bookmark file I/O outside the vault.
  * All reads/writes must pass basename + canonical-root checks.
  */
+const canonicalizeExistingPath = (fs: NodeFs, filePath: string): string | undefined => {
+  if (!fs.existsSync(filePath)) {
+    return undefined;
+  }
+  try {
+    return canonicalizePath(fs, filePath);
+  } catch {
+    return undefined;
+  }
+};
+
 export const createFirefoxPathGuard = ({
   fs,
   path,
   firefoxProfileIniRoots,
   profileDirectory,
 }: CreateFirefoxPathGuardOptions): FirefoxPathGuard => {
-  const canonicalIniRoots = firefoxProfileIniRoots.map((root) => canonicalizePath(fs, root));
+  const canonicalIniRoots = firefoxProfileIniRoots.flatMap((root) => {
+    const canonical = canonicalizeExistingPath(fs, root);
+    return canonical === undefined ? [] : [canonical];
+  });
   const canonicalProfileDirectory =
     profileDirectory === undefined ? undefined : canonicalizePath(fs, profileDirectory);
+
+  if (canonicalProfileDirectory === undefined && canonicalIniRoots.length === 0) {
+    throw new FirefoxFsGuardError(
+      "No accessible Firefox profile roots were found for filesystem scoping.",
+    );
+  }
 
   let canonicalTemporaryDirectory: string | undefined;
 

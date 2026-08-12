@@ -183,7 +183,7 @@ No third-party UI components are currently bundled in the settings tab.
 ## Releasing
 
 1. Bump version with **`npm version patch|minor|major`** (or `npm version x.y.z`). This updates `package.json` / `manifest.json` / `versions.json`, commits, and creates an **annotated** git tag (required). Do not use `git tag x.y.z` without `-a` — `git push --follow-tags` only pushes annotated tags.
-2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; CI secrets may override)
+2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; local env vars may override for development)
 3. Verify: `npm run release:check` (fails if the version tag exists but is lightweight)
 4. Confirm the tag is annotated: `git cat-file -t x.y.z` must print `tag` (not `commit`). If you ever need a manual tag: `git tag -a x.y.z -m "x.y.z"`.
 5. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`). If `--follow-tags` skips the tag, push it explicitly: `git push origin x.y.z`.

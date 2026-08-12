@@ -203,29 +203,31 @@ src_conn.close()
       }
       const startedAt = Date.now();
       attempt.run();
-      if (fs.existsSync(guard.assertReadablePath(mergedPath, FIREFOX_TEMP_READ_BASENAMES))) {
-        const mergedBuffer = new Uint8Array(
-          readFileToBuffer(fs, guard, mergedPath, FIREFOX_TEMP_READ_BASENAMES),
-        );
-        firefoxDebugLog(
-          "tryMergeWalDatabaseCopy: merge succeeded",
+      if (!fs.existsSync(mergedPath)) {
+        firefoxDebugWarn(
+          "tryMergeWalDatabaseCopy: merged file missing after attempt",
           {
             via: attempt.label,
-            elapsedMs: Date.now() - startedAt,
-            merged: describeFileSnapshot(fs, guard, mergedPath, FIREFOX_TEMP_READ_BASENAMES),
-            mergedBufferByteLength: mergedBuffer.byteLength,
           },
           debugContext,
         );
-        return mergedBuffer;
+        continue;
       }
-      firefoxDebugWarn(
-        "tryMergeWalDatabaseCopy: merged file missing after attempt",
+      const safeMergedPath = guard.assertReadablePath(mergedPath, FIREFOX_TEMP_READ_BASENAMES);
+      const mergedBuffer = new Uint8Array(
+        readFileToBuffer(fs, guard, safeMergedPath, FIREFOX_TEMP_READ_BASENAMES),
+      );
+      firefoxDebugLog(
+        "tryMergeWalDatabaseCopy: merge succeeded",
         {
           via: attempt.label,
+          elapsedMs: Date.now() - startedAt,
+          merged: describeFileSnapshot(fs, guard, safeMergedPath, FIREFOX_TEMP_READ_BASENAMES),
+          mergedBufferByteLength: mergedBuffer.byteLength,
         },
         debugContext,
       );
+      return mergedBuffer;
     } catch (error) {
       firefoxDebugWarn(
         "tryMergeWalDatabaseCopy: merge attempt failed",

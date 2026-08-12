@@ -25,6 +25,21 @@ describe("isCanonicalPathUnderRoot", () => {
   it("rejects sibling paths that share a prefix", () => {
     expect(isCanonicalPathUnderRoot("/tmp/syncer-evil/places.sqlite", "/tmp/syncer")).toBe(false);
   });
+
+  it("compares case-insensitively on win32", () => {
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, "platform", { value: "win32" });
+    try {
+      expect(
+        isCanonicalPathUnderRoot(
+          String.raw`C:\Program Files\Python312\python.exe`,
+          String.raw`c:\program files`,
+        ),
+      ).toBe(true);
+    } finally {
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+    }
+  });
 });
 
 describe("createFirefoxPathGuard", () => {
@@ -101,6 +116,33 @@ describe("createFirefoxPathGuard", () => {
         FIREFOX_TEMP_READ_BASENAMES,
       ),
     ).toThrow(FirefoxFsGuardError);
+  });
+
+  it("skips missing Firefox profile roots instead of failing guard construction", () => {
+    const selectiveFs = {
+      ...fs,
+      existsSync: (filePath: string) =>
+        filePath === profileRoot || filePath.startsWith(profileRoot),
+      realpathSync: (filePath: string) => {
+        if (filePath.includes("snap") || filePath.includes("flatpak")) {
+          throw new Error("missing");
+        }
+        return filePath;
+      },
+    } satisfies NodeFs;
+
+    const guard = createFirefoxPathGuard({
+      fs: selectiveFs,
+      path,
+      firefoxProfileIniRoots: [
+        profileRoot,
+        "/home/user/snap/firefox/common/.mozilla/firefox",
+        "/home/user/.var/app/org.mozilla.firefox/.mozilla/firefox",
+      ],
+    });
+    expect(
+      guard.assertReadablePath(`${profileRoot}/profiles.ini`, FIREFOX_PROFILE_READ_BASENAMES),
+    ).toBe(`${profileRoot}/profiles.ini`);
   });
 });
 

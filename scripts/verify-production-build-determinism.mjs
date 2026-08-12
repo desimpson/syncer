@@ -10,15 +10,16 @@ const mainJsPath = path.join(rootDirectory, "..", "main.js");
 
 const hashFile = (filePath) => createHash("sha256").update(readFileSync(filePath)).digest("hex");
 
+/**
+ * Dual-build determinism check. Uses ambient env as-is so local secret overrides remain valid.
+ * Release CI does not inject prod client ID secrets — committed oauth-clients.prod.json is the
+ * source of truth for published artifacts (matches Observer rebuilds from a clean checkout).
+ */
 const runProductionBuild = () => {
   const result = spawnSync("npm", ["run", "build:prod"], {
     cwd: path.join(rootDirectory, ".."),
     stdio: "inherit",
-    env: {
-      ...process.env,
-      GOOGLE_CLIENT_ID_PROD: "",
-      MICROSOFT_CLIENT_ID_PROD: "",
-    },
+    env: process.env,
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);

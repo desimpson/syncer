@@ -9,6 +9,7 @@
  */
 
 import { readFileSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import process from "node:process";
@@ -147,21 +148,57 @@ const validateManifestFields = (manifest) => {
 };
 
 /**
+ * Release tags must be annotated: `git push --follow-tags` skips lightweight tags.
+ *
+ * @param {object | undefined} manifest
+ */
+const validateAnnotatedTag = (manifest) => {
+  console.log("\nChecking release tag annotation:");
+
+  const version = manifest?.version;
+  if (typeof version !== "string" || version.length === 0) {
+    console.log("  [ERROR] manifest.json version is missing");
+    return { success: false, tagPresent: false, annotated: false };
+  }
+
+  let objectType;
+  try {
+    objectType = execFileSync("git", ["cat-file", "-t", version], {
+      cwd: rootDirectory,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    console.log(`  [SKIP] No local tag "${version}" yet (create with npm version or git tag -a)`);
+    return { success: true, tagPresent: false, annotated: false };
+  }
+
+  const annotated = objectType === "tag";
+  console.log(`  Tag ${version} object type: ${objectType}`);
+  console.log(`  [${annotated ? "OK" : "ERROR"}] Tag is annotated`);
+
+  if (!annotated) {
+    console.log("\nError: Release tag must be annotated (not lightweight).");
+    console.log(`   Fix: git tag -d ${version} && git tag -a ${version} -m "${version}"`);
+  }
+
+  return { success: annotated, tagPresent: true, annotated };
+};
+
+/**
  * @param {object | undefined} manifest
  */
 const printSuccessMessage = (manifest) => {
   console.log("All release checks passed.");
   console.log("\nNext steps:");
-  console.log("  1. Create a GitHub release:");
-  console.log("     - Go to: https://github.com/desimpson/syncer/releases/new");
-  console.log(`     - Tag: ${manifest?.version || "X.X.X"}`);
-  console.log(`     - Title: ${manifest?.version || "X.X.X"}`);
-  console.log("     - Attach files: main.js, manifest.json, styles.css");
-  console.log("\n  2. Submit to Obsidian Community Plugins:");
+  console.log("  1. Ensure the version tag is annotated, then push:");
+  console.log("     git push --follow-tags");
+  console.log(`     (tag ${manifest?.version || "X.X.X"} must be annotated; see README Releasing)`);
+  console.log("\n  2. Confirm the GitHub Actions release attached:");
+  console.log("     main.js, manifest.json, styles.css");
+  console.log("\n  3. Submit to Obsidian Community Plugins:");
   console.log("     - Go to: https://community.obsidian.md");
-  console.log("     - Link your GitHub account");
-  console.log("     - Add your plugin from the community dashboard");
-  console.log("\n  3. See README.md for release instructions");
+  console.log("\n  4. See README.md for full release instructions");
 };
 
 /**
@@ -169,8 +206,9 @@ const printSuccessMessage = (manifest) => {
  * @param {object} versionCheck
  * @param {object} versionsJsonCheck
  * @param {object} manifestCheck
+ * @param {object} tagCheck
  */
-const printErrorMessage = (fileCheck, versionCheck, versionsJsonCheck, manifestCheck) => {
+const printErrorMessage = (fileCheck, versionCheck, versionsJsonCheck, manifestCheck, tagCheck) => {
   console.log("Release readiness checks failed.");
   if (!fileCheck.allFilesExist) {
     console.log("\nHint: Build the plugin first:");
@@ -180,14 +218,20 @@ const printErrorMessage = (fileCheck, versionCheck, versionsJsonCheck, manifestC
   }
   if (versionCheck.packageJson && versionCheck.manifest && !versionCheck.versionsMatch) {
     console.log("\nHint: Sync versions:");
-    console.log("   npm run version");
+    console.log("   npm version patch|minor|major");
   }
   if (versionsJsonCheck.manifest && !versionsJsonCheck.versionsEntryMatch) {
     console.log("\nHint: Sync versions.json:");
-    console.log("   npm run version");
+    console.log("   npm version patch|minor|major");
   }
   if (manifestCheck.manifest && !manifestCheck.allFieldsPresent) {
     console.log("\nHint: Update manifest.json with all required fields.");
+  }
+  if (tagCheck.tagPresent && !tagCheck.annotated) {
+    const version = versionCheck.manifest?.version ?? "x.y.z";
+    console.log("\nHint: Recreate the version tag as annotated:");
+    console.log(`   git tag -d ${version}`);
+    console.log(`   git tag -a ${version} -m "${version}"`);
   }
 };
 
@@ -201,8 +245,9 @@ const fileCheck = validateFiles();
 const versionCheck = validateVersions(packageJson, manifest);
 const versionsJsonCheck = validateVersionsJson(manifest, versionsJson);
 const manifestCheck = validateManifestFields(manifest);
+const tagCheck = validateAnnotatedTag(manifest);
 
-const allChecksPassed = [fileCheck, versionCheck, versionsJsonCheck, manifestCheck].every(
+const allChecksPassed = [fileCheck, versionCheck, versionsJsonCheck, manifestCheck, tagCheck].every(
   (check) => check.success,
 );
 
@@ -212,7 +257,7 @@ if (allChecksPassed) {
   printSuccessMessage(manifest);
   console.log("=".repeat(50));
 } else {
-  printErrorMessage(fileCheck, versionCheck, versionsJsonCheck, manifestCheck);
+  printErrorMessage(fileCheck, versionCheck, versionsJsonCheck, manifestCheck, tagCheck);
   console.log("=".repeat(50));
   process.exit(1);
 }

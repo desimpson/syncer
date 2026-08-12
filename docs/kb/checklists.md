@@ -33,7 +33,10 @@ For each new source integration:
 Run before tagging/release:
 
 - Build passes and produced plugin files load in Obsidian desktop
+- Prefer `npm version patch|minor|major` so the version commit and **annotated** tag are created together
 - Git tag and `manifest.json` version match exactly (`x.y.z`, no `v` prefix)
+- Tag is annotated (`git cat-file -t x.y.z` → `tag`); lightweight tags are not pushed by `git push --follow-tags`
+- `npm run release:check` passes (also rejects a lightweight tag when the version tag exists)
 - GitHub release includes `main.js`, `manifest.json`, and `styles.css`
 - Manual sync works for each enabled integration in a real vault note
 - Completion/deletion toggles behave as documented for enabled integrations

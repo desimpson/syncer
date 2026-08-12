@@ -173,9 +173,10 @@ This plugin includes code adapted from the following projects:
 
 ## Releasing
 
-1. Update version: `npm run version` (or `npm version patch|minor|major`)
+1. Bump version with **`npm version patch|minor|major`** (or `npm version x.y.z`). This updates `package.json` / `manifest.json` / `versions.json`, commits, and creates an **annotated** git tag (required). Do not use `git tag x.y.z` without `-a` — `git push --follow-tags` only pushes annotated tags.
 2. Build production: `GOOGLE_CLIENT_ID_PROD=your-id MICROSOFT_CLIENT_ID_PROD=your-id npm run build:prod` (Google and Microsoft client IDs required)
-3. Verify: `npm run release:check`
-4. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`)
-5. Verify the GitHub release contains `main.js`, `manifest.json`, `styles.css`, and the generated attestation bundle
-6. Submit the new plugin version through [Obsidian Community directory](https://community.obsidian.md), following [Submit your plugin](https://docs.obsidian.md/plugins/releasing/submit-plugin), then monitor automated review results
+3. Verify: `npm run release:check` (fails if the version tag exists but is lightweight)
+4. Confirm the tag is annotated: `git cat-file -t x.y.z` must print `tag` (not `commit`). If you ever need a manual tag: `git tag -a x.y.z -m "x.y.z"`.
+5. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`). If `--follow-tags` skips the tag, push it explicitly: `git push origin x.y.z`.
+6. Verify the GitHub release contains `main.js`, `manifest.json`, `styles.css`, and the generated attestation bundle
+7. Submit the new plugin version through [Obsidian Community directory](https://community.obsidian.md), following [Submit your plugin](https://docs.obsidian.md/plugins/releasing/submit-plugin), then monitor automated review results

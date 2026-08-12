@@ -204,7 +204,7 @@ CI (`.github/workflows/build.yml`):
 - Non-`main`: build with GitHub Environment **`dev`**
 - `main`: build with Environment **`prod`**
 
-Release (`.github/workflows/release.yml`): version tags matching `[0-9]*`, prod secrets, attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.
+Release (`.github/workflows/release.yml`): **annotated** version tags matching `[0-9]*` (lightweight tags are skipped by `git push --follow-tags`), prod secrets, attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.
 
 Local vault install helper: `npm run sync` + `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`). Contributor bootstrap: [#70](https://github.com/desimpson/syncer/issues/70).
 

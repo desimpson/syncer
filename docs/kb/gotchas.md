@@ -47,6 +47,11 @@
 - Stale selected folder GUIDs → soft warning; valid folders still sync
 - Folder picker search ranks shallow title matches first and collapses descendants under a hit (`searchFirefoxBookmarkFolders` in [`firefox-profiles.ts`](../../src/services/firefox-profiles.ts)) — selecting a parent already syncs subfolders recursively
 
+## Release / tags
+
+- Release tags must be **annotated** (`git tag -a` / `npm version`); `git push --follow-tags` ignores lightweight tags, so a version commit can land on `main` without triggering [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
+- Verify with `git cat-file -t x.y.z` → `tag` (lightweight tags report `commit`). See README Releasing and [`checklists.md`](checklists.md)
+
 ## Agent pitfalls
 
 - Do not assume every integration is exported from barrel `index.ts` files

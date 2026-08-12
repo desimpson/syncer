@@ -87,17 +87,7 @@ Some of those ideas remain useful as **future options** (see §8–9); the live 
 
 ## 3. Architecture
 
-### 3.1 Layers
-
-```
-plugin/     Obsidian lifecycle, settings UI, vault delete-detection
-jobs/       Per-source orchestration (auth → fetch → map → reconcile)
-sync/       Generic reconcile + Markdown I/O (no provider HTTP)
-services/   Provider HTTP / local SQLite (no Obsidian APIs)
-adaptors/   DTO → SyncItem
-auth/       OAuth connect + refresh
-utils/      Pure helpers
-```
+Layer map, Mermaid diagrams (module map, bootstrap, one job cycle), and pipeline notes live in [`docs/kb/architecture.md`](kb/architecture.md). Prefer that page over duplicating diagrams here.
 
 Hard constraints:
 
@@ -107,42 +97,19 @@ Hard constraints:
 
 Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js` (sql.js WASM is bundled into `main.js`).
 
-### 3.2 Sync pipeline
+### 3.1 Core types
 
-```
-onload (plugin/index.ts)
-  → create*Job for each integration
-  → wrap each job in SyncGuard (suppress delete-detection during writes)
-  → createScheduler(jobs).start(syncIntervalMinutes)
-       │
-       ├─ immediate runJobs(), then interval
-       │    jobs await sequentially (same note; parallel vault.process races)
-       └─ Manual sync command → scheduler.restart()
-```
-
-**Typical job steps**
-
-1. Load settings; no-op if disconnected / unconfigured
-2. Refresh access token if expired; on `InvalidGrantError` clear credentials + auth-expired modal (names Syncer + the integration)
-3. Resolve sync file in the vault
-4. Services fetch remote items
-5. Adaptors map to `SyncItem[]`
-6. Optional Obsidian → remote completion push (`syncCompletionStatus`)
-7. Atomic reconcile + write in one `vault.process` callback
-
-### 3.3 Core types
-
-| Type             | Location                | Role                                                           |
-| ---------------- | ----------------------- | -------------------------------------------------------------- |
-| `SyncItem`       | `src/sync/types.ts`     | `{ id, source, title, link, heading, completed }`              |
-| `SyncAction`     | `src/sync/types.ts`     | create / update / delete over a `SyncItem`                     |
-| `SyncSource`     | `src/sync/types.ts`     | `"google-tasks" \| "gmail-starred" \| "microsoft-to-do" \| "microsoft-outlook" \| "azure-devops" \| "firefox-bookmarks"` |
-| `SyncJob`        | `src/jobs/types.ts`     | `{ name, task }`                                               |
-| `SyncAdaptor<T>` | `src/adaptors/types.ts` | `(heading) => (dto) => SyncItem`                               |
+| Type             | Location                | Role                                                                                                                            |
+| ---------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `SyncItem`       | `src/sync/types.ts`     | `{ id, source, title, link, heading, completed }`                                                                               |
+| `SyncAction`     | `src/sync/types.ts`     | create / update / delete over a `SyncItem`                                                                                      |
+| `SyncSource`     | `src/sync/types.ts`     | `"google-tasks" \| "gmail-starred" \| "microsoft-to-do" \| "microsoft-outlook" \| "azure-devops" \| "firefox-bookmarks"`       |
+| `SyncJob`        | `src/jobs/types.ts`     | `{ name, task }`                                                                                                                |
+| `SyncAdaptor<T>` | `src/adaptors/types.ts` | `(heading) => (dto) => SyncItem`                                                                                                |
 
 Settings use `syncHeading`; domain `SyncItem` still uses `heading` ([#48](https://github.com/desimpson/syncer/issues/48)).
 
-### 3.4 Project layout (actual)
+### 3.2 Project layout (actual)
 
 ```text
 src/
@@ -151,7 +118,7 @@ src/
 ├── jobs/         # google-tasks, gmail-starred, microsoft-todo, microsoft-outlook, azure-devops, firefox-bookmarks
 ├── services/     # API clients + Firefox sqlite/profile helpers
 ├── adaptors/     # DTO → SyncItem
-├── auth/         # google, microsoft
+├── auth/         # google, microsoft, azure-devops
 ├── utils/
 └── types/        # ambient (e.g. sql.js)
 tests/

@@ -6,7 +6,7 @@ Short, living notes for agents and contributors. Prefer links into `src/` over c
 
 | Page                                   | When to read / update                             |
 | -------------------------------------- | ------------------------------------------------- |
-| [architecture.md](architecture.md)     | Module layers and sync pipeline wiring            |
+| [architecture.md](architecture.md)     | Module layers, Mermaid diagrams, pipeline wiring  |
 | [sync-semantics.md](sync-semantics.md) | Product rules for reconcile, completion, deletion |
 | [conventions.md](conventions.md)       | Naming, Zod, errors, spelling                     |
 | [gotchas.md](gotchas.md)               | Footguns, env gaps, known traps                   |

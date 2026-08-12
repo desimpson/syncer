@@ -2,52 +2,97 @@
 
 Obsidian plugin that pulls external items into a target Markdown note under a configurable H2 heading.
 
+Path alias: `@/*` → `src/*`. Bundle: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js`.
+
+Hard constraints: no provider HTTP in `sync/`; no Obsidian APIs in `services/` or `adaptors/`; jobs write only via `reconcileSyncSourceAtomically` ([`src/sync/writer.ts`](../../src/sync/writer.ts)).
+
 ## Layers (`src/`)
 
-| Layer       | Owns                                            | Key entry points                                                                                                           |
-| ----------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `plugin/`   | Lifecycle, settings UI, vault delete-detection  | `plugin/index.ts`, `settings-tab.ts`, `schemas.ts`, `plugin-directory.ts`                                                  |
-| `sync/`     | Generic reconcile + file I/O (no provider APIs) | `scheduler.ts`, `actions.ts`, `reader.ts`, `writer.ts`, `sync-guard.ts`                                                    |
-| `jobs/`     | Per-integration orchestration                   | `google-tasks.ts`, `gmail-starred.ts`, `microsoft-todo.ts`, `microsoft-outlook.ts`, `azure-devops.ts`, `firefox-bookmarks.ts` |
-| `services/` | Provider HTTP clients + local SQLite (Firefox)  | `google-tasks.ts`, `gmail-starred.ts`, `outlook-mail.ts`, `microsoft-todo.ts`, `microsoft-graph-errors.ts`, `azure-devops.ts`, … |
-| `adaptors/` | Source DTO → `SyncItem`                         | `google-tasks.ts`, `gmail-starred.ts`, `microsoft-todo.ts`, `microsoft-outlook.ts`, `azure-devops.ts`, `firefox-bookmarks.ts` |
-| `auth/`     | OAuth connect + token refresh                   | `google.ts`, `microsoft.ts`, `azure-devops.ts`                                                                             |
-| `utils/`    | Pure helpers / UI popper                        | `error-formatters.ts`, `heading-formatters.ts`, …                                                                          |
+| Layer       | Owns                                           |
+| ----------- | ---------------------------------------------- |
+| `plugin/`   | Lifecycle, settings UI, vault delete-detection |
+| `sync/`     | Scheduler, reader/writer, sync-guard           |
+| `jobs/`     | Per-source orchestration                       |
+| `services/` | Provider HTTP + Firefox SQLite                 |
+| `adaptors/` | DTO → `SyncItem`                               |
+| `auth/`     | OAuth connect + refresh                        |
+| `utils/`    | Pure helpers                                   |
 
-Path alias: `@/*` → `src/*`. Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js` (with sql.js WASM embedded).
+Entry points: `plugin/index.ts`, `sync/{scheduler,writer,reader,sync-guard}.ts`, `jobs/*` (incl. `microsoft-todo.ts`), `services/*`, `adaptors/*`, `auth/{google,microsoft,azure-devops}.ts`.
 
-## Sync pipeline
+## Module map
 
+```mermaid
+flowchart TB
+  plugin["plugin/ — lifecycle, settings, delete-detection"]
+  scheduler["sync/scheduler — sequential interval + manual sync"]
+  guard["sync/sync-guard — suppress delete-detection during writes"]
+  jobs["jobs/ — one SyncJob per source"]
+  auth["auth/ — OAuth connect + refresh"]
+  services["services/ — provider HTTP / Firefox SQLite"]
+  adaptors["adaptors/ — DTO → SyncItem"]
+  writer["sync/writer — atomic reconcile"]
+  vault["Obsidian vault — target Markdown note"]
+  external["External APIs / local Firefox DB"]
+
+  plugin --> scheduler
+  plugin --> guard
+  scheduler --> jobs
+  guard -.-> jobs
+  jobs --> auth
+  jobs --> services
+  services --> external
+  services --> adaptors
+  adaptors --> jobs
+  jobs --> writer
+  writer --> vault
+  plugin -.->|Google Tasks delete-sync only| vault
 ```
-onload (plugin/index.ts)
-  → createGoogleTasksJob / createGmailStarredJob / createMicrosoftOutlookJob / createMicrosoftToDoJob / createAzureDevOpsJob / createFirefoxBookmarksJob
-  → wrap each job in SyncGuard (suppress delete-detection during writes)
-  → createScheduler(jobs).start(syncIntervalMinutes)
-       │
-       ├─ interval + immediate runJobs() (jobs await one-after-another)
-       └─ Manual sync command → scheduler.restart()
+
+## Sync bootstrap
+
+```mermaid
+flowchart TD
+  onload["plugin onload"] --> createJobs["create*Job for each source"]
+  createJobs --> wrap["wrap each job in SyncGuard"]
+  wrap --> start["createScheduler(jobs).start(interval)"]
+  start --> run["runJobs — await jobs one-after-another"]
+  start --> interval["interval timer → runJobs"]
+  start --> manual["manual sync command → scheduler.restart"]
 ```
 
-Jobs must stay sequential: each job `vault.process`es the same sync note; `Promise.all` lost updates.
+Jobs run sequentially: each `vault.process`es the same note; parallel runs race and drop creates.
 
-**Per job (typical):**
+## One job cycle
 
-1. Load settings; no-op if not connected / not configured
-2. Refresh access token if expired (`auth/*`); on `InvalidGrantError` clear credentials + show auth-expired modal
-3. Resolve sync file via vault
-4. **Services** fetch remote items
-5. **Adaptors** map to `SyncItem[]`
-6. Optional pre-read for integration-specific logic (for example completion push)
-7. Optional Obsidian → remote completion push
-8. **Writer** `reconcileSyncSourceAtomically` computes actions from the `vault.process` snapshot
-9. **Writer** applies updates/deletes/creates in the same `vault.process` callback
+```mermaid
+sequenceDiagram
+  participant Scheduler
+  participant Job as jobs/*
+  participant Auth as auth/*
+  participant Service as services/*
+  participant Adaptor as adaptors/*
+  participant Writer as sync/writer
+  participant Vault as Obsidian vault
 
-Atomic reconcile in `src/sync/writer.ts` is the default job write contract for all integrations. Jobs must not plan actions from a stale `vault.read` snapshot and then write later.
+  Scheduler->>Job: task()
+  Job->>Auth: refresh token if expired
+  Job->>Service: fetch remote items
+  Service-->>Adaptor: provider DTOs
+  Adaptor-->>Job: SyncItem[]
+  opt completion push
+    Job->>Service: Obsidian → remote status
+  end
+  Job->>Writer: reconcileSyncSourceAtomically()
+  Writer->>Vault: vault.process snapshot
+  Writer->>Writer: plan create / update / delete
+  Writer->>Vault: apply in same callback
+```
 
-Side path (Google Tasks only): vault `modify` listener in `plugin/index.ts` may delete Google Tasks remotely when lines disappear (`enableDeleteSync`). `handleFileModification` filters `source === "google-tasks"` — Outlook and Firefox have no equivalent delete-sync path today.
+Side path (Google Tasks only): vault `modify` in `plugin/index.ts` may delete remote tasks when lines disappear (`enableDeleteSync`). Other sources have no vault→remote delete path today.
 
 ## Core types
 
 - `SyncItem` / `SyncAction` / `SyncSource` — [`src/sync/types.ts`](../../src/sync/types.ts)
 - `SyncJob` / `SyncJobCreator` — [`src/jobs/types.ts`](../../src/jobs/types.ts)
-- Sources today: `"google-tasks"`, `"gmail-starred"`, `"microsoft-to-do"`, `"microsoft-outlook"`, `"azure-devops"`, `"firefox-bookmarks"`
+- Sources: `"google-tasks"`, `"gmail-starred"`, `"microsoft-to-do"`, `"microsoft-outlook"`, `"azure-devops"`, `"firefox-bookmarks"`

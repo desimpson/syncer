@@ -8,12 +8,6 @@ import {
   PREPARE_SYNC_DOCUMENT_UNSTABLE_NOTICE,
   UnstableSyncDocumentError,
 } from "@/sync/prepare-sync-document";
-import {
-  allocatePrepareTickId,
-  prepareSyncDocumentDebugError,
-  prepareSyncDocumentDebugLog,
-  prepareSyncDocumentDebugWarn,
-} from "@/sync/prepare-sync-document-debug";
 import { SyncGuard } from "@/sync/sync-guard";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import { createGmailStarredJob } from "@/jobs/gmail-starred";
@@ -219,31 +213,18 @@ export default class SyncerPlugin extends Plugin {
   private async prepareSyncDocumentBeforeRun(): Promise<boolean> {
     const settings = await this.loadSettings();
     const { syncDocument, syncHeading } = settings;
-    const tickId = allocatePrepareTickId();
-    prepareSyncDocumentDebugLog("plugin: prepare beforeRun", {
-      tickId,
-      syncDocument,
-      syncHeading,
-    });
 
     try {
       await prepareSyncDocumentForRun({
         vault: this.app.vault,
         syncDocument,
         syncHeading,
-        tickId,
-        saveIfDirty: async () => saveSyncDocumentIfDirty(this.app, syncDocument, tickId),
+        saveIfDirty: async () => saveSyncDocumentIfDirty(this.app, syncDocument),
       });
-      prepareSyncDocumentDebugLog("plugin: prepare succeeded; jobs will run", { tickId });
       return true;
     } catch (error) {
       if (error instanceof UnstableSyncDocumentError) {
         new Notice(PREPARE_SYNC_DOCUMENT_UNSTABLE_NOTICE);
-        prepareSyncDocumentDebugWarn("plugin: prepare unstable — skipping jobs", {
-          tickId,
-          syncDocument,
-          message: error.message,
-        });
         console.warn(
           `Sync skipped due to unstable sync document: [${error instanceof Error ? error.message : String(error)}].`,
         );
@@ -252,12 +233,6 @@ export default class SyncerPlugin extends Plugin {
 
       const message = error instanceof Error ? error.message : String(error);
       new Notice(formatPrepareSyncDocumentFailureNotice(syncDocument, message));
-      prepareSyncDocumentDebugError("plugin: prepare failed — skipping jobs", {
-        tickId,
-        syncDocument,
-        message,
-        name: error instanceof Error ? error.name : typeof error,
-      });
       console.error(`Sync document prepare failed: [${message}].`);
       return false;
     }

@@ -40,7 +40,7 @@ describe("saveSyncDocumentIfDirty", () => {
       },
     } as unknown as App;
 
-    await saveSyncDocumentIfDirty(app, "GTD.md", "tick-test");
+    await saveSyncDocumentIfDirty(app, "GTD.md");
 
     expect(save).toHaveBeenCalledTimes(1);
     expect(diskContent).toBe(boardContent);

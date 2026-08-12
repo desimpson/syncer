@@ -1,10 +1,4 @@
 import { runtimeSetTimeout } from "@/utils/browser-runtime";
-import {
-  allocatePrepareTickId,
-  prepareSyncDocumentDebugError,
-  prepareSyncDocumentDebugLog,
-  prepareSyncDocumentDebugWarn,
-} from "@/sync/prepare-sync-document-debug";
 import type { TFile, Vault } from "obsidian";
 
 export const SYNC_DOCUMENT_STABILITY_POLL_ATTEMPTS = 6;
@@ -19,9 +13,6 @@ const kanbanSettingsStartRegex = /^\s*%%\s*kanban:settings\s*$/;
 
 type SyncDocumentSnapshot = {
   fileMtimeEpochMs: number;
-  fileSizeBytes: number;
-  contentLength: number;
-  sectionLength: number;
   contentFingerprint: string;
   headingSectionFingerprint: string;
 };
@@ -103,15 +94,6 @@ const extractHeadingSectionContent = (content: string, heading: string): string 
   return contentLines.join("\n");
 };
 
-const summariseSnapshot = (snapshot: SyncDocumentSnapshot) => ({
-  mtime: snapshot.fileMtimeEpochMs,
-  size: snapshot.fileSizeBytes,
-  contentLen: snapshot.contentLength,
-  sectionLen: snapshot.sectionLength,
-  contentFp: snapshot.contentFingerprint,
-  sectionFp: snapshot.headingSectionFingerprint,
-});
-
 const buildSyncDocumentSnapshot = async (
   vault: Vault,
   file: TFile,
@@ -131,9 +113,6 @@ const buildSyncDocumentSnapshot = async (
 
   return {
     fileMtimeEpochMs: stat?.mtime ?? -1,
-    fileSizeBytes: stat?.size ?? -1,
-    contentLength: content.length,
-    sectionLength: sectionContent.length,
     contentFingerprint: computeContentFingerprint(content),
     headingSectionFingerprint: computeContentFingerprint(sectionContent),
   };
@@ -143,30 +122,11 @@ export const waitForStableSyncDocumentSnapshot = async (
   vault: Vault,
   file: TFile,
   syncHeading: string,
-  tickId?: string,
 ): Promise<void> => {
-  const startedAt = Date.now();
-  prepareSyncDocumentDebugLog("waitForStable: start", {
-    tickId,
-    path: file.path,
-    syncHeading,
-    pollAttempts: SYNC_DOCUMENT_STABILITY_POLL_ATTEMPTS,
-    pollDelayMs: SYNC_DOCUMENT_STABILITY_POLL_DELAY_MS,
-  });
-
   const initialSnapshot = await buildSyncDocumentSnapshot(vault, file, syncHeading);
   if (initialSnapshot === undefined) {
-    prepareSyncDocumentDebugError("waitForStable: initial read failed", {
-      tickId,
-      path: file.path,
-    });
     throw new PrepareSyncDocumentError(`Unable to read sync document "${file.path}".`);
   }
-
-  prepareSyncDocumentDebugLog("waitForStable: initial snapshot", {
-    tickId,
-    ...summariseSnapshot(initialSnapshot),
-  });
 
   let previousSnapshot = initialSnapshot;
   for (let attempt = 1; attempt <= SYNC_DOCUMENT_STABILITY_POLL_ATTEMPTS; attempt += 1) {
@@ -175,106 +135,39 @@ export const waitForStableSyncDocumentSnapshot = async (
     );
     const currentSnapshot = await buildSyncDocumentSnapshot(vault, file, syncHeading);
     if (currentSnapshot === undefined) {
-      prepareSyncDocumentDebugError("waitForStable: poll read failed", {
-        tickId,
-        path: file.path,
-        attempt,
-      });
       throw new PrepareSyncDocumentError(`Unable to read sync document "${file.path}".`);
     }
 
-    const contentFpChanged =
-      currentSnapshot.contentFingerprint !== previousSnapshot.contentFingerprint;
-    const sectionFpChanged =
-      currentSnapshot.headingSectionFingerprint !== previousSnapshot.headingSectionFingerprint;
-    const fingerprintStable = !contentFpChanged && !sectionFpChanged;
-    const mtimeAvailable =
-      currentSnapshot.fileMtimeEpochMs >= 0 && previousSnapshot.fileMtimeEpochMs >= 0;
-    const mtimeChanged =
-      mtimeAvailable && currentSnapshot.fileMtimeEpochMs !== previousSnapshot.fileMtimeEpochMs;
-    const mtimeStable = !mtimeAvailable || !mtimeChanged;
-    const sizeChanged = currentSnapshot.fileSizeBytes !== previousSnapshot.fileSizeBytes;
-    const elapsedMs = Date.now() - startedAt;
-
-    prepareSyncDocumentDebugLog("waitForStable: poll", {
-      tickId,
-      attempt,
-      elapsedMs,
-      fingerprintStable,
-      mtimeStable,
-      contentFpChanged,
-      sectionFpChanged,
-      mtimeChanged,
-      sizeChanged,
-      previous: summariseSnapshot(previousSnapshot),
-      current: summariseSnapshot(currentSnapshot),
-      mtimeDeltaMs: mtimeAvailable
-        ? currentSnapshot.fileMtimeEpochMs - previousSnapshot.fileMtimeEpochMs
-        : undefined,
-      contentLenDelta: currentSnapshot.contentLength - previousSnapshot.contentLength,
-      sectionLenDelta: currentSnapshot.sectionLength - previousSnapshot.sectionLength,
-    });
+    const fingerprintStable =
+      currentSnapshot.contentFingerprint === previousSnapshot.contentFingerprint &&
+      currentSnapshot.headingSectionFingerprint === previousSnapshot.headingSectionFingerprint;
+    const mtimeStable =
+      currentSnapshot.fileMtimeEpochMs < 0 ||
+      previousSnapshot.fileMtimeEpochMs < 0 ||
+      currentSnapshot.fileMtimeEpochMs === previousSnapshot.fileMtimeEpochMs;
 
     if (fingerprintStable && mtimeStable) {
-      prepareSyncDocumentDebugLog("waitForStable: stable", {
-        tickId,
-        path: file.path,
-        attempt,
-        elapsedMs,
-        final: summariseSnapshot(currentSnapshot),
-      });
       return;
     }
-
-    prepareSyncDocumentDebugWarn("waitForStable: still changing", {
-      tickId,
-      attempt,
-      reasons: {
-        contentFpChanged,
-        sectionFpChanged,
-        mtimeChanged,
-        sizeChanged,
-      },
-    });
     previousSnapshot = currentSnapshot;
   }
 
-  prepareSyncDocumentDebugWarn("waitForStable: unstable after budget", {
-    tickId,
-    path: file.path,
-    attempts: SYNC_DOCUMENT_STABILITY_POLL_ATTEMPTS,
-    elapsedMs: Date.now() - startedAt,
-    last: summariseSnapshot(previousSnapshot),
-  });
   throw new UnstableSyncDocumentError();
 };
 
 const resolveSyncDocumentFile = async (
   vault: Vault,
   syncDocument: string,
-  tickId?: string,
 ): Promise<TFile | null> => {
   const file = vault.getFileByPath(syncDocument);
   if (file !== null) {
-    prepareSyncDocumentDebugLog("resolve: found", { tickId, syncDocument, path: file.path });
     return file;
   }
 
-  prepareSyncDocumentDebugWarn("resolve: missing on first lookup; retrying", {
-    tickId,
-    syncDocument,
-    retryDelayMs: SYNC_DOCUMENT_VAULT_INIT_RETRY_DELAY_MS,
-  });
   await new Promise((resolve) =>
     runtimeSetTimeout(resolve, SYNC_DOCUMENT_VAULT_INIT_RETRY_DELAY_MS),
   );
-  const retryFile = vault.getFileByPath(syncDocument);
-  prepareSyncDocumentDebugLog("resolve: retry result", {
-    tickId,
-    syncDocument,
-    found: retryFile !== null,
-  });
-  return retryFile;
+  return vault.getFileByPath(syncDocument);
 };
 
 export type PrepareSyncDocumentForRunOptions = {
@@ -282,7 +175,6 @@ export type PrepareSyncDocumentForRunOptions = {
   syncDocument: string;
   syncHeading: string;
   saveIfDirty?: () => Promise<void>;
-  tickId?: string;
 };
 
 /**
@@ -294,47 +186,16 @@ export const prepareSyncDocumentForRun = async ({
   syncDocument,
   syncHeading,
   saveIfDirty,
-  tickId = allocatePrepareTickId(),
 }: PrepareSyncDocumentForRunOptions): Promise<TFile> => {
-  const startedAt = Date.now();
-  prepareSyncDocumentDebugLog("prepare: start", {
-    tickId,
-    syncDocument,
-    syncHeading,
-    hasSaveIfDirty: saveIfDirty !== undefined,
-  });
-
   if (saveIfDirty !== undefined) {
-    const saveStartedAt = Date.now();
-    prepareSyncDocumentDebugLog("prepare: saveIfDirty begin", { tickId });
-    try {
-      await saveIfDirty();
-      prepareSyncDocumentDebugLog("prepare: saveIfDirty done", {
-        tickId,
-        elapsedMs: Date.now() - saveStartedAt,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      prepareSyncDocumentDebugError("prepare: saveIfDirty failed", {
-        tickId,
-        message,
-        elapsedMs: Date.now() - saveStartedAt,
-      });
-      throw error;
-    }
+    await saveIfDirty();
   }
 
-  const file = await resolveSyncDocumentFile(vault, syncDocument, tickId);
+  const file = await resolveSyncDocumentFile(vault, syncDocument);
   if (file === null) {
-    prepareSyncDocumentDebugError("prepare: file not found", { tickId, syncDocument });
     throw new PrepareSyncDocumentError(`Sync document "${syncDocument}" not found.`);
   }
 
-  await waitForStableSyncDocumentSnapshot(vault, file, syncHeading, tickId);
-  prepareSyncDocumentDebugLog("prepare: ready", {
-    tickId,
-    path: file.path,
-    elapsedMs: Date.now() - startedAt,
-  });
+  await waitForStableSyncDocumentSnapshot(vault, file, syncHeading);
   return file;
 };

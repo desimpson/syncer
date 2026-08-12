@@ -1,6 +1,13 @@
 import { type App, Notice, Plugin, type PluginManifest, type TFile } from "obsidian";
 import { SettingsTab } from "@/plugin/settings-tab";
+import { saveSyncDocumentIfDirty } from "@/plugin/save-sync-document";
 import { createScheduler, type Scheduler } from "@/sync/scheduler";
+import {
+  formatPrepareSyncDocumentFailureNotice,
+  prepareSyncDocumentForRun,
+  PREPARE_SYNC_DOCUMENT_UNSTABLE_NOTICE,
+  UnstableSyncDocumentError,
+} from "@/sync/prepare-sync-document";
 import { SyncGuard } from "@/sync/sync-guard";
 import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import { createGmailStarredJob } from "@/jobs/gmail-starred";
@@ -111,7 +118,9 @@ export default class SyncerPlugin extends Plugin {
         }),
     }));
 
-    this.scheduler = createScheduler(wrappedJobs);
+    this.scheduler = createScheduler(wrappedJobs, {
+      beforeRun: async () => this.prepareSyncDocumentBeforeRun(),
+    });
     const settings = await this.loadSettings();
     this.scheduler.start(settings.syncIntervalMinutes);
 
@@ -195,6 +204,39 @@ export default class SyncerPlugin extends Plugin {
       await this.initialiseFileContentCache();
     }
   };
+
+  /**
+   * Saves and stabilises the sync document once per scheduler tick.
+   *
+   * @returns false when prepare fails and jobs should be skipped for this tick
+   */
+  private async prepareSyncDocumentBeforeRun(): Promise<boolean> {
+    const settings = await this.loadSettings();
+    const { syncDocument, syncHeading } = settings;
+
+    try {
+      await prepareSyncDocumentForRun({
+        vault: this.app.vault,
+        syncDocument,
+        syncHeading,
+        saveIfDirty: async () => saveSyncDocumentIfDirty(this.app, syncDocument),
+      });
+      return true;
+    } catch (error) {
+      if (error instanceof UnstableSyncDocumentError) {
+        new Notice(PREPARE_SYNC_DOCUMENT_UNSTABLE_NOTICE);
+        console.warn(
+          `Sync skipped due to unstable sync document: [${error instanceof Error ? error.message : String(error)}].`,
+        );
+        return false;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(formatPrepareSyncDocumentFailureNotice(syncDocument, message));
+      console.error(`Sync document prepare failed: [${message}].`);
+      return false;
+    }
+  }
 
   /**
    * Initialises the file content cache with current content.

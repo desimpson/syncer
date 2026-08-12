@@ -25,8 +25,8 @@
 
 ## Sync / UI traps
 
-- Sync reads the **saved file on disk** — unsaved editor buffers are ignored for Manual sync
-- Azure DevOps sync now skips a run (with notice) if the sync document keeps changing on disk and does not stabilise within the poll window
+- Each scheduler tick **saves** the sync note when open with unsaved edits (any saveable file view, including Kanban — not only `markdown` leaves), then waits for a stable on-disk snapshot before jobs run (`saveSyncDocumentIfDirty` + `prepareSyncDocumentForRun`)
+- If the note keeps changing on disk, sync shows a Notice and **skips jobs** for that tick — retry Manual sync shortly rather than reconciling against a stale file
 - Target heading input is normalised to H2 (`## …`)
 - Scheduler runs jobs **sequentially** ([`scheduler.ts`](../../src/sync/scheduler.ts)) — parallel `vault.process` on the same note races and drops creates (looked like “Firefox missed a bookmark”)
 - Job reconcile planning must be atomic (`reconcileSyncSourceAtomically` in [`writer.ts`](../../src/sync/writer.ts)); pre-read action planning can miss creates when the file changes before write

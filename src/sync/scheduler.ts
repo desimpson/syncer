@@ -12,6 +12,11 @@ export type Scheduler = {
   restart: (intervalMinutes: number) => void;
 };
 
+export type SchedulerOptions = {
+  /** Runs once per tick before any job; return false to skip jobs for that tick. */
+  beforeRun?: () => Promise<boolean>;
+};
+
 /**
  * Creates a scheduler for managing sync jobs.
  *
@@ -19,9 +24,10 @@ export type Scheduler = {
  * same sync document via `vault.process`; concurrent runs race and drop creates.
  *
  * @param jobs - An array of jobs to schedule
+ * @param options - Optional hooks such as shared sync-document prepare
  * @returns A Scheduler instance with start, stop, and restart methods
  */
-export const createScheduler = (jobs: SyncJob[]): Scheduler => {
+export const createScheduler = (jobs: SyncJob[], options?: SchedulerOptions): Scheduler => {
   let intervalHandle: RuntimeIntervalHandle | undefined = undefined;
   let isRunning = false;
   let hasPendingRun = false;
@@ -34,6 +40,13 @@ export const createScheduler = (jobs: SyncJob[]): Scheduler => {
     isRunning = true;
     hasPendingRun = false;
     try {
+      if (options?.beforeRun !== undefined) {
+        const shouldRunJobs = await options.beforeRun();
+        if (!shouldRunJobs) {
+          return;
+        }
+      }
+
       for (const job of jobs) {
         try {
           await job.task();

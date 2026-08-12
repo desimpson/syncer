@@ -13,130 +13,6 @@ import { runtimeSetTimeout } from "@/utils/browser-runtime";
 import type { TFile, Vault } from "obsidian";
 
 const VAULT_INIT_RETRY_DELAY_MS = 500;
-const AZURE_DEVOPS_NOOP_RECHECK_ATTEMPTS = 2;
-const AZURE_DEVOPS_NOOP_RECHECK_DELAY_MS = 250;
-const AZURE_DEVOPS_FILE_STABILITY_POLL_ATTEMPTS = 6;
-const AZURE_DEVOPS_FILE_STABILITY_POLL_DELAY_MS = 150;
-const headingRegex = /^\s*#{1,6}\s/;
-const kanbanSettingsStartRegex = /^\s*%%\s*kanban:settings\s*$/;
-
-const computeContentFingerprint = (content: string): string => {
-  let hash = Number.parseInt("811c9dc5", 16);
-  const fnvPrime = Number.parseInt("01000193", 16);
-  for (let index = 0; index < content.length; index += 1) {
-    hash ^= content.codePointAt(index) ?? 0;
-    hash = Math.imul(hash, fnvPrime);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-};
-
-type SyncDocumentSnapshot = {
-  fileMtimeEpochMs: number;
-  contentFingerprint: string;
-  headingSectionFingerprint: string;
-};
-
-const readVaultContent = async (vault: Vault, file: TFile): Promise<string | undefined> => {
-  const vaultWithRead = vault as unknown as {
-    cachedRead?: (targetFile: TFile) => Promise<string>;
-    read?: (targetFile: TFile) => Promise<string>;
-  };
-  if (typeof vaultWithRead.read === "function") {
-    return vaultWithRead.read(file);
-  }
-  if (typeof vaultWithRead.cachedRead === "function") {
-    return vaultWithRead.cachedRead(file);
-  }
-  return undefined;
-};
-
-const extractHeadingSectionContent = (content: string, heading: string): string => {
-  const lines = content.split("\n");
-  const headingIndex = lines.findIndex((line) => line.trim() === heading);
-  if (headingIndex === -1) {
-    return "";
-  }
-
-  const followingLines = lines.slice(headingIndex + 1);
-  const nextHeadingRelativeIndex = followingLines.findIndex((line) => headingRegex.test(line));
-  const sectionLines =
-    nextHeadingRelativeIndex === -1
-      ? followingLines
-      : followingLines.slice(0, Math.max(0, nextHeadingRelativeIndex));
-  const kanbanSettingsRelativeIndex = sectionLines.findIndex((line) =>
-    kanbanSettingsStartRegex.test(line),
-  );
-  const contentLines =
-    kanbanSettingsRelativeIndex === -1
-      ? sectionLines
-      : sectionLines.slice(0, Math.max(0, kanbanSettingsRelativeIndex));
-  return contentLines.join("\n");
-};
-
-const buildSyncDocumentSnapshot = async (
-  vault: Vault,
-  file: TFile,
-  syncHeading: string,
-): Promise<SyncDocumentSnapshot | undefined> => {
-  const content = await readVaultContent(vault, file);
-  if (content === undefined) {
-    return undefined;
-  }
-
-  const sectionContent = extractHeadingSectionContent(content, syncHeading);
-
-  const vaultWithAdapter = vault as unknown as {
-    adapter?: { stat?: (path: string) => Promise<{ mtime?: number; size?: number }> };
-  };
-  const stat = await vaultWithAdapter.adapter?.stat?.(file.path);
-
-  return {
-    fileMtimeEpochMs: stat?.mtime ?? -1,
-    contentFingerprint: computeContentFingerprint(content),
-    headingSectionFingerprint: computeContentFingerprint(sectionContent),
-  };
-};
-
-class UnstableSyncDocumentError extends Error {}
-
-const waitForStableSyncDocumentSnapshot = async (
-  vault: Vault,
-  file: TFile,
-  syncHeading: string,
-): Promise<void> => {
-  const initialSnapshot = await buildSyncDocumentSnapshot(vault, file, syncHeading);
-  if (initialSnapshot === undefined) {
-    return;
-  }
-
-  let previousSnapshot = initialSnapshot;
-  for (let attempt = 1; attempt <= AZURE_DEVOPS_FILE_STABILITY_POLL_ATTEMPTS; attempt += 1) {
-    await new Promise((resolve) =>
-      runtimeSetTimeout(resolve, AZURE_DEVOPS_FILE_STABILITY_POLL_DELAY_MS),
-    );
-    const currentSnapshot = await buildSyncDocumentSnapshot(vault, file, syncHeading);
-    if (currentSnapshot === undefined) {
-      return;
-    }
-
-    const fingerprintStable =
-      currentSnapshot.contentFingerprint === previousSnapshot.contentFingerprint &&
-      currentSnapshot.headingSectionFingerprint === previousSnapshot.headingSectionFingerprint;
-    const mtimeStable =
-      currentSnapshot.fileMtimeEpochMs < 0 ||
-      previousSnapshot.fileMtimeEpochMs < 0 ||
-      currentSnapshot.fileMtimeEpochMs === previousSnapshot.fileMtimeEpochMs;
-
-    if (fingerprintStable && mtimeStable) {
-      return;
-    }
-    previousSnapshot = currentSnapshot;
-  }
-
-  throw new UnstableSyncDocumentError(
-    `Sync document remained unstable after ${AZURE_DEVOPS_FILE_STABILITY_POLL_ATTEMPTS} polling attempts.`,
-  );
-};
 
 const getSyncFileWithRetry = async (
   vault: Vault,
@@ -164,7 +40,6 @@ const isMissingFileError = (message: string): boolean =>
   /ENOENT|no such file or directory|not found/i.test(message);
 
 const syncWorkItemsToFile = async (
-  vault: Vault,
   file: TFile,
   workItems: readonly AzureDevOpsWorkItem[],
   syncHeading: string,
@@ -175,44 +50,15 @@ const syncWorkItemsToFile = async (
   const incoming = workItems.map(adaptor);
 
   try {
-    await waitForStableSyncDocumentSnapshot(vault, file, syncHeading);
-    let reconcileResult: AtomicReconcileResult = await reconcileSyncSourceAtomically(
+    return await reconcileSyncSourceAtomically(
       file,
       incoming,
       AZURE_DEVOPS_SOURCE,
       syncHeading,
       shouldPreserveCompletedDeletes,
     );
-
-    for (
-      let recheckAttempt = 1;
-      incoming.length > 0 &&
-      reconcileResult.actions.length === 0 &&
-      recheckAttempt <= AZURE_DEVOPS_NOOP_RECHECK_ATTEMPTS;
-      recheckAttempt += 1
-    ) {
-      const delayMs = AZURE_DEVOPS_NOOP_RECHECK_DELAY_MS * recheckAttempt;
-      await new Promise((resolve) => runtimeSetTimeout(resolve, delayMs));
-      reconcileResult = await reconcileSyncSourceAtomically(
-        file,
-        incoming,
-        AZURE_DEVOPS_SOURCE,
-        syncHeading,
-        shouldPreserveCompletedDeletes,
-      );
-
-      if (reconcileResult.actions.length > 0) {
-        break;
-      }
-    }
-    return reconcileResult;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (error instanceof UnstableSyncDocumentError) {
-      notify("Sync document is still changing on disk. Azure DevOps sync skipped; retry shortly.");
-      console.warn(`Azure DevOps sync skipped due to unstable sync document: [${message}].`);
-      return { actions: [], existingItems: [] };
-    }
     if (isMissingFileError(message)) {
       notify(
         `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
@@ -276,7 +122,7 @@ export const createAzureDevOpsJob: SyncJobCreator = (
     }
 
     try {
-      await syncWorkItemsToFile(vault, file, workItems, syncHeading, syncDocument, notify);
+      await syncWorkItemsToFile(file, workItems, syncHeading, syncDocument, notify);
     } catch (error) {
       if (error instanceof AzureDevOpsAuthorizationError) {
         notify(

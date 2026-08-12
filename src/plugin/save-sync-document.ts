@@ -2,7 +2,6 @@ import type { App, TFile, WorkspaceLeaf } from "obsidian";
 
 type SaveableSyncDocumentView = {
   file: TFile | null;
-  getViewType: () => string;
   getViewData: () => string;
   save: (clear?: boolean) => Promise<void>;
 };
@@ -15,12 +14,10 @@ const isSaveableSyncDocumentView = (view: unknown): view is SaveableSyncDocument
   }
   const candidate = view as {
     file?: { path?: unknown } | null;
-    getViewType?: unknown;
     getViewData?: unknown;
     save?: unknown;
   };
   return (
-    typeof candidate.getViewType === "function" &&
     typeof candidate.getViewData === "function" &&
     typeof candidate.save === "function" &&
     candidate.file !== undefined &&

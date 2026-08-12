@@ -118,7 +118,7 @@ const buildSyncDocumentSnapshot = async (
   };
 };
 
-export const waitForStableSyncDocumentSnapshot = async (
+const waitForStableSyncDocumentSnapshot = async (
   vault: Vault,
   file: TFile,
   syncHeading: string,

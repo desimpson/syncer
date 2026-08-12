@@ -34,6 +34,17 @@ This avoids stale pre-read races where actions are planned from an older `vault.
 
 **Kanban / moved lines:** file-wide identity means an incomplete remote item updates an existing line under e.g. `## Done` in place (checkbox can become `[ ]`) instead of creating a duplicate under the sync heading. With `syncCompletionStatus` **off** (default), Syncer does **not** push local `[x]` to the provider first — enable that setting if Kanban Done cards should write completion remote-ward before reconcile.
 
+## Sync document prepare (once per tick)
+
+[`prepareSyncDocumentForRun`](../../src/sync/prepare-sync-document.ts) runs once at the start of each scheduler tick (before any job):
+
+1. **Save** the sync note when it is open with unsaved edits in any saveable file view — Markdown or Kanban (`saveSyncDocumentIfDirty` in `plugin/save-sync-document.ts`)
+2. **Wait for stability** — poll until consecutive on-disk snapshots match (content fingerprint + mtime)
+3. If stable → jobs reconcile against that settled file
+4. If still unstable or prepare I/O fails → Notice and **skip all jobs** for that tick (scheduler does not throw)
+
+Guaranteed when prepare succeeds: jobs read a **saved, stable** on-disk note; remote items absent from that note get `create` again (e.g. delete line → immediate Manual sync). Not guaranteed: provider APIs return every remote item; true no-diff syncs still no-op; `manuallyDeletedTaskIds` still suppress re-add.
+
 ## Google Tasks
 
 Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).

@@ -113,8 +113,8 @@ Settings use `syncHeading`; domain `SyncItem` still uses `heading` ([#48](https:
 
 ```text
 src/
-├── plugin/       # entrypoint, settings tab, schemas, modals, suggesters
-├── sync/         # scheduler, actions, reader, writer, sync-guard
+├── plugin/       # entrypoint, settings tab, save-sync-document, schemas, modals, suggesters
+├── sync/         # scheduler, prepare-sync-document, actions, reader, writer, sync-guard
 ├── jobs/         # google-tasks, gmail-starred, microsoft-todo, microsoft-outlook, azure-devops, firefox-bookmarks
 ├── services/     # API clients + Firefox sqlite/profile helpers
 ├── adaptors/     # DTO → SyncItem
@@ -186,7 +186,7 @@ Refresh tokens are stored with credentials in plugin settings. Revoked refresh �
 | Partial vault writes    | Single-file `vault.process` per job; not multi-file `.tmp.md` staging                                         | Temp files for multi-file atomicity                                                                                              |
 | User deletes lines      | Google: optional remote delete + tombstone IDs; others: next sync recreates unless completed-preserve applies | Periodic full resync for missing per-item files                                                                                  |
 
-Sync always reads the **saved** note on disk — unsaved editor buffers are ignored.
+Each sync tick saves the sync note when it is open with unsaved edits (including Kanban), then reads the settled on-disk file.
 
 ---
 

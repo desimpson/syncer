@@ -72,7 +72,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 ### General
 
 - **Sync interval (minutes)**: How often background sync runs
-- **Sync markdown file path**: Target note for synced items (sync reads the saved file on disk—save changes before running Manual sync)
+- **Sync markdown file path**: Target note for synced items (sync saves the note if needed, then reads the on-disk file)
 - **Sync heading**: H2 heading under which new items are inserted (input is normalised to `## …`)
 - **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, and Microsoft Outlook (email flags) on the next sync. With Kanban boards that move cards to a Done column, enable this if you want local `[x]` to write back before Syncer reconciles against the incomplete remote feed (otherwise a still-open remote task can uncheck the card in place).
 

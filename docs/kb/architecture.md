@@ -11,21 +11,22 @@ Hard constraints: no provider HTTP in `sync/`; no Obsidian APIs in `services/` o
 | Layer       | Owns                                           |
 | ----------- | ---------------------------------------------- |
 | `plugin/`   | Lifecycle, settings UI, vault delete-detection |
-| `sync/`     | Scheduler, reader/writer, sync-guard           |
+| `sync/`     | Scheduler, prepare, reader/writer, sync-guard  |
 | `jobs/`     | Per-source orchestration                       |
 | `services/` | Provider HTTP + Firefox SQLite                 |
 | `adaptors/` | DTO → `SyncItem`                               |
 | `auth/`     | OAuth connect + refresh                        |
 | `utils/`    | Pure helpers                                   |
 
-Entry points: `plugin/index.ts`, `sync/{scheduler,writer,reader,sync-guard}.ts`, `jobs/*` (incl. `microsoft-todo.ts`), `services/*`, `adaptors/*`, `auth/{google,microsoft,azure-devops}.ts`.
+Entry points: `plugin/{index,save-sync-document}.ts`, `sync/{scheduler,prepare-sync-document,writer,reader,sync-guard}.ts`, `jobs/*`, `services/*`, `adaptors/*`, `auth/{google,microsoft,azure-devops}.ts`.
 
 ## Module map
 
 ```mermaid
 flowchart TB
-  plugin["plugin/ — lifecycle, settings, delete-detection"]
+  plugin["plugin/ — lifecycle, settings, delete-detection, save-sync-document"]
   scheduler["sync/scheduler — sequential interval + manual sync"]
+  prepare["sync/prepare-sync-document — save-if-dirty + waitForStable"]
   guard["sync/sync-guard — suppress delete-detection during writes"]
   jobs["jobs/ — one SyncJob per source"]
   auth["auth/ — OAuth connect + refresh"]
@@ -36,7 +37,10 @@ flowchart TB
   external["External APIs / local Firefox DB"]
 
   plugin --> scheduler
+  plugin --> prepare
   plugin --> guard
+  scheduler -->|beforeRun once per tick| prepare
+  prepare --> vault
   scheduler --> jobs
   guard -.-> jobs
   jobs --> auth
@@ -55,19 +59,22 @@ flowchart TB
 flowchart TD
   onload["plugin onload"] --> createJobs["create*Job for each source"]
   createJobs --> wrap["wrap each job in SyncGuard"]
-  wrap --> start["createScheduler(jobs).start(interval)"]
-  start --> run["runJobs — await jobs one-after-another"]
+  wrap --> start["createScheduler(jobs, beforeRun).start(interval)"]
+  start --> prepare["beforeRun: save dirty view + waitForStable"]
+  prepare -->|stable| run["runJobs — await jobs one-after-another"]
+  prepare -->|unstable / I/O error| skip["Notice and skip jobs for tick"]
   start --> interval["interval timer → runJobs"]
   start --> manual["manual sync command → scheduler.restart"]
 ```
 
-Jobs run sequentially: each `vault.process`es the same note; parallel runs race and drop creates.
+Jobs run sequentially: each `vault.process`es the same note; parallel runs race and drop creates. Prepare runs once per tick (shared `syncDocument`) before any job.
 
 ## One job cycle
 
 ```mermaid
 sequenceDiagram
   participant Scheduler
+  participant Prepare as sync/prepare
   participant Job as jobs/*
   participant Auth as auth/*
   participant Service as services/*
@@ -75,6 +82,9 @@ sequenceDiagram
   participant Writer as sync/writer
   participant Vault as Obsidian vault
 
+  Scheduler->>Prepare: beforeRun (once per tick)
+  Prepare->>Vault: save open dirty view if needed
+  Prepare->>Vault: waitForStable snapshot
   Scheduler->>Job: task()
   Job->>Auth: refresh token if expired
   Job->>Service: fetch remote items

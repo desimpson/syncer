@@ -220,4 +220,34 @@ describe("Scheduler", () => {
     vi.runAllTicks();
     expect(runs).toBe(2);
   });
+
+  it("skips jobs when beforeRun returns false", async () => {
+    const task = vi.fn(async () => undefined);
+    const beforeRun = vi.fn(async () => false);
+    const scheduler = createScheduler([{ name: "job-a", task }], { beforeRun });
+
+    scheduler.start(60);
+    vi.runAllTicks();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(beforeRun).toHaveBeenCalledTimes(1);
+    expect(task).not.toHaveBeenCalled();
+    scheduler.stop();
+  });
+
+  it("runs jobs when beforeRun returns true", async () => {
+    const task = vi.fn(async () => undefined);
+    const beforeRun = vi.fn(async () => true);
+    const scheduler = createScheduler([{ name: "job-a", task }], { beforeRun });
+
+    scheduler.start(60);
+    vi.runAllTicks();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(beforeRun).toHaveBeenCalledTimes(1);
+    expect(task).toHaveBeenCalledTimes(1);
+    scheduler.stop();
+  });
 });

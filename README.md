@@ -158,12 +158,18 @@ It is also recommended to install the [Hot-Reload plugin](https://github.com/pje
 
 ## Privacy and disclosures
 
-Syncer is a local plugin and does not run a Syncer backend service. Data access is limited to the integrations you configure:
+This section is for [Obsidian developer policy](https://docs.obsidian.md/Community+directory/Developer+policies) review and for users who want to know what the plugin contacts before installing.
 
-- **Network use**: Syncer calls Google Tasks APIs, Gmail APIs, Microsoft Graph APIs, and Azure DevOps APIs to read/update items for your connected accounts.
-- **Account requirement**: external sync features require a corresponding Google, Microsoft, and/or Azure DevOps account.
-- **Outside-vault file access**: Firefox Bookmarks sync reads Firefox profile files (for example `places.sqlite`) outside your Obsidian vault to import selected bookmarks.
-- **Telemetry/ads**: Syncer does not include client-side telemetry or ad SDKs.
+Syncer is a local plugin: it does not run a Syncer backend, proxy, or hosted API. Data access is limited to the integrations you enable:
+
+- **Account requirement**: cloud sync features need a corresponding Google account (Tasks / Gmail), Microsoft account (Outlook / To Do), and/or Azure DevOps account. Firefox Bookmarks sync is local and does not require a cloud account.
+- **Credentials / API keys**: Google and Microsoft use OAuth 2.0 (tokens stored in plugin settings). Azure DevOps uses a Personal Access Token (PAT) you paste in settings. OAuth tokens and PATs are sent only to the matching provider endpoints below — never to a Syncer service.
+- **Network use**: when an integration is connected and sync runs, Syncer calls that provider to read/update items. Typical hosts include:
+  - Google: `accounts.google.com`, `oauth2.googleapis.com`, `www.googleapis.com`, `tasks.googleapis.com`, `gmail.googleapis.com`
+  - Microsoft: `login.microsoftonline.com`, `graph.microsoft.com`
+  - Azure DevOps: `dev.azure.com`
+- **Outside-vault file access**: Firefox Bookmarks sync reads Firefox profile files (for example `places.sqlite` and related WAL files) outside your Obsidian vault to import selected bookmarks.
+- **Telemetry / ads**: Syncer does not include client-side telemetry, analytics SDKs, or ads.
 
 ## Attribution
 

@@ -10,11 +10,14 @@ import { z } from "zod";
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const productionOAuthClientsPath = path.join(rootDirectory, "oauth-clients.prod.json");
 
-const productionOAuthClientsSchema = z.object({
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  MICROSOFT_CLIENT_ID: z.string().min(1),
-  TODOIST_CLIENT_ID: z.string().min(1),
-});
+// Extra keys must fail the prod build; default z.object() would strip them.
+const productionOAuthClientsSchema = z
+  .object({
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    MICROSOFT_CLIENT_ID: z.string().min(1),
+    TODOIST_CLIENT_ID: z.string().min(1),
+  })
+  .strict();
 
 const readCommittedProductionOAuthClients = () => {
   const raw = readFileSync(productionOAuthClientsPath, "utf8");

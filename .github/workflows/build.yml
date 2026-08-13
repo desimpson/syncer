@@ -87,8 +87,10 @@ jobs:
     needs: [test]
     # Only build production artifacts on main branch
     if: github.ref == 'refs/heads/main'
+    environment:
+      name: prod
     # Prod client IDs come from committed oauth-clients.prod.json (same as release.yml).
-    # Do not set environment: prod — that recreates an unused GitHub Environment.
+    # Do not inject *_PROD secrets — Observer rebuilds must match a clean checkout.
 
     steps:
       - name: Checkout repository

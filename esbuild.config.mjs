@@ -257,7 +257,8 @@ const getMode = () => {
  */
 const run = async () => {
   const mode = getMode();
-  console.info(`Starting build script in mode: ${mode}`);
+  const modeLabel = mode === "development" ? "dev" : mode === "production" ? "prod" : mode;
+  console.info(`Starting build script in mode: ${modeLabel}`);
 
   // Get and validate the appropriate client ID for this build mode
   const clientId = getValidatedClientId(mode);

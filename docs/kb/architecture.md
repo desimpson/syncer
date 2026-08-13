@@ -1,6 +1,6 @@
 # Architecture
 
-Obsidian plugin that pulls external items into a target Markdown note under a configurable H2 heading.
+Obsidian plugin that pulls references/links to external items into a target Markdown note under a configurable H2 heading.
 
 Path alias: `@/*` → `src/*`. Bundle: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js`.
 

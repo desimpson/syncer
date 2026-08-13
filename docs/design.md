@@ -17,7 +17,7 @@ Living design document for the Syncer Obsidian plugin. The implementation in `sr
 
 ## 1. Purpose
 
-Syncer pulls actionable items from external sources into a single Obsidian Markdown note under a configurable H2 heading. The target surface is deliberately **inbox-shaped**: a capture column that works with [Obsidian Kanban](https://github.com/mgmeyers/obsidian-kanban) and [Obsidian Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks), inspired by Getting Things Done (GTD).
+Syncer pulls references/links to actionable items from external sources into a single Obsidian Markdown note under a configurable H2 heading. The target surface is deliberately **inbox-shaped**: a capture column that works with [Obsidian Kanban](https://github.com/mgmeyers/obsidian-kanban) and [Obsidian Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks), inspired by Getting Things Done (GTD).
 
 The plugin is **local-only**. OAuth runs on the user’s machine (ephemeral localhost redirect). There is no Syncer backend, webhook receiver, or hosted MCP/API proxy.
 

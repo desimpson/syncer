@@ -13,11 +13,10 @@ jobs:
       contents: write
       attestations: write
       id-token: write
-    environment:
-      name: prod
     # Prod OAuth client IDs come from committed oauth-clients.prod.json so Observer
-    # rebuilds match the published main.js. Do not inject GOOGLE/MICROSOFT/TODOIST
-    # CLIENT_ID_PROD secrets here — that would diverge from a clean-checkout build.
+    # rebuilds match the published main.js. Do not inject *_PROD secrets or set
+    # environment: prod — that would diverge from a clean-checkout build or recreate
+    # an unused GitHub Environment.
 
     steps:
       - name: Checkout repository

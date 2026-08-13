@@ -34,7 +34,7 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Incomplete tasks only; completing in To Do removes the Obsidian line (checkbox is not auto-checked)
   - When completion status sync is enabled, checking/unchecking in Obsidian updates task status in To Do on the next sync
 - Todoist integration:
-  - OAuth 2.0 (Authorization Code with PKCE) via Todoist App Management Console
+  - OAuth 2.0 (Authorization Code with PKCE) via a Todoist public client (Dynamic Client Registration)
   - Select which projects to sync
   - Incomplete tasks only; completing in Todoist removes the Obsidian line (checkbox is not auto-checked)
   - When completion status sync is enabled, checking/unchecking in Obsidian closes/reopens tasks in Todoist on the next sync
@@ -119,10 +119,9 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 #### OAuth app setup (maintainers)
 
-1. Create an app in the [Todoist App Management Console](https://developer.todoist.com/appconsole.html) as a **public client** (PKCE; no client secret)
-2. Register redirect URIs: `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`
-3. Set scope `data:read_write`
-4. Put the **production** client ID in `oauth-clients.prod.json` (and allow the key in `scripts/check-oauth-clients.mjs`). Use `TODOIST_CLIENT_ID_DEV` in `.env` for local `build:dev` only.
+1. Register a **public client** with `POST https://api.todoist.com/oauth/register` (`token_endpoint_auth_method: none`, scope `data:read_write`, grant types `authorization_code` + `refresh_token`). The [App Management Console](https://developer.todoist.com/appconsole.html) only creates confidential clients, which require a `client_secret` Syncer cannot ship.
+2. Use redirect URIs: `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`
+3. Put the **production** `tdd_…` client ID in `oauth-clients.prod.json` (and allow the key in `scripts/check-oauth-clients.mjs`). Use `TODOIST_CLIENT_ID_DEV` in `.env` for local `build:dev` only.
 
 ### Azure DevOps
 

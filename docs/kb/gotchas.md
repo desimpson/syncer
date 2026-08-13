@@ -23,7 +23,7 @@
 - Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
 - Provider HTTP in `auth/` and `services/` should use Obsidian `requestUrl` (not renderer `fetch`) so portal review and CORS stay aligned
 - **Todoist API:** use `https://api.todoist.com/api/v1` only — legacy `rest/v2` was retired 2026-02-10 ([shutdown notice](https://groups.google.com/a/doist.com/g/todoist-api/c/brwENjfT_tk)); production returns 410 Gone
-- Todoist OAuth: Auth Code + PKCE public client (`token_endpoint_auth_method: none`); maintainer registers loopback redirect URIs `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/` on the Todoist app; Connect tries those ports in order
+- Todoist OAuth: Auth Code + PKCE public client (`token_endpoint_auth_method: none`). Register via `POST https://api.todoist.com/oauth/register` — the App Console only issues confidential clients, and refresh then demands `client_secret`. Loopback redirect URIs `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`; Connect tries those ports in order. After changing client ID, Disconnect and Connect again.
 - A Connect Notice that those ports are in use is almost always another Syncer window or a leftover listener, not a bad client ID
 - Todoist per-project task fetch is **sequential** (rate-limit hygiene); a 404 on one selected project is treated as empty for that project — Refresh prunes stale project IDs but mid-cycle 404 UI lag is expected
 - Todoist task links are constructed as `https://app.todoist.com/app/task/{id}` (api/v1 no longer returns `url`)

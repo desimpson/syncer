@@ -57,7 +57,7 @@
 ## Release / tags
 
 - Release tags must be **annotated** (`git tag -a` / `npm version`); `git push --follow-tags` ignores lightweight tags, so a version commit can land on `main` without triggering [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
-- Verify with `git cat-file -t x.y.z` → `tag` (lightweight tags report `commit`). See README Releasing and [`checklists.md`](checklists.md)
+- Verify with `git cat-file -t refs/tags/x.y.z` → `tag`. A detached checkout of the tag target makes `git cat-file -t x.y.z` report `commit` even when the tag is annotated (Actions release job). See README Releasing and [`checklists.md`](checklists.md)
 
 ## Agent pitfalls
 

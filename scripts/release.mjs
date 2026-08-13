@@ -161,20 +161,31 @@ const validateAnnotatedTag = (manifest) => {
     return { success: false, tagPresent: false, annotated: false };
   }
 
+  // Prefer refs/tags/<version>: a detached checkout of the tag target makes
+  // `git cat-file -t 0.4.0` resolve to the peeled commit (Actions does this).
+  const tagReference = `refs/tags/${version}`;
   let objectType;
   try {
-    objectType = execFileSync("git", ["cat-file", "-t", version], {
+    objectType = execFileSync("git", ["cat-file", "-t", tagReference], {
       cwd: rootDirectory,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
   } catch {
-    console.log(`  [SKIP] No local tag "${version}" yet (create with npm version or git tag -a)`);
-    return { success: true, tagPresent: false, annotated: false };
+    try {
+      objectType = execFileSync("git", ["cat-file", "-t", version], {
+        cwd: rootDirectory,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+    } catch {
+      console.log(`  [SKIP] No local tag "${version}" yet (create with npm version or git tag -a)`);
+      return { success: true, tagPresent: false, annotated: false };
+    }
   }
 
   const annotated = objectType === "tag";
-  console.log(`  Tag ${version} object type: ${objectType}`);
+  console.log(`  Tag ${tagReference} object type: ${objectType}`);
   console.log(`  [${annotated ? "OK" : "ERROR"}] Tag is annotated`);
 
   if (!annotated) {

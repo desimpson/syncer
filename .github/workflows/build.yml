@@ -34,6 +34,9 @@ jobs:
       - name: Check formatting (Prettier)
         run: npm run format:check
 
+      - name: Verify committed OAuth client IDs
+        run: npm run check:oauth-clients
+
       - name: Run unit tests (Vitest)
         run: npm run test:unit
 

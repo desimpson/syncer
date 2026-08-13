@@ -25,9 +25,10 @@
 - Provider HTTP in `auth/` and `services/` should use Obsidian `requestUrl` (not renderer `fetch`) so portal review and CORS stay aligned
 - **Todoist API:** use `https://api.todoist.com/api/v1` only — legacy `rest/v2` was retired 2026-02-10 ([shutdown notice](https://groups.google.com/a/doist.com/g/todoist-api/c/brwENjfT_tk)); production returns 410 Gone
 - Todoist OAuth: Auth Code + PKCE public client (`token_endpoint_auth_method: none`); maintainer registers loopback redirect URIs `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/` on the Todoist app; Connect tries those ports in order
+- A Connect Notice that those ports are in use is almost always another Syncer window or a leftover listener, not a bad client ID
 - Todoist per-project task fetch is **sequential** (rate-limit hygiene); a 404 on one selected project is treated as empty for that project — Refresh prunes stale project IDs but mid-cycle 404 UI lag is expected
 - Todoist task links are constructed as `https://app.todoist.com/app/task/{id}` (api/v1 no longer returns `url`)
-- Todoist completed-task lookup for reopen is capped at ~90 days (`GET /api/v1/tasks/completed/by_completion_date`); unchecking a preserved `[x]` older than that may not write back
+- Todoist completion write-back uses task id only (`close` / `reopen`); it does not depend on the 90-day completed-tasks listing cap
 
 ## Sync / UI traps
 

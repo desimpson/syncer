@@ -77,8 +77,7 @@ Owning job: [`src/jobs/todoist.ts`](../../src/jobs/todoist.ts).
 - Incoming feed = **active (incomplete)** tasks from selected projects only (`fetchTodoistTasks` in `src/services/todoist.ts` against **api/v1**)
 - Completing a task in Todoist drops it from the feed → unchecked Obsidian line removed on next sync; **Syncer does not auto-check `[x]`** for remote completions
 - `[x]` lines preserved via `shouldPreserveCompletedDeletes`
-- `syncCompletionStatus`: push Obsidian checkbox changes via `POST …/tasks/{id}/close` and `…/reopen`
-- Completed-task lookup for reopen uses `GET /api/v1/tasks/completed/by_completion_date` (api/v1 cap: about 90 days). Unchecking a preserved `[x]` older than that window may not reopen in Todoist
+- `syncCompletionStatus`: push Obsidian checkbox changes via `POST …/tasks/{id}/close` and `…/reopen` (task id only; a 404 on reopen is a per-task skip)
 - Deselecting a project or disconnecting: unmatched unchecked lines removed; completed preserved; disconnect clears `todoist` settings only and shows a Notice that existing lines remain
 - No vault→remote delete in v1; OAuth (PKCE public client) with tokens in `data.json`
 

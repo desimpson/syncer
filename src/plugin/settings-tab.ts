@@ -874,7 +874,7 @@ export class SettingsTab extends PluginSettingTab {
       todoistRow.setName("No Todoist account connected");
       todoistRow.setDesc(
         this.config.todoistClientId.length === 0
-          ? "The plugin build does not include a Todoist OAuth client ID. Set TODOIST_CLIENT_ID_DEV or TODOIST_CLIENT_ID_PROD when building to enable Connect."
+          ? "This build cannot connect to Todoist yet."
           : "Connect opens your browser to sign in with Todoist; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
       );
       todoistRow.addButton((button) => {

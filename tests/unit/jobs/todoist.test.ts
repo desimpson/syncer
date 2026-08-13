@@ -359,4 +359,40 @@ describe("createTodoistJob", () => {
     expect(updateTodoistTaskStatus).toHaveBeenCalledWith("todoist-token", "task-1", true);
     expect(reconcileSyncSourceAtomically).toHaveBeenCalled();
   });
+
+  it("reopens a locally unchecked task missing from the active feed", async () => {
+    const settings = {
+      todoist: makeTodoistSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      syncCompletionStatus: true,
+    };
+    const file = makeFile();
+    vi.mocked(fetchTodoistTasks).mockResolvedValue([]);
+    vi.mocked(readMarkdownSyncItems).mockResolvedValue([
+      {
+        id: "task-old",
+        source: "todoist",
+        title: "Old task",
+        link: "https://app.todoist.com/app/task/task-old",
+        heading: "## Inbox",
+        completed: false,
+      },
+    ]);
+    vi.mocked(updateTodoistTaskStatus).mockResolvedValue(undefined);
+    vi.mocked(reconcileSyncSourceAtomically).mockResolvedValue(emptyReconcileResult());
+
+    const job = createTodoistJob(
+      vi.fn().mockResolvedValue(settings),
+      vi.fn(),
+      baseConfig,
+      makeVault(file),
+      vi.fn(),
+      mockApp,
+    );
+
+    await job.task();
+
+    expect(updateTodoistTaskStatus).toHaveBeenCalledWith("todoist-token", "task-old", false);
+  });
 });

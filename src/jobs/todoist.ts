@@ -18,7 +18,6 @@ const VAULT_INIT_RETRY_DELAY_MS = 500;
 
 type CompletionChange = {
   taskId: string;
-  projectId: string;
   completed: boolean;
 };
 
@@ -79,15 +78,6 @@ const getSyncFileWithRetry = async (
   return retryFile;
 };
 
-const buildTaskIdToProjectIdMap = (
-  fetchedTasksByProject: readonly { projectId: string; tasks: readonly TodoistTask[] }[],
-): Map<string, string> => {
-  const entries = fetchedTasksByProject.flatMap(({ projectId, tasks }) =>
-    tasks.map((task) => [task.id, projectId] as const),
-  );
-  return new Map(entries);
-};
-
 type FetchedTasksByProject = { projectId: string; tasks: readonly TodoistTask[] };
 
 /**
@@ -122,54 +112,30 @@ const settleTasksByProject = async (
 const fetchAllSelectedTasks = async (
   accessToken: string,
   selectedProjectIds: readonly string[],
-  syncCompletionStatus: boolean,
-): Promise<{
-  tasksByProject: readonly FetchedTasksByProject[];
-  taskIdToProjectIdMap: Map<string, string>;
-}> => {
-  const fetchedTasksByProject = await settleTasksByProject(selectedProjectIds, (id) =>
-    fetchTodoistTasks(accessToken, id, false),
-  );
-
-  const fetchedCompletedTasksByProject = syncCompletionStatus
-    ? await settleTasksByProject(selectedProjectIds, (id) =>
-        fetchTodoistTasks(accessToken, id, true),
-      )
-    : [];
-
-  const allFetchedTasksByProject = [...fetchedTasksByProject, ...fetchedCompletedTasksByProject];
-  const taskIdToProjectIdMap = buildTaskIdToProjectIdMap(allFetchedTasksByProject);
-
-  return { tasksByProject: fetchedTasksByProject, taskIdToProjectIdMap };
-};
+): Promise<readonly FetchedTasksByProject[]> =>
+  settleTasksByProject(selectedProjectIds, (id) => fetchTodoistTasks(accessToken, id, false));
 
 const detectChangeForTaskInBoth = (
   existingItem: SyncItem,
   incomingItem: SyncItem,
-  projectId: string | undefined,
 ): CompletionChange | undefined => {
-  if (existingItem.completed === incomingItem.completed || projectId === undefined) {
+  if (existingItem.completed === incomingItem.completed) {
     return undefined;
   }
 
   return {
     taskId: existingItem.id,
-    projectId,
     completed: existingItem.completed,
   };
 };
 
-const detectChangeForUncompletedTask = (
-  existingItem: SyncItem,
-  projectId: string | undefined,
-): CompletionChange | undefined => {
-  if (existingItem.completed || projectId === undefined) {
+const detectChangeForUncompletedTask = (existingItem: SyncItem): CompletionChange | undefined => {
+  if (existingItem.completed) {
     return undefined;
   }
 
   return {
     taskId: existingItem.id,
-    projectId,
     completed: false,
   };
 };
@@ -177,20 +143,18 @@ const detectChangeForUncompletedTask = (
 const detectCompletionChanges = (
   existing: readonly SyncItem[],
   incoming: readonly SyncItem[],
-  taskIdToProjectIdMap: Map<string, string>,
 ): readonly CompletionChange[] => {
   const incomingMap = new Map(incoming.map((item) => [item.id, item]));
 
   return existing
     .map((existingItem) => {
       const incomingItem = incomingMap.get(existingItem.id);
-      const projectId = taskIdToProjectIdMap.get(existingItem.id);
 
       if (incomingItem !== undefined) {
-        return detectChangeForTaskInBoth(existingItem, incomingItem, projectId);
+        return detectChangeForTaskInBoth(existingItem, incomingItem);
       }
 
-      return detectChangeForUncompletedTask(existingItem, projectId);
+      return detectChangeForUncompletedTask(existingItem);
     })
     .filter((change): change is CompletionChange => change !== undefined);
 };
@@ -239,7 +203,7 @@ const handleFailedUpdates = (
       console.error(`Missing Todoist completion change at index ${index}`);
     } else if (item.result.status === "rejected") {
       console.error(
-        `Failed to update completion status for Todoist task ${item.change.taskId} in project ${item.change.projectId}:`,
+        `Failed to update completion status for Todoist task ${item.change.taskId}:`,
         item.result.reason,
       );
       notify(`Failed to sync completion status for task: ${item.change.taskId}`);
@@ -308,7 +272,6 @@ const updateIncomingItemsWithCompletionChanges = (
 const syncTasksToFile = async (
   file: TFile,
   tasksByProject: readonly { projectId: string; tasks: readonly TodoistTask[] }[],
-  taskIdToProjectIdMap: Map<string, string>,
   accessToken: string,
   syncHeading: string,
   syncDocument: string,
@@ -323,7 +286,7 @@ const syncTasksToFile = async (
 
     let updatedIncoming: readonly SyncItem[] = incoming;
     if (syncCompletionStatus) {
-      const completionChanges = detectCompletionChanges(existing, incoming, taskIdToProjectIdMap);
+      const completionChanges = detectCompletionChanges(existing, incoming);
       const successfulChanges = await applyCompletionChangesToTodoist(
         completionChanges,
         accessToken,
@@ -481,16 +444,9 @@ export const createTodoistJob: SyncJobCreator = (
     }
 
     let tasksByProject: readonly { projectId: string; tasks: readonly TodoistTask[] }[];
-    let taskIdToProjectIdMap: Map<string, string>;
 
     try {
-      const fetchResult = await fetchAllSelectedTasks(
-        currentAccessToken,
-        todoist.selectedProjectIds,
-        syncCompletionStatus,
-      );
-      tasksByProject = fetchResult.tasksByProject;
-      taskIdToProjectIdMap = fetchResult.taskIdToProjectIdMap;
+      tasksByProject = await fetchAllSelectedTasks(currentAccessToken, todoist.selectedProjectIds);
     } catch (error) {
       if (error instanceof TodoistAuthorizationError) {
         await handleTodoistAuthorizationFailure(error, notify, loadSettings, saveSettings, app);
@@ -510,7 +466,6 @@ export const createTodoistJob: SyncJobCreator = (
       await syncTasksToFile(
         file,
         tasksByProject,
-        taskIdToProjectIdMap,
         currentAccessToken,
         syncHeading,
         syncDocument,

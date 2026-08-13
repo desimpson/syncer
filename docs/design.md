@@ -204,9 +204,9 @@ CI (`.github/workflows/build.yml`):
 
 - All branches: typecheck, lint, format, `check:oauth-clients`, unit + integration tests
 - Non-`main`: build with GitHub Environment **`dev`** (`*_DEV` secrets)
-- `main`: production build from committed `oauth-clients.prod.json` (no `prod` environment)
+- `main`: production build from committed `oauth-clients.prod.json` (GitHub Environment **`prod`**, no client-ID secrets)
 
-Release (`.github/workflows/release.yml`): **annotated** version tags matching `[0-9]*` (lightweight tags are skipped by `git push --follow-tags`), committed `oauth-clients.prod.json` (no `*_PROD` secret injects), attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.
+Release (`.github/workflows/release.yml`): **annotated** version tags matching `[0-9]*` (lightweight tags are skipped by `git push --follow-tags`), GitHub Environment **`prod`**, committed `oauth-clients.prod.json` (no `*_PROD` secret injects), attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.
 
 Local vault install helper: `npm run sync` + `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`). Contributor bootstrap: [#70](https://github.com/desimpson/syncer/issues/70).
 

@@ -38,7 +38,7 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Select which projects to sync
   - Incomplete tasks only; completing in Todoist removes the Obsidian line (checkbox is not auto-checked)
   - When completion status sync is enabled, checking/unchecking in Obsidian closes/reopens tasks in Todoist on the next sync
-  - Requires maintainer Todoist app + `TODOIST_CLIENT_ID_*` at build time; Connect stays disabled until configured
+  - Requires a maintainer Todoist app; production builds use the committed client ID in `oauth-clients.prod.json`
 - Azure DevOps integration:
   - Personal Access Token (PAT) authentication
   - One organisation + one project per settings profile
@@ -112,7 +112,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 ### Todoist
 
-- Connect using **Connect** (requires the plugin to be built with `TODOIST_CLIENT_ID_DEV` or `TODOIST_CLIENT_ID_PROD`)
+- Connect using **Connect** (production builds include the committed Todoist client ID; local `build:dev` needs `TODOIST_CLIENT_ID_DEV`)
 - Select one or more projects to sync
 - Incomplete tasks from selected projects sync under the sync heading
 - Disconnect clears Todoist credentials; existing Todoist lines remain in your sync note until you remove them or deselect their projects
@@ -122,9 +122,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 1. Create an app in the [Todoist App Management Console](https://developer.todoist.com/appconsole.html) as a **public client** (PKCE; no client secret)
 2. Register redirect URIs: `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`
 3. Set scope `data:read_write`
-4. Add the client ID to `TODOIST_CLIENT_ID_DEV` / `TODOIST_CLIENT_ID_PROD` for builds
-
-Until a production client ID is wired into release secrets, merged code may ship with Connect disabled — that is expected, not a bug.
+4. Put the **production** client ID in `oauth-clients.prod.json` (and allow the key in `scripts/check-oauth-clients.mjs`). Use `TODOIST_CLIENT_ID_DEV` in `.env` for local `build:dev` only.
 
 ### Azure DevOps
 
@@ -206,7 +204,7 @@ No third-party UI components are currently bundled in the settings tab.
 ## Releasing
 
 1. Bump version with **`npm version patch|minor|major`** (or `npm version x.y.z`). This updates `package.json` / `manifest.json` / `versions.json`, commits, and creates an **annotated** git tag (required). Do not use `git tag x.y.z` without `-a` — `git push --follow-tags` only pushes annotated tags.
-2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; local env vars may override for development). Todoist Connect stays disabled in production until a Todoist client ID is added to that file.
+2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; local env vars may override for development)
 3. Verify: `npm run release:check` (fails if the version tag exists but is lightweight)
 4. Confirm the tag is annotated: `git cat-file -t x.y.z` must print `tag` (not `commit`). If you ever need a manual tag: `git tag -a x.y.z -m "x.y.z"`.
 5. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`). If `--follow-tags` skips the tag, push it explicitly: `git push origin x.y.z`.

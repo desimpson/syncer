@@ -194,11 +194,11 @@ Each sync tick saves the sync note when it is open with unsaved edits (including
 
 ## 7. Build, environments, and release
 
-| Mode    | npm script            | Client IDs                                                          |
-| ------- | --------------------- | ------------------------------------------------------------------- |
-| `dev`   | `build:dev`           | `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` optional |
-| `prod`  | `build:prod`          | both `*_PROD` required                                              |
-| `watch` | `build:watch` / `dev` | same as `dev`                                                       |
+| Mode    | npm script            | Client IDs                                                                           |
+| ------- | --------------------- | ------------------------------------------------------------------------------------ |
+| `dev`   | `build:dev`           | `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` / `TODOIST_CLIENT_ID_DEV` optional |
+| `prod`  | `build:prod`          | committed `oauth-clients.prod.json` (Google, Microsoft, Todoist)                     |
+| `watch` | `build:watch` / `dev` | same as `dev`                                                                        |
 
 CI (`.github/workflows/build.yml`):
 
@@ -206,7 +206,7 @@ CI (`.github/workflows/build.yml`):
 - Non-`main`: build with GitHub Environment **`dev`**
 - `main`: build with Environment **`prod`**
 
-Release (`.github/workflows/release.yml`): **annotated** version tags matching `[0-9]*` (lightweight tags are skipped by `git push --follow-tags`), prod secrets, attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.
+Release (`.github/workflows/release.yml`): **annotated** version tags matching `[0-9]*` (lightweight tags are skipped by `git push --follow-tags`), committed `oauth-clients.prod.json` (no `*_PROD` secret injects), attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.
 
 Local vault install helper: `npm run sync` + `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`). Contributor bootstrap: [#70](https://github.com/desimpson/syncer/issues/70).
 

@@ -28,6 +28,8 @@ export const pluginSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().default(""),
   /** Optional at build time; Outlook connect is disabled when empty. */
   MICROSOFT_CLIENT_ID: z.string().default(""),
+  /** Optional at build time; Todoist connect is disabled when empty. */
+  TODOIST_CLIENT_ID: z.string().default(""),
 });
 
 /**
@@ -181,6 +183,31 @@ export const microsoftToDoSettingsSchema = z.object({
 });
 
 /**
+ * Connected Todoist account and project selection.
+ */
+export const todoistSettingsSchema = z.object({
+  userInfo: z.object({
+    email: z.email(),
+    displayName: z.string().optional(),
+  }),
+  credentials: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string(),
+    expiryDate: z.number().int(),
+    scope: z.string(),
+  }),
+  availableProjects: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+      }),
+    )
+    .default([]),
+  selectedProjectIds: z.array(z.string()).default([]),
+});
+
+/**
  * Connected Gmail Starred account (separate from Google Tasks credentials).
  */
 export const gmailStarredSettingsSchema = z.object({
@@ -229,6 +256,7 @@ export const pluginSettingsSchema = z.object({
   microsoftAuthWorkOrSchoolTenantId: microsoftWorkOrSchoolTenantIdSchema,
   microsoftOutlook: microsoftOutlookSettingsSchema.optional(),
   microsoftToDo: microsoftToDoSettingsSchema.optional(),
+  todoist: todoistSettingsSchema.optional(),
   azureDevOpsOrganization: z.string().trim().default(""),
   azureDevOpsProjectName: z.string().trim().default(""),
   azureDevOpsPersonalAccessToken: z.string().trim().default(""),

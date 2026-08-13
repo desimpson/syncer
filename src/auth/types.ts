@@ -40,3 +40,21 @@ export type MicrosoftCredentials = {
   scope: string;
   tenantSegment: string;
 };
+
+/**
+ * Todoist profile fields used in settings UI.
+ */
+export type TodoistUserInfo = {
+  email: string;
+  displayName?: string | undefined;
+};
+
+/**
+ * Todoist OAuth tokens stored in plugin settings.
+ */
+export type TodoistCredentials = {
+  accessToken: string;
+  refreshToken: string;
+  expiryDate: number;
+  scope: string;
+};

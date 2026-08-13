@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
+Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), Firefox Bookmarks (desktop), and Todoist. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -33,6 +33,12 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Select which To Do lists to sync
   - Incomplete tasks only; completing in To Do removes the Obsidian line (checkbox is not auto-checked)
   - When completion status sync is enabled, checking/unchecking in Obsidian updates task status in To Do on the next sync
+- Todoist integration:
+  - OAuth 2.0 (Authorization Code with PKCE) via Todoist App Management Console
+  - Select which projects to sync
+  - Incomplete tasks only; completing in Todoist removes the Obsidian line (checkbox is not auto-checked)
+  - When completion status sync is enabled, checking/unchecking in Obsidian closes/reopens tasks in Todoist on the next sync
+  - Requires maintainer Todoist app + `TODOIST_CLIENT_ID_*` at build time; Connect stays disabled until configured
 - Azure DevOps integration:
   - Personal Access Token (PAT) authentication
   - One organisation + one project per settings profile
@@ -76,7 +82,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - **Sync interval (minutes)**: How often background sync runs
 - **Sync markdown file path**: Target note for synced items (sync saves the note if needed, then reads the on-disk file)
 - **Sync heading**: H2 heading under which new items are inserted (input is normalised to `## …`)
-- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, and Microsoft Outlook (email flags) on the next sync. With Kanban boards that move cards to a Done column, enable this if you want local `[x]` to write back before Syncer reconciles against the incomplete remote feed (otherwise a still-open remote task can uncheck the card in place).
+- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, Microsoft Outlook (email flags), and Todoist on the next sync. With Kanban boards that move cards to a Done column, enable this if you want local `[x]` to write back before Syncer reconciles against the incomplete remote feed (otherwise a still-open remote task can uncheck the card in place).
 
 ### Google Tasks
 
@@ -103,6 +109,22 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - Select one or more To Do lists to sync; account type / tenant fields above apply to the next Connect only
 - Incomplete tasks from selected lists sync under the sync heading
 - Disconnect clears To Do credentials only — Outlook and existing note lines are unaffected
+
+### Todoist
+
+- Connect using **Connect** (requires the plugin to be built with `TODOIST_CLIENT_ID_DEV` or `TODOIST_CLIENT_ID_PROD`)
+- Select one or more projects to sync
+- Incomplete tasks from selected projects sync under the sync heading
+- Disconnect clears Todoist credentials; existing Todoist lines remain in your sync note until you remove them or deselect their projects
+
+#### OAuth app setup (maintainers)
+
+1. Create an app in the [Todoist App Management Console](https://developer.todoist.com/appconsole.html) as a **public client** (PKCE; no client secret)
+2. Register redirect URIs: `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`
+3. Set scope `data:read_write`
+4. Add the client ID to `TODOIST_CLIENT_ID_DEV` / `TODOIST_CLIENT_ID_PROD` for builds
+
+Until a production client ID is wired into release secrets, merged code may ship with Connect disabled — that is expected, not a bug.
 
 ### Azure DevOps
 
@@ -146,7 +168,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Set `GOOGLE_CLIENT_ID_DEV` and `MICROSOFT_CLIENT_ID_DEV` (see `.env.example`) to enable Google/Microsoft Connect in development builds. If omitted, the build still succeeds but Connect actions are disabled.
+Set `GOOGLE_CLIENT_ID_DEV`, `MICROSOFT_CLIENT_ID_DEV`, and `TODOIST_CLIENT_ID_DEV` (see `.env.example`) to enable Connect in development builds. If omitted, the build still succeeds but the matching Connect actions are disabled.
 
 Sync to your vault with:
 
@@ -164,11 +186,12 @@ This section is for [Obsidian developer policy](https://docs.obsidian.md/Communi
 
 Syncer is a local plugin: it does not run a Syncer backend, proxy, or hosted API. Data access is limited to the integrations you enable:
 
-- **Account requirement**: cloud sync features need a corresponding Google account (Tasks / Gmail), Microsoft account (Outlook / To Do), and/or Azure DevOps account. Firefox Bookmarks sync is local and does not require a cloud account.
-- **Credentials / API keys**: Google and Microsoft use OAuth 2.0 (tokens stored in plugin settings). Azure DevOps uses a Personal Access Token (PAT) you paste in settings. OAuth tokens and PATs are sent only to the matching provider endpoints below — never to a Syncer service.
+- **Account requirement**: cloud sync features need a corresponding Google account (Tasks / Gmail), Microsoft account (Outlook / To Do), Todoist account, and/or Azure DevOps account. Firefox Bookmarks sync is local and does not require a cloud account.
+- **Credentials / API keys**: Google, Microsoft, and Todoist use OAuth 2.0 (tokens stored in plugin settings). Azure DevOps uses a Personal Access Token (PAT) you paste in settings. OAuth tokens and PATs are sent only to the matching provider endpoints below — never to a Syncer service.
 - **Network use**: when an integration is connected and sync runs, Syncer calls that provider to read/update items. Typical hosts include:
   - Google: `accounts.google.com`, `oauth2.googleapis.com`, `www.googleapis.com`, `tasks.googleapis.com`, `gmail.googleapis.com`
   - Microsoft: `login.microsoftonline.com`, `graph.microsoft.com`
+  - Todoist: `app.todoist.com`, `api.todoist.com`
   - Azure DevOps: `dev.azure.com`
 
 > [!WARNING]
@@ -183,7 +206,7 @@ No third-party UI components are currently bundled in the settings tab.
 ## Releasing
 
 1. Bump version with **`npm version patch|minor|major`** (or `npm version x.y.z`). This updates `package.json` / `manifest.json` / `versions.json`, commits, and creates an **annotated** git tag (required). Do not use `git tag x.y.z` without `-a` — `git push --follow-tags` only pushes annotated tags.
-2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; local env vars may override for development)
+2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; local env vars may override for development). Todoist Connect stays disabled in production until a Todoist client ID is added to that file.
 3. Verify: `npm run release:check` (fails if the version tag exists but is lightweight)
 4. Confirm the tag is annotated: `git cat-file -t x.y.z` must print `tag` (not `commit`). If you ever need a manual tag: `git tag -a x.y.z -m "x.y.z"`.
 5. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`). If `--follow-tags` skips the tag, push it explicitly: `git push origin x.y.z`.

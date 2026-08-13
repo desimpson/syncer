@@ -13,6 +13,7 @@ import { createGoogleTasksJob } from "@/jobs/google-tasks";
 import { createGmailStarredJob } from "@/jobs/gmail-starred";
 import { createMicrosoftOutlookJob } from "@/jobs/microsoft-outlook";
 import { createMicrosoftToDoJob } from "@/jobs/microsoft-todo";
+import { createTodoistJob } from "@/jobs/todoist";
 import { createAzureDevOpsJob } from "@/jobs/azure-devops";
 import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
@@ -35,10 +36,13 @@ export default class SyncerPlugin extends Plugin {
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    const { GOOGLE_CLIENT_ID, MICROSOFT_CLIENT_ID } = pluginSchema.parse(process.env);
+    const { GOOGLE_CLIENT_ID, MICROSOFT_CLIENT_ID, TODOIST_CLIENT_ID } = pluginSchema.parse(
+      process.env,
+    );
     this.config = {
       googleClientId: GOOGLE_CLIENT_ID,
       microsoftClientId: MICROSOFT_CLIENT_ID.trim(),
+      todoistClientId: TODOIST_CLIENT_ID.trim(),
       pluginDirectory: resolvePluginDirectory(app, manifest),
     };
   }
@@ -70,6 +74,14 @@ export default class SyncerPlugin extends Plugin {
         this.app,
       ),
       createMicrosoftToDoJob(
+        this.loadSettings,
+        this.saveSettings,
+        this.config,
+        this.app.vault,
+        (message) => new Notice(message),
+        this.app,
+      ),
+      createTodoistJob(
         this.loadSettings,
         this.saveSettings,
         this.config,

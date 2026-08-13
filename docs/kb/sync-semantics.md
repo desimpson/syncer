@@ -69,6 +69,18 @@ Owning job: [`src/jobs/microsoft-todo.ts`](../../src/jobs/microsoft-todo.ts).
 - Deselecting a list or disconnecting: unmatched unchecked lines removed; completed preserved; disconnect clears `microsoftToDo` settings only (Outlook unaffected)
 - No vault→remote delete in v1; separate OAuth token from Outlook (Tasks scopes)
 
+## Todoist
+
+Owning job: [`src/jobs/todoist.ts`](../../src/jobs/todoist.ts).
+
+- Mirrors Microsoft To Do project/list + completion semantics
+- Incoming feed = **active (incomplete)** tasks from selected projects only (`fetchTodoistTasks` in `src/services/todoist.ts` against **api/v1**)
+- Completing a task in Todoist drops it from the feed → unchecked Obsidian line removed on next sync; **Syncer does not auto-check `[x]`** for remote completions
+- `[x]` lines preserved via `shouldPreserveCompletedDeletes`
+- `syncCompletionStatus`: push Obsidian checkbox changes via `POST …/tasks/{id}/close` and `…/reopen` (task id only; a 404 on reopen is a per-task skip)
+- Deselecting a project or disconnecting: unmatched unchecked lines removed; completed preserved; disconnect clears `todoist` settings only and shows a Notice that existing lines remain
+- No vault→remote delete in v1; OAuth (PKCE public client) with tokens in `data.json`
+
 ## Microsoft Outlook
 
 Owning job: [`src/jobs/microsoft-outlook.ts`](../../src/jobs/microsoft-outlook.ts).

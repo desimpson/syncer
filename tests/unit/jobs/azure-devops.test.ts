@@ -33,6 +33,7 @@ import { fetchAssignedWorkItems, AzureDevOpsAuthorizationError } from "@/service
 const baseConfig = {
   googleClientId: "",
   microsoftClientId: "",
+  todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

@@ -84,3 +84,35 @@ export const microsoftToDoTasksPageSchema = z.object({
   value: z.array(microsoftToDoTaskSchema),
   "@odata.nextLink": z.string().optional(),
 });
+
+// --- Todoist Schemas ---
+
+/** Schema for a Todoist project item. */
+export const todoistProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+/** Schema for a paginated Todoist `results` wrapper. */
+export const todoistResultsPageSchema = <T extends z.ZodType>(itemSchema: T) =>
+  z.object({
+    results: z.array(itemSchema),
+    next_cursor: z.string().nullable().optional(),
+  });
+
+/** Schema for a Todoist task item. */
+export const todoistTaskSchema = z.object({
+  id: z.string(),
+  content: z.string().transform((value) => {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : "(Untitled)";
+  }),
+  checked: z.boolean().default(false),
+  project_id: z.string().optional(),
+});
+
+/** Schema for a paginated Todoist completed-tasks wrapper. */
+export const todoistCompletedTasksPageSchema = z.object({
+  items: z.array(todoistTaskSchema),
+  next_cursor: z.string().nullable().optional(),
+});

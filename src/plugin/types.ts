@@ -1,10 +1,12 @@
-import type { GoogleTasksList, MicrosoftToDoList } from "@/services/types";
+import type { GoogleTasksList, MicrosoftToDoList, TodoistProject } from "@/services/types";
 import type {
   GoogleAccessToken,
   GoogleCredentials,
   GoogleUserInfo,
   MicrosoftCredentials,
   MicrosoftUserInfo,
+  TodoistCredentials,
+  TodoistUserInfo,
 } from "@/auth/types";
 import type { MicrosoftAuthAccountKind } from "@/plugin/schemas";
 
@@ -28,6 +30,7 @@ export type PluginSettings = {
   microsoftAuthWorkOrSchoolTenantId: string;
   microsoftOutlook?: MicrosoftOutlookSettings | undefined;
   microsoftToDo?: MicrosoftToDoSettings | undefined;
+  todoist?: TodoistSettings | undefined;
   azureDevOpsOrganization: string;
   azureDevOpsProjectName: string;
   azureDevOpsPersonalAccessToken: string;
@@ -40,6 +43,7 @@ export type PluginSettings = {
 export type PluginConfig = {
   googleClientId: string;
   microsoftClientId: string;
+  todoistClientId: string;
   pluginDirectory: string;
 };
 
@@ -77,6 +81,16 @@ export type MicrosoftToDoSettings = {
   credentials: MicrosoftCredentials;
   availableLists: readonly MicrosoftToDoList[];
   selectedListIds: readonly string[];
+};
+
+/**
+ * Todoist integration settings.
+ */
+export type TodoistSettings = {
+  userInfo: TodoistUserInfo;
+  credentials: TodoistCredentials;
+  availableProjects: readonly TodoistProject[];
+  selectedProjectIds: readonly string[];
 };
 
 /**

@@ -18,7 +18,7 @@ Hard constraints: no provider HTTP in `sync/`; no Obsidian APIs in `services/` o
 | `auth/`     | OAuth connect + refresh                        |
 | `utils/`    | Pure helpers                                   |
 
-Entry points: `plugin/{index,save-sync-document}.ts`, `sync/{scheduler,prepare-sync-document,writer,reader,sync-guard}.ts`, `jobs/*`, `services/*`, `adaptors/*`, `auth/{google,microsoft,azure-devops}.ts`.
+Entry points: `plugin/{index,save-sync-document}.ts`, `sync/{scheduler,prepare-sync-document,writer,reader,sync-guard}.ts`, `jobs/*`, `services/*`, `adaptors/*`, `auth/{google,microsoft,todoist,azure-devops}.ts`.
 
 ## Module map
 

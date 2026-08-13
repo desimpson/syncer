@@ -4,8 +4,9 @@
 
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
 - Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional (Connect disabled if omitted)
-- Prod: `GOOGLE_CLIENT_ID_PROD` and `MICROSOFT_CLIENT_ID_PROD` both required (fail the build if either is missing); `TODOIST_CLIENT_ID_PROD` optional until Todoist is shipped as a user-facing feature
-- See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`development` / `production` environment secrets)
+- Prod: Google and Microsoft IDs come from committed [`oauth-clients.prod.json`](../../oauth-clients.prod.json) (env `_PROD` vars may override locally). Do not inject those secrets in `release.yml` — Observer rebuilds must match a clean checkout
+- Todoist has no committed prod client ID yet; production Connect stays disabled until one is added to `oauth-clients.prod.json` (and `scripts/check-oauth-clients.mjs`)
+- See [`.env.example`](../../.env.example) for dev client IDs; CI `build-dev` may inject `*_DEV` secrets. Release CD does not inject `*_PROD` secrets
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, and `styles.css`
 - `electron` is an esbuild **external** only ([`esbuild.config.mjs`](../../esbuild.config.mjs)); Obsidian supplies Electron at runtime. Do not re-add it as an npm dependency for typing or audit cosmetics unless the plugin actually imports it
 
@@ -26,6 +27,7 @@
 - Todoist OAuth: Auth Code + PKCE public client (`token_endpoint_auth_method: none`); maintainer registers loopback redirect URIs `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/` on the Todoist app; Connect tries those ports in order
 - Todoist per-project task fetch is **sequential** (rate-limit hygiene); a 404 on one selected project is treated as empty for that project — Refresh prunes stale project IDs but mid-cycle 404 UI lag is expected
 - Todoist task links are constructed as `https://app.todoist.com/app/task/{id}` (api/v1 no longer returns `url`)
+- Todoist completed-task lookup for reopen is capped at ~90 days (`GET /api/v1/tasks/completed/by_completion_date`); unchecking a preserved `[x]` older than that may not write back
 
 ## Sync / UI traps
 

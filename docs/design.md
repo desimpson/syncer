@@ -64,9 +64,10 @@ Settings are Obsidian plugin data (`loadData` / `saveData`), validated by Zod in
 | Google Tasks      | credentials, `availableLists`, `selectedListIds`, `userInfo.email`                                                                              |
 | Microsoft Outlook | credentials (incl. `tenantSegment`), account kind / tenant ID, `userInfo`                                                                       |
 | Microsoft To Do   | credentials (incl. `tenantSegment`), `availableLists`, `selectedListIds`, `userInfo`; shares account-kind fields with Outlook for next Connect |
+| Todoist           | credentials, `availableProjects`, `selectedProjectIds`, `userInfo`                                                                              |
 | Firefox Bookmarks | profile paths, `availableFolders`, `selectedFolderGuids`                                                                                        |
 
-OAuth tokens live **in plugin settings**, not a separate OS keychain. Build-time client IDs (`GOOGLE_CLIENT_ID`, `MICROSOFT_CLIENT_ID`) are injected by esbuild and validated via `pluginSchema`.
+OAuth tokens live **in plugin settings**, not a separate OS keychain. Build-time client IDs (`GOOGLE_CLIENT_ID`, `MICROSOFT_CLIENT_ID`, `TODOIST_CLIENT_ID`) are injected by esbuild and validated via `pluginSchema`.
 
 There is **one connected account per OAuth source** today. Multi-account support is backlog ([#40](https://github.com/desimpson/syncer/issues/40)).
 
@@ -104,7 +105,7 @@ Bundle entry: `esbuild.config.mjs` → `src/plugin/index.ts` → `main.js` (sql.
 | ---------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `SyncItem`       | `src/sync/types.ts`     | `{ id, source, title, link, heading, completed }`                                                                               |
 | `SyncAction`     | `src/sync/types.ts`     | create / update / delete over a `SyncItem`                                                                                      |
-| `SyncSource`     | `src/sync/types.ts`     | `"google-tasks" \| "gmail-starred" \| "microsoft-to-do" \| "microsoft-outlook" \| "azure-devops" \| "firefox-bookmarks"`       |
+| `SyncSource`     | `src/sync/types.ts`     | `"google-tasks" \| "gmail-starred" \| "microsoft-to-do" \| "microsoft-outlook" \| "azure-devops" \| "firefox-bookmarks" \| "todoist"` |
 | `SyncJob`        | `src/jobs/types.ts`     | `{ name, task }`                                                                                                                |
 | `SyncAdaptor<T>` | `src/adaptors/types.ts` | `(heading) => (dto) => SyncItem`                                                                                                |
 
@@ -116,10 +117,10 @@ Settings use `syncHeading`; domain `SyncItem` still uses `heading` ([#48](https:
 src/
 ├── plugin/       # entrypoint, settings tab, save-sync-document, schemas, modals, suggesters
 ├── sync/         # scheduler, prepare-sync-document, actions, reader, writer, sync-guard
-├── jobs/         # google-tasks, gmail-starred, microsoft-todo, microsoft-outlook, azure-devops, firefox-bookmarks
+├── jobs/         # google-tasks, gmail-starred, microsoft-todo, microsoft-outlook, azure-devops, firefox-bookmarks, todoist
 ├── services/     # API clients + Firefox sqlite/profile helpers
 ├── adaptors/     # DTO → SyncItem
-├── auth/         # google, microsoft, azure-devops
+├── auth/         # google, microsoft, todoist, azure-devops
 ├── utils/
 └── types/        # ambient (e.g. sql.js)
 tests/
@@ -234,7 +235,7 @@ Grouped; numbers are GitHub issues. This is not a commitment calendar.
 
 ### Near-term integrations (examples)
 
-Tracked under the [top-10 rollout](https://github.com/desimpson/syncer/issues/64) and individual issues, including Todoist ([#55](https://github.com/desimpson/syncer/issues/55)), GitHub ([#57](https://github.com/desimpson/syncer/issues/57)), and others (Jira, Linear, Slack, Asana, calendars-adjacent tools, etc.). Gmail Starred, Azure DevOps, and Microsoft To Do are shipped in the current product (see §1).
+Tracked under the [top-10 rollout](https://github.com/desimpson/syncer/issues/64) and individual issues, including GitHub ([#57](https://github.com/desimpson/syncer/issues/57)), and others (Jira, Linear, Slack, Asana, calendars-adjacent tools, etc.). Gmail Starred, Azure DevOps, Microsoft To Do, and Todoist are shipped in the current product (see §1).
 
 New sources should follow the existing **job → service → adaptor → atomic reconcile** template; prefer inbox lines unless a source’s product case clearly needs a different vault shape.
 
@@ -251,7 +252,7 @@ New sources should follow the existing **job → service → adaptor → atomic 
 These echo the early design’s open questions, updated for the current product:
 
 1. **How far should two-way sync go?**  
-   Completion write-back exists for Google Tasks, Gmail Starred, Microsoft To Do, and Outlook; vault→Google delete sync is optional. Creating remote items from Obsidian, or editing titles remotely from the note, is not supported. Real-time bidirectional investigation: [#51](https://github.com/desimpson/syncer/issues/51).
+   Completion write-back exists for Google Tasks, Gmail Starred, Microsoft To Do, Outlook, and Todoist; vault→Google delete sync is optional. Creating remote items from Obsidian, or editing titles remotely from the note, is not supported. Real-time bidirectional investigation: [#51](https://github.com/desimpson/syncer/issues/51).
 
 2. **Real-time sync without a backend?**  
    Local-only constraint rules out hosted webhooks. Practical options are shorter polling intervals and richer failure UX ([#34](https://github.com/desimpson/syncer/issues/34)), not a Syncer cloud.

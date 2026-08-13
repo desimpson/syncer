@@ -16,8 +16,8 @@ jobs:
     environment:
       name: prod
     # Prod OAuth client IDs come from committed oauth-clients.prod.json so Observer
-    # rebuilds match the published main.js. Do not inject GOOGLE/MICROSOFT_CLIENT_ID_PROD
-    # secrets here — that would diverge from a clean-checkout build.
+    # rebuilds match the published main.js. Do not inject GOOGLE/MICROSOFT/TODOIST
+    # CLIENT_ID_PROD secrets here — that would diverge from a clean-checkout build.
 
     steps:
       - name: Checkout repository

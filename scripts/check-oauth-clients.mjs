@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const clientsPath = path.join(rootDirectory, "..", "oauth-clients.prod.json");
 
-const allowedKeys = new Set(["GOOGLE_CLIENT_ID", "MICROSOFT_CLIENT_ID"]);
+const allowedKeys = new Set(["GOOGLE_CLIENT_ID", "MICROSOFT_CLIENT_ID", "TODOIST_CLIENT_ID"]);
 const forbiddenKeyPattern = /client_secret|private_key|refresh_token|api_key|password|secret/i;
 const forbiddenValuePattern = /^[A-Za-z0-9+/=]{80,}$/;
 

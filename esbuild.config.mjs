@@ -13,6 +13,7 @@ const productionOAuthClientsPath = path.join(rootDirectory, "oauth-clients.prod.
 const productionOAuthClientsSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_ID: z.string().min(1),
+  TODOIST_CLIENT_ID: z.string().min(1),
 });
 
 const readCommittedProductionOAuthClients = () => {
@@ -123,8 +124,8 @@ const getValidatedClientId = (mode) => {
 
 /**
  * Returns the Todoist OAuth client ID for the current build mode.
- * Development and production builds treat TODOIST_CLIENT_ID_* as optional
- * (Todoist Connect disabled if omitted) until the maintainer registers the app.
+ * Production builds use committed oauth-clients.prod.json (env may override locally).
+ * Development builds treat TODOIST_CLIENT_ID_DEV as optional (Connect disabled if omitted).
  */
 const getTodoistClientId = (mode) => {
   const environmentVariableName =
@@ -132,11 +133,16 @@ const getTodoistClientId = (mode) => {
   const clientId = process.env[environmentVariableName];
   const trimmed = typeof clientId === "string" ? clientId.trim() : "";
 
-  if (trimmed.length === 0) {
-    console.info("Todoist Client ID not set (Todoist connect disabled until configured).");
+  if (trimmed.length > 0) {
+    return trimmed;
   }
 
-  return trimmed;
+  if (mode === "production") {
+    return readCommittedProductionOAuthClients().TODOIST_CLIENT_ID;
+  }
+
+  console.info("Todoist Client ID not set (Todoist connect disabled until configured).");
+  return "";
 };
 
 /**

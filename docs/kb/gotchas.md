@@ -3,10 +3,9 @@
 ## Build / env
 
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
-- Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional (Connect disabled if omitted)
-- Prod: Google and Microsoft IDs come from committed [`oauth-clients.prod.json`](../../oauth-clients.prod.json) (env `_PROD` vars may override locally). Do not inject those secrets in `release.yml` — Observer rebuilds must match a clean checkout
-- Todoist has no committed prod client ID yet; production Connect stays disabled until one is added to `oauth-clients.prod.json` (and `scripts/check-oauth-clients.mjs`)
-- See [`.env.example`](../../.env.example) for dev client IDs; CI `build-dev` may inject `*_DEV` secrets. Release CD does not inject `*_PROD` secrets
+- Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional (Connect disabled if omitted). There is no committed `oauth-clients.dev.json` — Observer only rebuilds prod
+- Prod: Google, Microsoft, and Todoist IDs come from committed [`oauth-clients.prod.json`](../../oauth-clients.prod.json) (env `_PROD` vars may override locally). Do not inject those values in `release.yml` or CI `build-prod` — Observer rebuilds must match a clean checkout
+- See [`.env.example`](../../.env.example) for dev client IDs; CI `build-dev` may inject `*_DEV` secrets
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, and `styles.css`
 - `electron` is an esbuild **external** only ([`esbuild.config.mjs`](../../esbuild.config.mjs)); Obsidian supplies Electron at runtime. Do not re-add it as an npm dependency for typing or audit cosmetics unless the plugin actually imports it
 

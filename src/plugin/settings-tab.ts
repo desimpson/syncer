@@ -9,12 +9,19 @@ import {
   microsoftWorkOrSchoolTenantIdSchema,
   syncIntervalSchema,
 } from "./schemas";
-import { GoogleAuth, InvalidGrantError, MicrosoftAuth, hasGmailModifyScope } from "@/auth";
+import {
+  GoogleAuth,
+  InvalidGrantError,
+  MicrosoftAuth,
+  TodoistAuth,
+  hasGmailModifyScope,
+} from "@/auth";
 import { MICROSOFT_TO_DO_GRAPH_SCOPES, MICROSOFT_OUTLOOK_GRAPH_SCOPES } from "@/auth/microsoft";
 import { GoogleTasksService } from "@/services";
 import { MicrosoftToDoService } from "@/services/microsoft-todo";
+import { TodoistService } from "@/services/todoist";
 import { formatMicrosoftToDoTenantLabel } from "@/adaptors/microsoft-todo";
-import type { GoogleTasksList, MicrosoftToDoList } from "@/services/types";
+import type { GoogleTasksList, MicrosoftToDoList, TodoistProject } from "@/services/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
 import {
   fetchFirefoxBookmarkFolders,
@@ -137,6 +144,7 @@ export class SettingsTab extends PluginSettingTab {
     await this.addGmailStarredSettings(containerElement);
     await this.addMicrosoftOutlookSettings(containerElement);
     await this.addMicrosoftToDoSettings(containerElement);
+    await this.addTodoistSettings(containerElement);
     await this.addAzureDevOpsSettings(containerElement);
     await this.addFirefoxBookmarksSettings(containerElement);
   }
@@ -226,7 +234,7 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(containerElement)
       .setName("Sync completion status")
       .setDesc(
-        "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, and Microsoft Outlook (email flags) on the next sync.",
+        "When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, Microsoft Outlook (email flags), and Todoist on the next sync.",
       )
       .addToggle((toggle) => {
         toggle.setValue(settings.syncCompletionStatus).onChange(async (value) => {
@@ -850,6 +858,241 @@ export class SettingsTab extends PluginSettingTab {
       console.error(`Failed to refresh Microsoft To Do lists. Error: [${formatLogError(error)}].`);
       listContainer.createEl("p", {
         text: "Failed to load To Do lists. Check your connection and try refreshing.",
+        cls: "setting-item-description mod-warning",
+      });
+    }
+  }
+
+  private async addTodoistSettings(containerElement: HTMLElement) {
+    new Setting(containerElement).setName("Todoist").setHeading();
+
+    const settings = await this.plugin.loadSettings();
+    const todoistRow = new Setting(containerElement);
+    const { todoist } = settings;
+
+    if (todoist === undefined) {
+      todoistRow.setName("No Todoist account connected");
+      todoistRow.setDesc(
+        this.config.todoistClientId.length === 0
+          ? "The plugin build does not include a Todoist OAuth client ID. Set TODOIST_CLIENT_ID_DEV or TODOIST_CLIENT_ID_PROD when building to enable Connect."
+          : "Connect opens your browser to sign in with Todoist (OAuth + PKCE). Register loopback redirect URIs http://localhost:27855/, http://localhost:27856/, and http://localhost:27857/ on the maintainer Todoist app.",
+      );
+      todoistRow.addButton((button) => {
+        if (this.config.todoistClientId.length === 0) {
+          button.setDisabled(true);
+        }
+        button.setButtonText("Connect").onClick(async () => {
+          await this.connectTodoist();
+          await this.render();
+        });
+      });
+    } else {
+      const display =
+        todoist.userInfo.displayName !== undefined && todoist.userInfo.displayName.length > 0
+          ? `${todoist.userInfo.displayName} · ${todoist.userInfo.email}`
+          : todoist.userInfo.email;
+      todoistRow.setName("Connected account");
+      todoistRow.setDesc(display);
+      todoistRow.addButton((button) =>
+        button
+          .setButtonText("Disconnect")
+          .setWarning()
+          .onClick(async () => {
+            await this.disconnectTodoist();
+            await this.render();
+          }),
+      );
+    }
+
+    await this.addTodoistProjectSelector(containerElement);
+  }
+
+  private async connectTodoist(): Promise<void> {
+    if (this.config.todoistClientId.length === 0) {
+      new Notice("Todoist client ID is not configured for this build.");
+      return;
+    }
+
+    try {
+      const credentials = await TodoistAuth.authenticate({
+        clientId: this.config.todoistClientId,
+      });
+
+      const userInfo = await TodoistAuth.getUserInfo(credentials.accessToken);
+
+      await this.plugin.updateSettings({
+        todoist: {
+          credentials,
+          userInfo,
+          availableProjects: [],
+          selectedProjectIds: [],
+        },
+      });
+
+      new Notice("Todoist account connected successfully.");
+    } catch (error) {
+      new Notice("Failed to connect Todoist.");
+      console.error(`Error connecting Todoist: [${formatLogError(error)}].`);
+    }
+  }
+
+  private async disconnectTodoist(): Promise<void> {
+    await this.plugin.updateSettings({ todoist: undefined });
+    new Notice(
+      "Todoist account disconnected. Existing Todoist lines remain in your sync note until you remove them or deselect their projects.",
+    );
+  }
+
+  private async addTodoistProjectSelector(containerElement: HTMLElement) {
+    const { todoist } = await this.plugin.loadSettings();
+    if (todoist === undefined) {
+      return;
+    }
+
+    this.addSettingsSubheading(containerElement, "Select Todoist projects to sync");
+
+    let selectedProjectIds: readonly string[] = [...(todoist.selectedProjectIds ?? [])];
+
+    const listContainer = containerElement.createDiv({ cls: "microsoft-todo-list-selector" });
+
+    const updateSelected = async (newSelected: readonly string[]) => {
+      selectedProjectIds = [...newSelected];
+      const freshSettings = await this.plugin.loadSettings();
+      if (freshSettings.todoist !== undefined) {
+        await this.plugin.updateSettings({
+          todoist: {
+            ...freshSettings.todoist,
+            selectedProjectIds: [...selectedProjectIds],
+          },
+        });
+      }
+    };
+
+    const createProjectDropdown = (
+      projects: readonly TodoistProject[],
+      currentSelection: readonly string[],
+    ) => {
+      listContainer.empty();
+
+      if (projects.length === 0) {
+        listContainer.createEl("p", {
+          text: "No Todoist projects found.",
+          cls: "setting-item-description",
+        });
+        return;
+      }
+
+      listContainer.createEl("p", {
+        text: "Click projects to select them for syncing:",
+        cls: "setting-item-description",
+      });
+
+      const toggleContainer = listContainer.createDiv("microsoft-todo-toggle-container");
+
+      projects.forEach((project) => {
+        const isSelected = currentSelection.includes(project.id);
+
+        const button = toggleContainer.createEl("button", {
+          text: project.name,
+          cls: `microsoft-todo-toggle-button${isSelected ? " is-selected" : ""}`,
+        });
+
+        button.addEventListener("click", () => {
+          void (async () => {
+            const wasSelected = selectedProjectIds.includes(project.id);
+            let newSelection: string[];
+
+            if (wasSelected) {
+              newSelection = selectedProjectIds.filter((id) => id !== project.id);
+              button.removeClass("is-selected");
+            } else {
+              newSelection = [...selectedProjectIds, project.id];
+              button.addClass("is-selected");
+            }
+
+            countElement.setText(`${newSelection.length} of ${projects.length} projects selected`);
+            await updateSelected(newSelection);
+          })();
+        });
+      });
+
+      const countElement = listContainer.createEl("p", {
+        text: `${currentSelection.length} of ${projects.length} projects selected`,
+        cls: "setting-item-description microsoft-todo-selection-count",
+      });
+    };
+
+    createProjectDropdown(todoist.availableProjects ?? [], selectedProjectIds);
+
+    try {
+      let accessToken: string;
+      try {
+        const { credentials: token } = todoist;
+        if (token.expiryDate < Date.now()) {
+          const refreshed = await TodoistAuth.refreshAccessToken(this.config.todoistClientId, {
+            refreshToken: token.refreshToken,
+          });
+
+          const freshSettings = await this.plugin.loadSettings();
+          if (freshSettings.todoist !== undefined) {
+            await this.plugin.updateSettings({
+              todoist: {
+                ...freshSettings.todoist,
+                credentials: {
+                  ...freshSettings.todoist.credentials,
+                  accessToken: refreshed.accessToken,
+                  expiryDate: refreshed.expiryDate,
+                  ...(refreshed.refreshToken === undefined
+                    ? {}
+                    : { refreshToken: refreshed.refreshToken }),
+                },
+              },
+            });
+          }
+          accessToken = refreshed.accessToken;
+        } else {
+          accessToken = token.accessToken;
+        }
+      } catch (error) {
+        if (error instanceof InvalidGrantError) {
+          console.warn(
+            "Todoist refresh token has been expired or revoked. Clearing credentials...",
+          );
+          const freshSettings = await this.plugin.loadSettings();
+          await this.plugin.updateSettings({ ...freshSettings, todoist: undefined });
+          new AuthorizationExpiredModal(this.app, "Todoist").open();
+          await this.render();
+          return;
+        }
+        throw error;
+      }
+
+      const projects = await TodoistService.fetchTodoistProjects(accessToken);
+
+      const freshSettingsForUpdate = await this.plugin.loadSettings();
+      const availableProjectIds = new Set(projects.map((project) => project.id));
+      const cleanedSelectedIds = selectedProjectIds.filter((id) => availableProjectIds.has(id));
+
+      if (freshSettingsForUpdate.todoist !== undefined) {
+        await this.plugin.updateSettings({
+          todoist: {
+            ...freshSettingsForUpdate.todoist,
+            availableProjects: projects,
+            selectedProjectIds: cleanedSelectedIds,
+          },
+        });
+
+        const updatedSettings = await this.plugin.loadSettings();
+        if (updatedSettings.todoist?.selectedProjectIds !== undefined) {
+          selectedProjectIds = [...updatedSettings.todoist.selectedProjectIds];
+        }
+      }
+
+      createProjectDropdown(projects, cleanedSelectedIds);
+    } catch (error) {
+      console.error(`Failed to refresh Todoist projects. Error: [${formatLogError(error)}].`);
+      listContainer.createEl("p", {
+        text: "Failed to load Todoist projects. Check your connection and try refreshing settings.",
         cls: "setting-item-description mod-warning",
       });
     }

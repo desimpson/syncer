@@ -28,6 +28,7 @@ The plugin is **local-only**. OAuth runs on the user’s machine (ephemeral loca
 | Google Tasks      | Mostly pull; optional completion + delete write-back | Incomplete tasks from selected lists           |
 | Gmail Starred     | Mostly pull; optional star write-back                | Starred messages (newest N)                    |
 | Microsoft To Do   | Mostly pull; optional completion write-back          | Incomplete tasks from selected To Do lists     |
+| Todoist           | Mostly pull; optional completion write-back          | Active tasks from selected projects            |
 | Microsoft Outlook | Mostly pull; optional flag write-back                | Messages with Outlook follow-up flag `flagged` |
 | Azure DevOps      | One-way pull                                         | Work items assigned to the connected user      |
 | Firefox Bookmarks | One-way pull (desktop)                               | Bookmarks under selected folders (recursive)   |

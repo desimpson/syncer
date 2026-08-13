@@ -27,6 +27,7 @@ import { fetchFirefoxBookmarks } from "@/services/firefox-bookmarks";
 const baseConfig = {
   googleClientId: "",
   microsoftClientId: "",
+  todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

@@ -75,6 +75,7 @@ import { GoogleAuth } from "@/auth";
 const baseConfig = {
   googleClientId: "google-client-id",
   microsoftClientId: "",
+  todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

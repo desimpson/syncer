@@ -3,8 +3,8 @@
 ## Build / env
 
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
-- Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` optional (Outlook Connect disabled if omitted)
-- Prod: `GOOGLE_CLIENT_ID_PROD` and `MICROSOFT_CLIENT_ID_PROD` both required (fail the build if either is missing)
+- Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional (Connect disabled if omitted)
+- Prod: `GOOGLE_CLIENT_ID_PROD` and `MICROSOFT_CLIENT_ID_PROD` both required (fail the build if either is missing); `TODOIST_CLIENT_ID_PROD` optional until Todoist is shipped as a user-facing feature
 - See [`.env.example`](../../.env.example) for dev client IDs; prod vars are in README / build scripts / GitHub Actions (`development` / `production` environment secrets)
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, and `styles.css`
 - `electron` is an esbuild **external** only ([`esbuild.config.mjs`](../../esbuild.config.mjs)); Obsidian supplies Electron at runtime. Do not re-add it as an npm dependency for typing or audit cosmetics unless the plugin actually imports it
@@ -22,6 +22,10 @@
 - Azure DevOps uses PAT mode only: Basic auth with `:${PAT}`; requires organisation + project name settings and a PAT with Work Items read scope
 - Azure DevOps org name is a separate settings field (URL segment from `https://dev.azure.com/{org}`); consent/tenant mismatches often show as project-list or WIQL auth failures
 - Provider HTTP in `auth/` and `services/` should use Obsidian `requestUrl` (not renderer `fetch`) so portal review and CORS stay aligned
+- **Todoist API:** use `https://api.todoist.com/api/v1` only — legacy `rest/v2` was retired 2026-02-10 ([shutdown notice](https://groups.google.com/a/doist.com/g/todoist-api/c/brwENjfT_tk)); production returns 410 Gone
+- Todoist OAuth: Auth Code + PKCE public client (`token_endpoint_auth_method: none`); maintainer registers loopback redirect URIs `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/` on the Todoist app; Connect tries those ports in order
+- Todoist per-project task fetch is **sequential** (rate-limit hygiene); a 404 on one selected project is treated as empty for that project — Refresh prunes stale project IDs but mid-cycle 404 UI lag is expected
+- Todoist task links are constructed as `https://app.todoist.com/app/task/{id}` (api/v1 no longer returns `url`)
 
 ## Sync / UI traps
 

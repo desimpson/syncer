@@ -33,7 +33,8 @@ export type SyncSource =
   | "microsoft-to-do"
   | "gmail-starred"
   | "firefox-bookmarks"
-  | "azure-devops";
+  | "azure-devops"
+  | "todoist";
 
 /** `SyncItem.source` / markdown metadata value for Gmail Starred. */
 export const GMAIL_STARRED_SOURCE = "gmail-starred" satisfies SyncSource;
@@ -49,6 +50,9 @@ export const FIREFOX_BOOKMARKS_SOURCE = "firefox-bookmarks" satisfies SyncSource
 
 /** `SyncItem.source` / markdown metadata value for Azure DevOps. */
 export const AZURE_DEVOPS_SOURCE = "azure-devops" satisfies SyncSource;
+
+/** `SyncItem.source` / markdown metadata value for Todoist. */
+export const TODOIST_SOURCE = "todoist" satisfies SyncSource;
 
 /**
  * A parsed Markdown line item with sync metadata.

@@ -88,6 +88,7 @@ import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-task
 const baseConfig = {
   googleClientId: "id",
   microsoftClientId: "",
+  todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

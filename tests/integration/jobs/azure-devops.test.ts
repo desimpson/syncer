@@ -33,6 +33,7 @@ import { fetchAssignedWorkItems } from "@/services/azure-devops";
 const baseConfig = {
   googleClientId: "id",
   microsoftClientId: "",
+  todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
 } as const;
 

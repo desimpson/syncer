@@ -51,6 +51,7 @@ jobs:
     env:
       GOOGLE_CLIENT_ID_DEV: ${{ secrets.GOOGLE_CLIENT_ID_DEV }}
       MICROSOFT_CLIENT_ID_DEV: ${{ secrets.MICROSOFT_CLIENT_ID_DEV }}
+      TODOIST_CLIENT_ID_DEV: ${{ secrets.TODOIST_CLIENT_ID_DEV }}
 
     steps:
       - name: Checkout repository
@@ -88,6 +89,7 @@ jobs:
     env:
       GOOGLE_CLIENT_ID_PROD: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
       MICROSOFT_CLIENT_ID_PROD: ${{ secrets.MICROSOFT_CLIENT_ID_PROD }}
+      TODOIST_CLIENT_ID_PROD: ${{ secrets.TODOIST_CLIENT_ID_PROD }}
 
     steps:
       - name: Checkout repository

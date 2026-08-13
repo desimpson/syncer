@@ -49,10 +49,11 @@ describe("pluginSchema", () => {
     if (result.success) {
       expect(result.data.GOOGLE_CLIENT_ID).toBe("id-123");
       expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
+      expect(result.data.TODOIST_CLIENT_ID).toBe("");
     }
   });
 
-  it("accepts empty client credentials and defaults both IDs", () => {
+  it("accepts empty client credentials and defaults all IDs", () => {
     // Arrange
     const input = {
       GOOGLE_CLIENT_ID: "",
@@ -66,6 +67,7 @@ describe("pluginSchema", () => {
     if (result.success) {
       expect(result.data.GOOGLE_CLIENT_ID).toBe("");
       expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
+      expect(result.data.TODOIST_CLIENT_ID).toBe("");
     }
   });
 });

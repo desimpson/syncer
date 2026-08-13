@@ -122,12 +122,31 @@ const getValidatedClientId = (mode) => {
 };
 
 /**
+ * Returns the Todoist OAuth client ID for the current build mode.
+ * Development and production builds treat TODOIST_CLIENT_ID_* as optional
+ * (Todoist Connect disabled if omitted) until the maintainer registers the app.
+ */
+const getTodoistClientId = (mode) => {
+  const environmentVariableName =
+    mode === "production" ? "TODOIST_CLIENT_ID_PROD" : "TODOIST_CLIENT_ID_DEV";
+  const clientId = process.env[environmentVariableName];
+  const trimmed = typeof clientId === "string" ? clientId.trim() : "";
+
+  if (trimmed.length === 0) {
+    console.info("Todoist Client ID not set (Todoist connect disabled until configured).");
+  }
+
+  return trimmed;
+};
+
+/**
  * Creates production build options with the validated client ID.
  *
  * @param {string} clientId
  * @param {string} microsoftClientId
+ * @param {string} todoistClientId
  */
-const createProductionOptions = (clientId, microsoftClientId) => ({
+const createProductionOptions = (clientId, microsoftClientId, todoistClientId) => ({
   ...baseOptions,
   sourcemap: false,
   minify: true,
@@ -135,6 +154,7 @@ const createProductionOptions = (clientId, microsoftClientId) => ({
     "process.env": JSON.stringify({
       GOOGLE_CLIENT_ID: clientId,
       MICROSOFT_CLIENT_ID: microsoftClientId,
+      TODOIST_CLIENT_ID: todoistClientId,
     }),
   },
 });
@@ -144,8 +164,9 @@ const createProductionOptions = (clientId, microsoftClientId) => ({
  *
  * @param {string} clientId
  * @param {string} microsoftClientId
+ * @param {string} todoistClientId
  */
-const createDevelopmentOptions = (clientId, microsoftClientId) => ({
+const createDevelopmentOptions = (clientId, microsoftClientId, todoistClientId) => ({
   ...baseOptions,
   sourcemap: "inline",
   minify: false,
@@ -153,6 +174,7 @@ const createDevelopmentOptions = (clientId, microsoftClientId) => ({
     "process.env": JSON.stringify({
       GOOGLE_CLIENT_ID: clientId,
       MICROSOFT_CLIENT_ID: microsoftClientId,
+      TODOIST_CLIENT_ID: todoistClientId,
     }),
   },
 });
@@ -249,19 +271,24 @@ const run = async () => {
     console.info("Microsoft Client ID not set (Outlook connect disabled until configured).");
   }
 
+  const todoistClientId = getTodoistClientId(mode === "production" ? "production" : "development");
+  if (todoistClientId.length > 0) {
+    console.info(`Using Todoist Client ID (${clientIdType}): ${todoistClientId.slice(0, 8)}...`);
+  }
+
   switch (mode) {
     case "production": {
-      const options = createProductionOptions(clientId, microsoftClientId);
+      const options = createProductionOptions(clientId, microsoftClientId, todoistClientId);
       await build(options);
       break;
     }
     case "development": {
-      const options = createDevelopmentOptions(clientId, microsoftClientId);
+      const options = createDevelopmentOptions(clientId, microsoftClientId, todoistClientId);
       await build(options);
       break;
     }
     default: {
-      const options = createDevelopmentOptions(clientId, microsoftClientId);
+      const options = createDevelopmentOptions(clientId, microsoftClientId, todoistClientId);
       await watch(options);
     }
   }

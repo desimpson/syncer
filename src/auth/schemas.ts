@@ -52,6 +52,24 @@ export const microsoftGraphUserResponseSchema = z.object({
 /**
  * Schema for validating the Azure DevOps profile API response.
  */
+export const todoistTokenResponseSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string().optional(),
+  expires_in: z.number(),
+  scope: z.string().optional(),
+  token_type: z.string().optional(),
+});
+
+export const todoistTokenErrorResponseSchema = z.object({
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
+export const todoistUserResponseSchema = z.object({
+  email: z.string(),
+  full_name: z.string(),
+});
+
 export const azureDevOpsProfileResponseSchema = z.object({
   id: z.string(),
   displayName: z.string().nullable().optional(),

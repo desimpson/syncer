@@ -1,8 +1,8 @@
 # Syncer
 
-Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, and Firefox Bookmarks into your vault.
+Obsidian plugin to sync external sources like Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into your vault.
 
-This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), and Firefox Bookmarks (desktop). Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
+This plugin fetches data from external sources and syncs them to a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), Firefox Bookmarks (desktop), and Todoist. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
@@ -33,6 +33,12 @@ This plugin fetches data from external sources and syncs them to a target Markdo
   - Select which To Do lists to sync
   - Incomplete tasks only; completing in To Do removes the Obsidian line (checkbox is not auto-checked)
   - When completion status sync is enabled, checking/unchecking in Obsidian updates task status in To Do on the next sync
+- Todoist integration:
+  - OAuth 2.0 (Authorization Code with PKCE) via Todoist App Management Console
+  - Select which projects to sync
+  - Incomplete tasks only; completing in Todoist removes the Obsidian line (checkbox is not auto-checked)
+  - When completion status sync is enabled, checking/unchecking in Obsidian closes/reopens tasks in Todoist on the next sync
+  - Requires maintainer Todoist app + `TODOIST_CLIENT_ID_*` at build time; Connect stays disabled until configured
 - Azure DevOps integration:
   - Personal Access Token (PAT) authentication
   - One organisation + one project per settings profile
@@ -76,7 +82,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - **Sync interval (minutes)**: How often background sync runs
 - **Sync markdown file path**: Target note for synced items (sync saves the note if needed, then reads the on-disk file)
 - **Sync heading**: H2 heading under which new items are inserted (input is normalised to `## …`)
-- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, and Microsoft Outlook (email flags) on the next sync. With Kanban boards that move cards to a Done column, enable this if you want local `[x]` to write back before Syncer reconciles against the incomplete remote feed (otherwise a still-open remote task can uncheck the card in place).
+- **Sync completion status**: When enabled, completing or uncompleting synced items in Obsidian updates Google Tasks, Gmail stars, Microsoft To Do, Microsoft Outlook (email flags), and Todoist on the next sync. With Kanban boards that move cards to a Done column, enable this if you want local `[x]` to write back before Syncer reconciles against the incomplete remote feed (otherwise a still-open remote task can uncheck the card in place).
 
 ### Google Tasks
 
@@ -103,6 +109,22 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 - Select one or more To Do lists to sync; account type / tenant fields above apply to the next Connect only
 - Incomplete tasks from selected lists sync under the sync heading
 - Disconnect clears To Do credentials only — Outlook and existing note lines are unaffected
+
+### Todoist
+
+- Connect using **Connect** (requires the plugin to be built with `TODOIST_CLIENT_ID_DEV` or `TODOIST_CLIENT_ID_PROD`)
+- Select one or more projects to sync
+- Incomplete tasks from selected projects sync under the sync heading
+- Disconnect clears Todoist credentials; existing Todoist lines remain in your sync note until you remove them or deselect their projects
+
+#### OAuth app setup (maintainers)
+
+1. Create an app in the [Todoist App Management Console](https://developer.todoist.com/appconsole.html) as a **public client** (PKCE; no client secret)
+2. Register redirect URIs: `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`
+3. Set scope `data:read_write`
+4. Add the client ID to `TODOIST_CLIENT_ID_DEV` / `TODOIST_CLIENT_ID_PROD` for builds
+
+Until a production client ID is wired into release secrets, merged code may ship with Connect disabled — that is expected, not a bug.
 
 ### Azure DevOps
 

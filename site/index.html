@@ -63,6 +63,7 @@
             />
             <h1>Syncer</h1>
           </div>
+          <p class="app-name-line">Application name: Syncer</p>
           <p class="tagline">Your inboxes, one Markdown note.</p>
           <p class="lede">
             Syncer is an Obsidian plugin. The purpose of Syncer is to fetch
@@ -96,6 +97,36 @@
           />
           <figcaption>Works alongside Kanban and Tasks in a normal vault note.</figcaption>
         </figure>
+      </section>
+
+      <section class="wrap panel" id="google-user-data">
+        <h2>How Syncer uses Google user data</h2>
+        <p class="lede">
+          Syncer requests Google user data only when you choose Connect for a
+          Google integration in the Obsidian plugin. The purpose of that request
+          is to list items in your vault note and, if you enable write-back, to
+          update those items. Syncer does not send Google user data to a Syncer
+          server.
+        </p>
+        <ul class="data-use">
+          <li>
+            <strong>Google Tasks.</strong> Syncer reads incomplete tasks from
+            lists you select (identifiers, titles, status, and Google-provided
+            links) so they can appear as Markdown lines. Optional write-back can
+            complete or delete those tasks.
+          </li>
+          <li>
+            <strong>Gmail Starred.</strong> Syncer lists messages with the
+            STARRED label and reads Subject and From metadata only, so starred
+            mail can appear as Markdown lines. Optional completion sync can add
+            or remove STARRED. Syncer does not read message bodies, send mail,
+            or compose mail.
+          </li>
+        </ul>
+        <p>
+          Full details:
+          <a href="https://obsidiansyncer.com/privacy.html">https://obsidiansyncer.com/privacy.html</a>
+        </p>
       </section>
 
       <section class="wrap panel">
@@ -147,9 +178,9 @@
           </article>
         </div>
         <p class="legal-links">
-          <a href="privacy.html">Privacy Policy</a>
+          <a href="https://obsidiansyncer.com/privacy.html">Privacy Policy</a>
           ·
-          <a href="terms.html">Terms of Service</a>
+          <a href="https://obsidiansyncer.com/terms.html">Terms of Service</a>
         </p>
       </section>
     </main>
@@ -158,9 +189,9 @@
       <div class="wrap">
         <span>Maintained by Daniel Simpson. MIT licensed.</span>
         <span>
-          <a href="privacy.html">Privacy</a>
+          <a href="https://obsidiansyncer.com/privacy.html">Privacy</a>
           ·
-          <a href="terms.html">Terms</a>
+          <a href="https://obsidiansyncer.com/terms.html">Terms</a>
           ·
           <a href="https://github.com/desimpson/syncer">Source</a>
         </span>

@@ -27,6 +27,7 @@ For each new source integration:
 - `plugin/`: settings UI wiring and notices
 - tests: unit coverage for mapping/parsing + integration coverage for job sync path
 - docs: update `sync-semantics.md` and any changed `gotchas.md`/`architecture.md`
+- public copy: homepage source cards, Privacy/Terms, README, `manifest.json` description — see [`update-public-site`](../../.cursor/skills/update-public-site/SKILL.md)
 
 ## Release smoke checks
 

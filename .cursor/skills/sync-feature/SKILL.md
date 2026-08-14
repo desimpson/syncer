@@ -17,6 +17,7 @@ Work top-down through the layers that need changes:
 6. **Plugin wire-up** — register job in `src/plugin/index.ts` inside SyncGuard like existing jobs
 7. **Settings UI** — `settings-tab.ts` + `plugin/schemas.ts` / types
 8. **Tests** — unit for pure map/schema/actions; integration for job/service/auth with mocks under `tests/{unit,integration}/…`
+9. **Public copy** — apply [`update-public-site`](../update-public-site/SKILL.md) (homepage, Privacy/Terms, README, manifest description, screenshots if the UI changed)
 
 ## Rules
 
@@ -24,6 +25,7 @@ Work top-down through the layers that need changes:
 - Document new product rules in [`docs/kb/sync-semantics.md`](docs/kb/sync-semantics.md)
 - Note new modules/wiring in [`docs/kb/architecture.md`](docs/kb/architecture.md)
 - New client IDs or env injects → `esbuild.config.mjs`, README, and [`docs/kb/gotchas.md`](docs/kb/gotchas.md)
+- Do not ship a new source with stale `site/` or README source lists
 
 ## Reference implementations
 

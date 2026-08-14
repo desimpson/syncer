@@ -28,6 +28,7 @@ Skip for pure formatting, typo-only, or test-only changes that do not alter prod
 | Naming, Zod, errors, layering norms                            | [`docs/kb/conventions.md`](docs/kb/conventions.md)       |
 | Env, auth traps, known footguns                                | [`docs/kb/gotchas.md`](docs/kb/gotchas.md)               |
 | Index / update policy                                          | [`docs/kb/README.md`](docs/kb/README.md)                 |
+| Homepage, Privacy/Terms, README source lists, screenshots      | [`update-public-site`](../update-public-site/SKILL.md) — not KB |
 
 Backlog items live in GitHub issues. Mention in `gotchas.md` only when they actively trip agents.
 

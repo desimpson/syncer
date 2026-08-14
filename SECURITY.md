@@ -1,6 +1,6 @@
 # Security
 
-Syncer is a local Obsidian plugin. It does not run a Syncer backend, proxy, or hosted API.
+Syncer is a local Obsidian plugin. It does not run a Syncer backend, proxy, or hosted API. Canonical user-facing policy: [Privacy Policy](https://obsidiansyncer.com/privacy.html) and [Terms of Service](https://obsidiansyncer.com/terms.html).
 
 ## Capabilities
 

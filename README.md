@@ -2,6 +2,8 @@
 
 Obsidian plugin to sync references/links to Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into your vault.
 
+Site: [obsidiansyncer.com](https://obsidiansyncer.com) · [Privacy Policy](https://obsidiansyncer.com/privacy.html) · [Terms of Service](https://obsidiansyncer.com/terms.html)
+
 This plugin fetches data from external sources and syncs references/links to them into a target Markdown document under a configurable heading. Supported sources are Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook (flagged mail), Azure DevOps (assigned work items), Firefox Bookmarks (desktop), and Todoist. Inspired by [_Getting Things Done_ (GTD)](https://en.wikipedia.org/wiki/Getting_Things_Done), but equally suited to any workflow based on to-do lists or Kanban boards. Designed to integrate well with the [Obsidian Kanban plugin](https://github.com/mgmeyers/obsidian-kanban) and the [Obsidian Tasks plugin](https://github.com/obsidian-tasks-group/obsidian-tasks).
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)

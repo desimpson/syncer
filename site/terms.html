@@ -8,19 +8,27 @@
       name="description"
       content="Terms of Service for the Syncer Obsidian plugin."
     />
+    <meta name="theme-color" content="#0c0d10" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <header>
-      <a class="site-title" href="/">Syncer</a>
-      <nav aria-label="Site">
-        <a href="/">Home</a>
-        <a href="privacy.html">Privacy Policy</a>
-        <a href="terms.html">Terms of Service</a>
-        <a href="https://github.com/desimpson/syncer">Source</a>
-      </nav>
+  <body class="page-legal">
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/">
+          <img class="mark" src="favicon.svg" width="32" height="32" alt="" />
+          Syncer
+        </a>
+        <nav aria-label="Site">
+          <a href="/">Home</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html" aria-current="page">Terms</a>
+          <a href="https://github.com/desimpson/syncer">GitHub</a>
+        </nav>
+      </div>
     </header>
-    <main>
+    <main class="wrap-article">
+      <p class="eyebrow">Legal</p>
       <h1>Terms of Service</h1>
       <p class="lede">
         These terms apply to your use of the Syncer Obsidian plugin (“Syncer”).
@@ -67,10 +75,17 @@
         <a href="https://github.com/desimpson/syncer/issues">GitHub Issues</a>.
       </p>
 
-      <p class="muted updated">Last updated 14 August 2026.</p>
+      <p class="updated">Last updated 14 August 2026.</p>
     </main>
-    <footer>
-      <p><a href="/">Syncer</a> · local Obsidian plugin</p>
+    <footer class="site-foot">
+      <div class="wrap">
+        <span><a href="/">Syncer</a> · local Obsidian plugin</span>
+        <span>
+          <a href="privacy.html">Privacy</a>
+          ·
+          <a href="terms.html">Terms</a>
+        </span>
+      </div>
     </footer>
   </body>
 </html>

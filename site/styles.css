@@ -164,6 +164,12 @@ h1 {
   color: #e8e2d6;
 }
 
+.app-name-line {
+  margin: 0.35rem 0 0.85rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .lede {
   margin: 0 0 1.6rem;
   max-width: 40rem;
@@ -265,6 +271,16 @@ h2 {
 .source span {
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.data-use {
+  max-width: 44rem;
+  padding-left: 1.15rem;
+  color: #d6d1c6;
+}
+
+.data-use li {
+  margin-bottom: 0.75rem;
 }
 
 .trust {

@@ -8,6 +8,14 @@ This plugin fetches data from external sources and syncs references/links to the
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-example.png)](screenshots/gtd-kanban-example.png)
 
+![Command palette showing Syncer: Manual sync](screenshots/command-palette-manual-sync.png)
+
+![Markdown source of synced Inbox items](screenshots/markdown-source-inbox.png)
+
+![Syncer settings with a connected Todoist account](screenshots/settings-todoist.png)
+
+![Syncer settings with a connected Microsoft To Do account](screenshots/settings-microsoft-to-do.png)
+
 ## Features
 
 - Scheduled background sync on a configurable interval (minutes)

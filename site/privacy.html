@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Syncer</title>
+    <meta
+      name="description"
+      content="How the Syncer Obsidian plugin accesses, stores, and uses Google and other provider data."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="site-title" href="/">Syncer</a>
+      <nav aria-label="Site">
+        <a href="/">Home</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="https://github.com/desimpson/syncer">Source</a>
+      </nav>
+    </header>
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="lede">
+        This policy describes how the Syncer Obsidian plugin (“Syncer”, “the
+        plugin”) accesses, uses, stores, and shares user data, including Google
+        user data.
+      </p>
+
+      <h2>Who we are</h2>
+      <p>
+        Syncer is open-source software maintained by Daniel Simpson. It is a
+        local desktop plugin. There is no Syncer company backend that receives
+        your vault or provider data.
+      </p>
+      <p>
+        Questions:
+        <a href="https://github.com/desimpson/syncer/issues">GitHub Issues</a>.
+      </p>
+
+      <h2>No Syncer servers</h2>
+      <p>
+        Syncer does not run a Syncer backend, proxy, or hosted API. OAuth and
+        API traffic goes from your Obsidian install to the provider you
+        connected (Google, Microsoft, Todoist, or Azure DevOps). Firefox
+        Bookmarks sync reads a local Firefox profile on your machine and does
+        not use a cloud account.
+      </p>
+
+      <h2>What is stored on your device</h2>
+      <ul>
+        <li>
+          OAuth tokens and Azure DevOps personal access tokens are stored in
+          Obsidian plugin settings (<code>data.json</code> in your vault’s
+          plugin folder).
+        </li>
+        <li>
+          Synced item titles, links, and completion state are written into the
+          Markdown note you configure.
+        </li>
+        <li>
+          Disconnecting an integration clears that integration’s stored
+          credentials from plugin settings.
+        </li>
+      </ul>
+
+      <h2>Google user data</h2>
+      <p>
+        When you use <strong>Connect Google Tasks</strong> or
+        <strong>Connect Gmail Starred</strong>, Syncer requests access to your
+        Google Account and calls Google APIs from the plugin.
+      </p>
+      <p>Google Tasks (if connected):</p>
+      <ul>
+        <li>
+          Reads incomplete tasks from lists you select (identifiers, titles,
+          status, and Google-provided links).
+        </li>
+        <li>
+          Optionally writes completion or deletion back to Google Tasks when
+          you enable those settings.
+        </li>
+      </ul>
+      <p>Gmail Starred (if connected):</p>
+      <ul>
+        <li>
+          Lists messages with the STARRED label and fetches
+          <code>format=metadata</code> for the Subject and From headers only.
+          Syncer does not request message bodies.
+        </li>
+        <li>
+          Optionally adds or removes the STARRED label when completion sync is
+          enabled.
+        </li>
+      </ul>
+      <p>
+        OpenID, email, and profile scopes identify which Google account is
+        connected. Tokens are sent only to Google’s OAuth and API endpoints.
+      </p>
+      <p>
+        The use of information received from Google APIs will adhere to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy"
+          >Google API Services User Data Policy</a
+        >, including the Limited Use requirements.
+      </p>
+
+      <h2>Other providers</h2>
+      <p>
+        If you connect Microsoft, Todoist, or Azure DevOps, Syncer reads the
+        items needed to list references in your note (for example task titles,
+        flagged-mail subjects, or work-item identifiers) and, where you enable
+        it, writes completion or flag/star state back to that provider. Data
+        stays on your device and at that provider. Syncer does not receive a
+        copy.
+      </p>
+
+      <h2>Sharing</h2>
+      <p>
+        Syncer does not sell, rent, or share Google user data or other provider
+        data with third parties. It does not use that data for advertising,
+        analytics, or credit decisions. It does not transfer data to a Syncer
+        server because none exists.
+      </p>
+
+      <h2>Telemetry and ads</h2>
+      <p>
+        Syncer does not include client-side telemetry, analytics SDKs, or ads.
+      </p>
+
+      <h2>In-product notice</h2>
+      <p>
+        Plugin settings also describe network use and storage. This page is the
+        canonical Privacy Policy linked from the Google OAuth consent screen.
+      </p>
+
+      <p class="muted updated">Last updated 14 August 2026.</p>
+    </main>
+    <footer>
+      <p><a href="/">Syncer</a> · local Obsidian plugin</p>
+    </footer>
+  </body>
+</html>

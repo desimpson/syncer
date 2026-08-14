@@ -60,6 +60,10 @@
 - Release tags must be **annotated** (`git tag -a` / `npm version`); `git push --follow-tags` ignores lightweight tags, so a version commit can land on `main` without triggering [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
 - Verify with `git cat-file -t refs/tags/x.y.z` → `tag`. A detached checkout of the tag target makes `git cat-file -t x.y.z` report `commit` even when the tag is annotated (Actions release job). See README Releasing and [`checklists.md`](checklists.md)
 
+## Public legal site
+
+- Homepage / Privacy / Terms are static files in [`site/`](../../site/), deployed by [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml) to `https://obsidiansyncer.com`. Do **not** set Pages source to `docs/` — that would publish this KB
+
 ## Agent pitfalls
 
 - Do not assume every integration is exported from barrel `index.ts` files

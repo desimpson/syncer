@@ -181,6 +181,8 @@ It is also recommended to install the [Hot-Reload plugin](https://github.com/pje
 
 This section is for [Obsidian developer policy](https://docs.obsidian.md/Community+directory/Developer+policies) review and for users who want to know what the plugin contacts before installing.
 
+Hosted copies used for Google OAuth verification: [homepage](https://obsidiansyncer.com/), [Privacy Policy](https://obsidiansyncer.com/privacy.html), and [Terms of Service](https://obsidiansyncer.com/terms.html).
+
 Syncer is a local plugin: it does not run a Syncer backend, proxy, or hosted API. Data access is limited to the integrations you enable:
 
 - **Account requirement**: cloud sync features need a corresponding Google account (Tasks / Gmail), Microsoft account (Outlook / To Do), Todoist account, and/or Azure DevOps account. Firefox Bookmarks sync is local and does not require a cloud account.

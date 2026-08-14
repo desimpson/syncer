@@ -134,20 +134,42 @@ nav a[aria-current="page"] {
   text-transform: uppercase;
 }
 
+.hero-name {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.85rem;
+}
+
+.hero-logo {
+  width: 4.25rem;
+  height: 4.25rem;
+  border-radius: 1rem;
+  flex-shrink: 0;
+}
+
 h1 {
-  margin: 0 0 1rem;
-  font-size: clamp(2.4rem, 4.4vw, 4rem);
+  margin: 0;
+  font-size: clamp(2.6rem, 5vw, 4.2rem);
   line-height: 1.05;
   letter-spacing: -0.035em;
   font-weight: 650;
 }
 
+.tagline {
+  margin: 0 0 1rem;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #e8e2d6;
+}
+
 .lede {
   margin: 0 0 1.6rem;
-  max-width: 38rem;
+  max-width: 40rem;
   color: #d8d3c8;
-  font-size: 1.12rem;
-  line-height: 1.6;
+  font-size: 1.08rem;
+  line-height: 1.65;
 }
 
 .actions {
@@ -341,6 +363,6 @@ h2 {
   }
 
   h1 {
-    font-size: 2.35rem;
+    font-size: 2.6rem;
   }
 }

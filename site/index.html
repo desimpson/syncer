@@ -8,53 +8,121 @@
       name="description"
       content="Syncer is a local Obsidian plugin that syncs references and links from Google Tasks, Gmail Starred, Microsoft To Do, Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into a Markdown note."
     />
+    <meta name="theme-color" content="#0c0d10" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header>
-      <a class="site-title" href="/">Syncer</a>
-      <nav aria-label="Site">
-        <a href="/">Home</a>
-        <a href="privacy.html">Privacy Policy</a>
-        <a href="terms.html">Terms of Service</a>
-        <a href="https://github.com/desimpson/syncer">Source</a>
-      </nav>
-    </header>
-    <main>
-      <h1>Syncer</h1>
-      <p class="lede">
-        An <a href="https://obsidian.md/">Obsidian</a> community plugin that syncs
-        references and links from your existing tools into a target Markdown note
-        under a heading you choose.
-      </p>
-      <div class="card">
-        <p>
-          Syncer runs on your computer inside Obsidian. It does not operate a
-          Syncer backend, proxy, or hosted API. Tokens stay in the plugin’s local
-          settings. Synced lines are written into your vault.
-        </p>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/">
+          <img class="mark" src="favicon.svg" width="32" height="32" alt="" />
+          Syncer
+        </a>
+        <nav aria-label="Site">
+          <a href="/" aria-current="page">Home</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
+          <a href="https://github.com/desimpson/syncer">GitHub</a>
+        </nav>
       </div>
-      <h2>What it syncs</h2>
-      <ul>
-        <li>Google Tasks (incomplete tasks from lists you select)</li>
-        <li>Gmail Starred (subject and from of starred messages)</li>
-        <li>Microsoft To Do and Outlook flagged mail</li>
-        <li>Azure DevOps work items assigned to you</li>
-        <li>Firefox Bookmarks from a local profile (desktop)</li>
-        <li>Todoist tasks from projects you select</li>
-      </ul>
-      <p>
-        Install it from Obsidian’s Community plugins browser or the
-        <a href="https://community.obsidian.md/plugins/syncer">Community directory</a>.
-      </p>
-      <p>
-        <a href="privacy.html">Privacy Policy</a>
-        ·
-        <a href="terms.html">Terms of Service</a>
-      </p>
+    </header>
+
+    <main>
+      <section class="wrap hero">
+        <div>
+          <p class="eyebrow">Obsidian community plugin</p>
+          <h1>Your inboxes, one Markdown note.</h1>
+          <p class="lede">
+            Syncer pulls references and links from the tools you already use into
+            a heading in your vault. It runs on your computer. There is no
+            Syncer server.
+          </p>
+          <div class="actions">
+            <a class="btn btn-primary" href="https://community.obsidian.md/plugins/syncer"
+              >Install in Obsidian</a
+            >
+            <a class="btn btn-ghost" href="https://github.com/desimpson/syncer">View source</a>
+          </div>
+        </div>
+        <figure class="shot">
+          <img
+            src="screenshot.png"
+            width="1600"
+            height="900"
+            alt="Obsidian Kanban board with Inbox, Capture, and Next Actions columns filled by Syncer."
+          />
+          <figcaption>Works alongside Kanban and Tasks in a normal vault note.</figcaption>
+        </figure>
+      </section>
+
+      <section class="wrap panel">
+        <h2>What it syncs</h2>
+        <div class="sources">
+          <article class="source">
+            <strong>Google Tasks</strong>
+            <span>Incomplete tasks from lists you select.</span>
+          </article>
+          <article class="source">
+            <strong>Gmail Starred</strong>
+            <span>Subject and from of starred messages.</span>
+          </article>
+          <article class="source">
+            <strong>Microsoft To Do</strong>
+            <span>Incomplete tasks from selected lists.</span>
+          </article>
+          <article class="source">
+            <strong>Outlook</strong>
+            <span>Mail with a follow-up flag.</span>
+          </article>
+          <article class="source">
+            <strong>Azure DevOps</strong>
+            <span>Work items assigned to you.</span>
+          </article>
+          <article class="source">
+            <strong>Todoist</strong>
+            <span>Incomplete tasks from selected projects.</span>
+          </article>
+          <article class="source">
+            <strong>Firefox Bookmarks</strong>
+            <span>Folders from a local desktop profile.</span>
+          </article>
+        </div>
+        <div class="trust">
+          <article>
+            <p>
+              Tokens stay in Obsidian <code>data.json</code>. Synced lines are
+              written into the note you choose. Disconnect clears local
+              credentials for that integration.
+            </p>
+          </article>
+          <article>
+            <p>
+              Optional write-back can complete, uncomplete, star, flag, or
+              delete items in the connected provider. Off by default where it
+              can change remote data.
+            </p>
+          </article>
+        </div>
+        <p class="legal-links">
+          <a href="privacy.html">Privacy Policy</a>
+          ·
+          <a href="terms.html">Terms of Service</a>
+        </p>
+      </section>
     </main>
-    <footer>
-      <p>Maintained by Daniel Simpson. Source on GitHub.</p>
+
+    <footer class="site-foot">
+      <div class="wrap">
+        <span>Maintained by Daniel Simpson. MIT licensed.</span>
+        <span>
+          <a href="privacy.html">Privacy</a>
+          ·
+          <a href="terms.html">Terms</a>
+          ·
+          <a href="https://github.com/desimpson/syncer">Source</a>
+        </span>
+      </div>
     </footer>
   </body>
 </html>

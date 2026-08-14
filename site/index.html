@@ -3,14 +3,35 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Syncer — Obsidian plugin</title>
+    <title>Syncer</title>
+    <meta name="application-name" content="Syncer" />
     <meta
       name="description"
-      content="Syncer is a local Obsidian plugin that syncs references and links from Google Tasks, Gmail Starred, Microsoft To Do, Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into a Markdown note."
+      content="The purpose of Syncer is to sync references and links from Google Tasks, Gmail Starred, Microsoft To Do, Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into a Markdown note in Obsidian."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Syncer" />
+    <meta property="og:title" content="Syncer" />
+    <meta property="og:url" content="https://obsidiansyncer.com/" />
+    <meta
+      property="og:description"
+      content="The purpose of Syncer is to sync references and links from Google Tasks, Gmail Starred, Microsoft To Do, Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into a Markdown note in Obsidian."
     />
     <meta name="theme-color" content="#0c0d10" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://obsidiansyncer.com/" />
     <link rel="stylesheet" href="styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Syncer",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Obsidian",
+        "url": "https://obsidiansyncer.com/",
+        "description": "The purpose of Syncer is to sync references and links from Google Tasks, Gmail Starred, Microsoft To Do, Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into a Markdown note in Obsidian."
+      }
+    </script>
   </head>
   <body>
     <header class="top">
@@ -44,12 +65,20 @@
           </div>
           <p class="tagline">Your inboxes, one Markdown note.</p>
           <p class="lede">
-            Syncer is an Obsidian plugin. Its purpose is to fetch references and
-            links from Google Tasks, Gmail Starred, Microsoft To Do, Outlook
-            flagged mail, Azure DevOps work items, Firefox Bookmarks, and
-            Todoist, and write them into a Markdown note in your local vault
-            under a heading you choose. Syncer runs on your computer inside
-            Obsidian. It does not operate a Syncer backend, proxy, or hosted API.
+            Syncer is an Obsidian plugin. The purpose of Syncer is to fetch
+            references and links from Google Tasks, Gmail Starred, Microsoft To
+            Do, Outlook flagged mail, Azure DevOps work items, Firefox
+            Bookmarks, and Todoist, and write them into a Markdown note in your
+            local vault under a heading you choose. Syncer runs on your computer
+            inside Obsidian. It does not operate a Syncer backend, proxy, or
+            hosted API.
+          </p>
+          <h2>Purpose of Syncer</h2>
+          <p class="lede">
+            The purpose of Syncer is to sync task, mail, and bookmark references
+            from connected accounts into one Obsidian note so you can process
+            them in your vault. Syncer uses Google APIs only for Google Tasks
+            and Gmail Starred when you connect those integrations.
           </p>
           <div class="actions">
             <a class="btn btn-primary" href="https://community.obsidian.md/plugins/syncer"

@@ -16,6 +16,7 @@ When changing behavior, read [`docs/kb/README.md`](docs/kb/README.md) and the re
 Skills live under `.cursor/skills/<name>/`:
 
 - [`update-knowledge-base`](.cursor/skills/update-knowledge-base/SKILL.md) — keep `docs/kb/` aligned after meaningful changes
+- [`update-public-site`](.cursor/skills/update-public-site/SKILL.md) — keep homepage, legal pages, README, and screenshots aligned with shipped sources
 - [`code-quality`](.cursor/skills/code-quality/SKILL.md) — layering, Zod, tests, project conventions
 - [`sync-feature`](.cursor/skills/sync-feature/SKILL.md) — add or change a job/service/adaptor/auth integration
 
@@ -25,4 +26,5 @@ Skills live under `.cursor/skills/<name>/`:
 - Match existing conventions (Zod schemas, naming, British spelling)
 - No new dependencies without explicit approval
 - When sync semantics, architecture, conventions, or footguns change, update the matching `docs/kb/` page in the same task
+- When adding, removing, or renaming a sync source, update `site/`, README, and `manifest.json` description in the same task (see [`update-public-site`](.cursor/skills/update-public-site/SKILL.md))
 - PRs that resolve issues must include `Closes #<issue>` (or `Refs #<issue>` when not closing), and post test evidence on the linked issue (PR link + automated results + manual verification notes) before merging

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 148 32" role="img" aria-label="Syncer">
+  <rect width="32" height="32" rx="8" fill="#16181e" />
+  <path
+    fill="#e2b07a"
+    d="M7.6 10.5 13.4 6.2v2.55h9.1a1.55 1.55 0 0 1 0 3.1h-9.1v2.55zM24.4 21.5 18.6 25.8v-2.55H9.5a1.55 1.55 0 0 1 0-3.1h9.1v-2.55z"
+  />
+  <text
+    x="42"
+    y="21.5"
+    fill="#f3efe6"
+    font-family="ui-sans-serif, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="18"
+    font-weight="650"
+    letter-spacing="-0.03em"
+  >Syncer</text>
+</svg>

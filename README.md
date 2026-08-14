@@ -1,4 +1,6 @@
-# Syncer
+<h1 align="center">
+  <img src="site/lockup.png" alt="Syncer" width="280">
+</h1>
 
 Obsidian plugin to sync references/links to Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into your vault.
 
@@ -8,15 +10,7 @@ This plugin fetches data from external sources and syncs references/links to the
 
 [![Screenshot of Syncer plugin](screenshots/gtd-kanban-closeup.png)](screenshots/gtd-kanban-closeup.png)
 
-![Full GTD Kanban board](screenshots/gtd-kanban-example.png)
-
-![Command palette showing Syncer: Manual sync](screenshots/command-palette-manual-sync.png)
-
 ![Markdown source of synced Inbox items](screenshots/markdown-source-inbox.png)
-
-![Syncer settings with a connected Todoist account](screenshots/settings-todoist.png)
-
-![Syncer settings with a connected Microsoft To Do account](screenshots/settings-microsoft-to-do.png)
 
 ## Features
 

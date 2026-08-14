@@ -28,5 +28,6 @@ Treat KB updates as part of the same task when behavior changes:
 | Footgun / env / known trap         | `gotchas.md`                     |
 | Delivery / issue / release process | `checklists.md`                  |
 | Test layout change                 | [docs/testing.md](../testing.md) |
+| Public homepage / legal / screenshots | not KB — [`update-public-site`](../../.cursor/skills/update-public-site/SKILL.md) |
 
 **Sizing:** keep each page under ~80 lines. Never invent features — cite paths. Use the [`update-knowledge-base`](../../.cursor/skills/update-knowledge-base/SKILL.md) project skill after meaningful code changes.

@@ -129,9 +129,20 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 #### OAuth app setup (maintainers)
 
-1. Register a **public client** with `POST https://api.todoist.com/oauth/register` (`token_endpoint_auth_method: none`, scope `data:read_write`, grant types `authorization_code` + `refresh_token`). The [App Management Console](https://developer.todoist.com/appconsole.html) only creates confidential clients, which require a `client_secret` Syncer cannot ship.
+1. Register a **public client** with `POST https://api.todoist.com/oauth/register` (`token_endpoint_auth_method: none`, scope `data:read_write`, grant types `authorization_code` + `refresh_token`). Include `logo_uri` (`https://obsidiansyncer.com/logo.png`) and `client_uri` (`https://obsidiansyncer.com`). The [App Management Console](https://developer.todoist.com/appconsole.html) only creates confidential clients, which require a `client_secret` Syncer cannot ship, and it cannot brand DCR clients.
 2. Use redirect URIs: `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`
-3. Put the **production** `tdd_…` client ID in `oauth-clients.prod.json` (and allow the key in `scripts/check-oauth-clients.mjs`). Use `TODOIST_CLIENT_ID_DEV` in `.env` for local `build:dev` only.
+3. Put the **production** `tdd_…` client ID in `oauth-clients.prod.json` (and allow the key in `scripts/check-oauth-clients.mjs`). Use `TODOIST_CLIENT_ID_DEV` in `.env` for local `build:dev` only. After changing a client ID, Disconnect and Connect again.
+4. Todoist does not document a DCR update API. To change the consent icon or name, re-register with the same metadata plus the new `logo_uri`, then swap the client ID. There is no Todoist CLI for this.
+
+#### OAuth app icon (maintainers)
+
+One mark, reused on every consent screen. Do not invent a second logo.
+
+| File | Size | Use |
+| --- | --- | --- |
+| [`site/favicon.svg`](site/favicon.svg) | vector | Source / tab icon |
+| [`site/logo.png`](site/logo.png) | 512×512 | Google OAuth consent (120×120 minimum), Microsoft Entra branding, and Todoist `logo_uri` (`https://obsidiansyncer.com/logo.png`) |
+| [`docs/branding/logo-300.png`](docs/branding/logo-300.png) | 300×300 | Local 300² export if a console asks for that size |
 
 ### Azure DevOps
 

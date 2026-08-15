@@ -138,7 +138,7 @@ export class SettingsTab extends PluginSettingTab {
   private async renderExternalSourceSettings(containerElement: HTMLElement) {
     new Setting(containerElement).setName("External sources").setHeading();
     containerElement.createEl("p", {
-      text: "Configure settings for the external sources you want to sync with Obsidian.",
+      text: "Configure external sources. Syncer syncs references and links from them into a Markdown note in your vault.",
     });
     await this.addGoogleTasksSettings(containerElement);
     await this.addGmailStarredSettings(containerElement);
@@ -300,7 +300,7 @@ export class SettingsTab extends PluginSettingTab {
       setting.setDesc(
         this.config.googleClientId.length === 0
           ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_CLIENT_ID_DEV or GOOGLE_CLIENT_ID_PROD when building to enable Connect."
-          : "Connect your Google Tasks account to sync tasks.",
+          : "Connect your Google Tasks account to sync references and links to your tasks.",
       );
       setting.addButton((button) => {
         if (this.config.googleClientId.length === 0) {

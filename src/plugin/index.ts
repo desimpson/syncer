@@ -1,6 +1,7 @@
 import { type App, Notice, Plugin, type PluginManifest, type TFile } from "obsidian";
 import { SettingsTab } from "@/plugin/settings-tab";
 import { saveSyncDocumentIfDirty } from "@/plugin/save-sync-document";
+import { openSyncDocument } from "@/plugin/open-sync-document";
 import { createScheduler, type Scheduler } from "@/sync/scheduler";
 import {
   formatPrepareSyncDocumentFailureNotice,
@@ -150,6 +151,15 @@ export default class SyncerPlugin extends Plugin {
         const { syncIntervalMinutes } = await this.loadSettings();
         this.scheduler.restart(syncIntervalMinutes);
         new Notice("Manual sync completed.");
+      },
+    });
+
+    this.addCommand({
+      id: "open-sync-document",
+      name: "Open sync document",
+      callback: async () => {
+        const { syncDocument } = await this.loadSettings();
+        await openSyncDocument(this.app, syncDocument, (message) => new Notice(message));
       },
     });
 

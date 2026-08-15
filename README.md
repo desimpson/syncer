@@ -171,6 +171,7 @@ One mark, reused on every consent screen. Do not invent a second logo.
 ## Commands
 
 - `Manual sync`: Triggers a once-off sync and restarts the scheduler
+- `Open sync document`: Opens the configured sync note, revealing an existing pane if it is already open
 
 ## Development
 

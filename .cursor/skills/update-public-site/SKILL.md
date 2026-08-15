@@ -43,7 +43,7 @@ Add a new Google integration only by extending the existing Google data-use list
 
 ## Brand lockup
 
-- Mark only: [`site/favicon.svg`](site/favicon.svg) (tab icon) and [`site/logo.png`](site/logo.png) (512²).
+- Mark only: [`site/favicon.svg`](site/favicon.svg) (tab icon) and [`site/logo.png`](site/logo.png) (512², also Todoist `logo_uri` at `https://obsidiansyncer.com/logo.png`). Same mark at 300²: [`docs/branding/logo-300.png`](docs/branding/logo-300.png). Upload the 512 raster to Google consent and Entra branding. Todoist DCR clients set `logo_uri` on `POST /oauth/register` (re-register to change it) — do not invent a second mark.
 - Word + mark: [`site/lockup.svg`](site/lockup.svg) in the site header (transparent; do not put `logo.png` in the hero). [`site/lockup.png`](site/lockup.png) at the top of the README (dark plate so it holds on GitHub light and dark).
 - Homepage must still show a visible `<h1>Syncer</h1>` and **Application name: Syncer** for Google.
 

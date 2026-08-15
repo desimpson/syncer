@@ -300,7 +300,7 @@ export class SettingsTab extends PluginSettingTab {
       setting.setDesc(
         this.config.googleClientId.length === 0
           ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_CLIENT_ID_DEV or GOOGLE_CLIENT_ID_PROD when building to enable Connect."
-          : "Connect your Google Tasks account to sync references and links to your tasks.",
+          : "Connect your Google Tasks account to sync references and links to incomplete tasks.",
       );
       setting.addButton((button) => {
         if (this.config.googleClientId.length === 0) {

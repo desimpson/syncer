@@ -97,7 +97,7 @@ tests/
 
 **Artifacts** — CI uploads `coverage/coverage-summary.json` and `coverage/lcov.info` as artifact `coverage` (even when the gate fails). Coverage HTML is not published on GitHub Pages.
 
-**Badges** — On `main`, CI generates `coverage-lines.svg` and `coverage-branches.svg` and pushes them with `coverage-summary.json` to the orphan `badges` branch. README badges read from raw.githubusercontent.com; PRs show last-`main` values until merge.
+**Badges** — On `main`, the `publish-badges` job downloads the coverage artifact, generates `coverage-lines.svg` and `coverage-branches.svg`, and updates the `badges` branch with those SVGs plus `coverage-summary.json`. README badges read from raw.githubusercontent.com; PRs show last-`main` values until merge.
 
 ### Troubleshooting
 

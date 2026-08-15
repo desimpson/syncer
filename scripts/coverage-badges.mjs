@@ -33,7 +33,7 @@ function escapeXml(value) {
 
 function renderBadge(label, value, colour) {
   const labelWidth = label.length * 7 + 10;
-  const valueText = `${Math.round(value)}%`;
+  const valueText = `${value.toFixed(1)}%`;
   const valueWidth = valueText.length * 7 + 10;
   const totalWidth = labelWidth + valueWidth;
 

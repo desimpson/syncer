@@ -67,7 +67,7 @@
 ## Coverage badges and CI gates
 
 - Coverage HTML lives under `coverage/` locally and as CI artifact `coverage` — not on Pages or obsidiansyncer.com
-- Machine-readable baseline for vs-main checks: orphan `badges` branch (`coverage-summary.json` + SVG badges). Pushes use `GITHUB_TOKEN` and do not re-trigger Test & Lint; workflow also ignores `badges` branch pushes
+- Machine-readable baseline for vs-main checks: orphan `badges` branch (`coverage-summary.json` + SVG badges). A `main`-only `publish-badges` job with `contents: write` pushes via `GITHUB_TOKEN` (does not re-trigger Test & Lint); workflow also ignores `badges` branch pushes
 - **Stale badge** — SVGs update only on successful `main` coverage runs; PR README badges show last-`main` values
 - **Floor fail** — Vitest `ERROR: Coverage … below threshold` from `vitest.config.ts`; distinct from vs-main (`Coverage vs main:` prefix in CI log)
 - **Vs-main fetch error** — fail-closed by design (not treated as skip); re-run the job

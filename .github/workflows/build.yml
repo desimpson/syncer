@@ -13,7 +13,7 @@ jobs:
     name: Test & Lint
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -61,18 +61,45 @@ jobs:
             coverage/lcov.info
           if-no-files-found: error
 
-      - name: Update coverage badges branch
-        if: github.ref == 'refs/heads/main' && success()
+  publish-badges:
+    name: Publish coverage badges
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+
+      - name: Generate coverage badges
+        run: node scripts/coverage-badges.mjs
+
+      - name: Publish badges branch
         run: |
-          node scripts/coverage-badges.mjs
+          mkdir -p /tmp/badges-publish
+          cp coverage/coverage-summary.json coverage/coverage-lines.svg coverage/coverage-branches.svg /tmp/badges-publish/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan badges-update
-          git rm -rf . 2>/dev/null || true
-          cp coverage/coverage-summary.json coverage/coverage-lines.svg coverage/coverage-branches.svg .
-          git add coverage-summary.json coverage-lines.svg coverage-branches.svg
-          git commit -m "Update coverage badges"
-          git push -f origin HEAD:badges
+          if git fetch origin badges && git checkout -B badges origin/badges; then
+            cp /tmp/badges-publish/* .
+            git add coverage-summary.json coverage-lines.svg coverage-branches.svg
+            git diff --cached --quiet || git commit -m "Update coverage badges"
+            git push origin badges
+          else
+            git checkout --orphan badges
+            git rm -rf --quiet . || true
+            cp /tmp/badges-publish/* .
+            git add coverage-summary.json coverage-lines.svg coverage-branches.svg
+            git commit -m "Update coverage badges"
+            git push origin HEAD:badges
+          fi
 
   build-dev:
     name: Build (Dev)

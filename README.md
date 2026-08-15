@@ -2,6 +2,10 @@
   <img src="site/lockup.png" alt="Syncer" width="280">
 </h1>
 
+[![CI](https://github.com/desimpson/syncer/actions/workflows/build.yml/badge.svg)](https://github.com/desimpson/syncer/actions/workflows/build.yml)
+![Line coverage](https://raw.githubusercontent.com/desimpson/syncer/badges/coverage-lines.svg)
+![Branch coverage](https://raw.githubusercontent.com/desimpson/syncer/badges/coverage-branches.svg)
+
 Obsidian plugin to sync references/links to Google Tasks, Gmail Starred, Microsoft To Do, Microsoft Outlook, Azure DevOps, Firefox Bookmarks, and Todoist into your vault.
 
 Site: [obsidiansyncer.com](https://obsidiansyncer.com) · [Privacy Policy](https://obsidiansyncer.com/privacy.html) · [Terms of Service](https://obsidiansyncer.com/terms.html)
@@ -172,6 +176,8 @@ npm run build:dev
 ```
 
 Set `GOOGLE_CLIENT_ID_DEV`, `MICROSOFT_CLIENT_ID_DEV`, and `TODOIST_CLIENT_ID_DEV` (see `.env.example`) to enable Connect in development builds. If omitted, the build still succeeds but the matching Connect actions are disabled.
+
+Run tests with coverage (floor + report): [`npm run test:coverage`](docs/testing.md).
 
 Sync to your vault with:
 

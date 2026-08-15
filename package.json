@@ -21,7 +21,7 @@
     "test": "vitest run --silent",
     "test:unit": "vitest run --config vitest.unit.config.ts --silent",
     "test:integration": "vitest run --config vitest.integration.config.ts --silent",
-    "test:coverage": "vitest run --coverage --reporter=html",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest --watch",
     "test:unit:watch": "vitest --config vitest.unit.config.ts --watch",
     "test:integration:watch": "vitest --config vitest.integration.config.ts --watch",

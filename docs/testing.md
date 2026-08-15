@@ -49,6 +49,9 @@ npm run test:unit
 # Run only integration tests
 npm run test:integration
 
+# Run full suite with coverage report and quality gates
+npm run test:coverage
+
 # Watch mode
 npm run test:unit:watch
 npm run test:integration:watch
@@ -83,6 +86,29 @@ tests/
 - **CI optimization**: Can run unit tests first, fail fast on logic errors
 - **Clear separation**: Easy to identify test types and their purposes
 - **Parallel execution**: Different test suites can run independently
+
+## Coverage
+
+`npm run test:coverage` runs the combined unit + integration suite with Istanbul v8 coverage scoped to `src/**/*.ts` (excludes `*.d.ts` and `types.ts`). Reporters: text table, `coverage/coverage-summary.json`, `coverage/lcov.info`, and HTML under `coverage/`.
+
+**Local floor** — `vitest.config.ts` enforces minimum line and branch percentages (`thresholds.lines` / `thresholds.branches`). Floors match current `src/` coverage at implementation time; bump them in a dedicated PR when coverage clearly improves.
+
+**CI vs-main** — PRs fetch the baseline from `https://raw.githubusercontent.com/desimpson/syncer/badges/coverage-summary.json` (last successful `main` run). The job fails if line or branch % drops below baseline. HTTP 404 means no baseline yet (first `main` publish) and skips with a warning; any other fetch error fails closed — re-run the job.
+
+**Artifacts** — CI uploads `coverage/coverage-summary.json` and `coverage/lcov.info` as artifact `coverage` (even when the gate fails). Coverage HTML is not published on GitHub Pages.
+
+**Badges** — On `main`, CI generates `coverage-lines.svg` and `coverage-branches.svg` and pushes them with `coverage-summary.json` to the orphan `badges` branch. README badges read from raw.githubusercontent.com; PRs show last-`main` values until merge.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+| ------- | ------------ |
+| `ERROR: Coverage … below threshold` | Local floor fail — compare text table to `vitest.config.ts` thresholds |
+| `Coverage vs main: … regressed` | PR coverage below `badges/coverage-summary.json` — add tests |
+| `Coverage vs main: baseline not found` | First `main` run has not published yet |
+| `Coverage vs main: failed to fetch` | Transient GitHub/raw CDN error — re-run CI |
+| Badge shows old % | SVGs update only on `main`; check latest `badges` commit |
+| Raw SVG 404 | No successful `main` coverage job yet, or `badges` branch missing |
 
 ## Scoped property-based testing and contracts
 

@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "**" # All branches
+    branches-ignore:
+      - badges
   pull_request:
     branches:
       - "**" # All branches
@@ -12,6 +14,8 @@ jobs:
   test:
     name: Test & Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,6 +46,35 @@ jobs:
 
       - name: Run integration tests (Vitest)
         run: npm run test:integration
+
+      - name: Run tests with coverage (Vitest)
+        run: npm run test:coverage
+
+      - name: Check coverage vs main baseline
+        run: node scripts/check-coverage-vs-base.mjs
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage/coverage-summary.json
+            coverage/lcov.info
+          if-no-files-found: error
+
+      - name: Update coverage badges branch
+        if: github.ref == 'refs/heads/main' && success()
+        run: |
+          node scripts/coverage-badges.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan badges-update
+          git rm -rf . 2>/dev/null || true
+          cp coverage/coverage-summary.json coverage/coverage-lines.svg coverage/coverage-branches.svg .
+          git add coverage-summary.json coverage-lines.svg coverage-branches.svg
+          git commit -m "Update coverage badges"
+          git push -f origin HEAD:badges
 
   build-dev:
     name: Build (Dev)

@@ -47,6 +47,7 @@ See [docs/testing.md](../testing.md):
 - `tests/unit/` — pure, no I/O mocks
 - `tests/integration/` — HTTP/vault/DOM/timer mocks; shared stub `tests/integration/mocks/obsidian.ts`
 - Mirror `src/` area under `tests/{unit,integration}/…`
+- Coverage floors live in `vitest.config.ts` (`thresholds.lines` / `thresholds.branches`); vs-main baseline JSON lives on the orphan `badges` branch — see [docs/testing.md](../testing.md)
 - Property-based tests are optional and **targeted**: use them for high-value sync invariants in `sync/` (reconcile actions, markdown parse/write stability), not broad suite-wide fuzzing
 - Keep property-based coverage reined in for project size: a small set of invariant-focused tests beats many slow or noisy generators
 - Contract checks should stay boundary-first (Zod at settings/API/markdown boundaries) plus occasional critical internal invariants; avoid heavy per-function DbC boilerplate

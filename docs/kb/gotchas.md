@@ -62,7 +62,16 @@
 
 ## Public legal site
 
-- Homepage / Privacy / Terms are static files in [`site/`](../../site/), deployed by [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml) to `https://obsidiansyncer.com`. Do **not** set Pages source to `docs/` — that would publish this KB
+- Homepage / Privacy / Terms are static files in [`site/`](../../site/), deployed by [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml) to `https://obsidiansyncer.com`. Do **not** set Pages source to `docs/` — that would publish this KB. Do **not** deploy `coverage/` HTML through Pages either
+
+## Coverage badges and CI gates
+
+- Coverage HTML lives under `coverage/` locally and as CI artifact `coverage` — not on Pages or obsidiansyncer.com
+- Machine-readable baseline for vs-main checks: orphan `badges` branch (`coverage-summary.json` + SVG badges). Pushes use `GITHUB_TOKEN` and do not re-trigger Test & Lint; workflow also ignores `badges` branch pushes
+- **Stale badge** — SVGs update only on successful `main` coverage runs; PR README badges show last-`main` values
+- **Floor fail** — Vitest `ERROR: Coverage … below threshold` from `vitest.config.ts`; distinct from vs-main (`Coverage vs main:` prefix in CI log)
+- **Vs-main fetch error** — fail-closed by design (not treated as skip); re-run the job
+- **Missing artifact** — coverage step failed or `json-summary` / `lcov` reporters removed from config
 
 ## Agent pitfalls
 

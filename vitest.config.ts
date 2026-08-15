@@ -23,5 +23,16 @@ export default defineConfig({
     globals: true,
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     environment: "node",
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.d.ts", "src/**/types.ts"],
+      reporter: ["text", "json-summary", "lcov", "html"],
+      reportsDirectory: "coverage",
+      thresholds: {
+        lines: 62,
+        branches: 82,
+      },
+    },
   },
 });

@@ -1,0 +1,30 @@
+---
+description: Git branch cleanup — auto-delete on merge and protected branches
+alwaysApply: false
+---
+
+# Branch hygiene
+
+## Automatic cleanup
+
+GitHub deletes the head branch on PR merge (`delete_branch_on_merge` is enabled on `desimpson/syncer`). That is the only automatic cleanup.
+
+## Protected branches
+
+Never delete:
+
+- `main`
+- `badges` (CI-published coverage badge assets)
+
+## Manual cleanup
+
+When asked to prune branches:
+
+1. Delete remote branches whose PRs are **merged** (or git-merged into `main`).
+2. Keep branches with **open or draft PRs**, and unmerged work (e.g. `chore/update-tsconfig`).
+3. Delete superseded branches (closed PR replaced by another) only when clearly abandoned.
+4. Run `git fetch --prune origin` and remove local branches whose upstream is gone.
+
+## Creating branches
+
+Use short, typed prefixes: `feat/`, `fix/`, `chore/`, `docs/`, `ci/`, `release/`.

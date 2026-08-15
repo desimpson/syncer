@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches:
-      - "**" # All branches
     branches-ignore:
       - badges
   pull_request:

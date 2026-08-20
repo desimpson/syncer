@@ -659,11 +659,16 @@ const readProfilesIniCandidates = (): FirefoxProfileCandidate[] => {
 
   const { fs, os, path } = nodeModules;
   const roots = getFirefoxProfilesIniRoots(os.homedir(), process.platform);
-  const guard = createFirefoxPathGuard({
-    fs,
-    path,
-    firefoxProfileIniRoots: roots,
-  });
+  let guard: FirefoxPathGuard;
+  try {
+    guard = createFirefoxPathGuard({
+      fs,
+      path,
+      firefoxProfileIniRoots: roots,
+    });
+  } catch (error) {
+    throw new FirefoxBookmarksError(FIREFOX_NOTICE.profilePathNotFound, error);
+  }
   const candidates: FirefoxProfileCandidate[] = [];
 
   for (const root of roots) {

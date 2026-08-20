@@ -48,7 +48,7 @@
 ## Firefox Bookmarks
 
 - sql.js WASM is bundled into `main.js` by esbuild (`.wasm` binary loader); no separate `sql-wasm.wasm` release asset is required
-- Profile auto-detect scans standard paths plus Snap/Flatpak on Linux; manual profile path always wins
+- Profile auto-detect scans `~/.mozilla/firefox` first, then `~/.config/mozilla/firefox` (XDG), plus Snap/Flatpak. If none are accessible, Refresh folders shows profile-not-found (not a raw path-guard error). Manual path always wins. Do not read `XDG_CONFIG_HOME` from `process.env` (esbuild replaces that object; same trap as Windows `APPDATA`)
 - Copy-on-read of `places.sqlite` + `-wal` into a unique temp dir (never copy `-shm` — Firefox’s live WAL index can make merges miss newest frames); cleaned in `finally`
 - While Firefox is open, new bookmarks live in the WAL. sql.js cannot read WAL sidecars — merge via `sqlite3 .backup` or Python `sqlite3.Connection.backup` before open. If both fail, sync sees a stale main DB (notice: close Firefox briefly)
 - Sync job validates selected folders against the settings snapshot from **Refresh folders**, then opens places once for bookmark fetch (avoids a double hot-copy per sync)

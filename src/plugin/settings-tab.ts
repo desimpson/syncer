@@ -1241,7 +1241,7 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     containerElement.createEl("p", {
-      text: "Firefox Bookmarks reads profile files outside your vault (for example places.sqlite and WAL sidecars) via the local filesystem, scoped to the selected or auto-detected profile and temporary hot-copy files. Syncer does not write back to the live Firefox database.",
+      text: "Firefox Bookmarks reads profile files outside your vault because Firefox stores bookmarks in the browser profile, not in Obsidian. Access is scoped to the selected or auto-detected profile (for example places.sqlite and WAL sidecars) and temporary hot-copy files. Syncer does not write back to the live Firefox database.",
       cls: "setting-item-description mod-warning",
     });
 

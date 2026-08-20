@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  selectionCountText,
   selectionInstructionText,
   shouldDeferGmailStarredMaxItemsValidation,
   updateListSelectionUi,
@@ -38,8 +39,22 @@ describe("selectionInstructionText", () => {
   });
 });
 
+describe("selectionCountText", () => {
+  it("returns the selected-of-total sentence for lists and projects", () => {
+    // Arrange
+
+    // Act
+    const listCount = selectionCountText(1, 3, "list");
+    const projectCount = selectionCountText(0, 3, "project");
+
+    // Assert
+    expect(listCount).toBe("1 of 3 lists selected");
+    expect(projectCount).toBe("0 of 3 projects selected");
+  });
+});
+
 describe("updateListSelectionUi", () => {
-  it("updates instruction and count when selection goes from 0 to 1", () => {
+  it("sets click helper and count for a non-empty selection", () => {
     const instruction = { setText: vi.fn() };
     const count = { setText: vi.fn() };
 
@@ -52,7 +67,7 @@ describe("updateListSelectionUi", () => {
     expect(count.setText).toHaveBeenCalledWith("1 of 3 lists selected");
   });
 
-  it("updates instruction and count when selection goes from 1 to 0", () => {
+  it("sets empty-state hint when selectedCount is 0", () => {
     const instruction = { setText: vi.fn() };
     const count = { setText: vi.fn() };
 

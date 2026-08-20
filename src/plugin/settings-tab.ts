@@ -62,13 +62,18 @@ export type ListSelectionUiState = {
   noun: "list" | "project";
 };
 
+export const selectionCountText = (
+  selectedCount: number,
+  totalCount: number,
+  noun: ListSelectionUiState["noun"],
+): string => `${selectedCount} of ${totalCount} ${selectionNounPlural[noun]} selected`;
+
 export const updateListSelectionUi = (
   elements: ListSelectionUiElements,
   state: ListSelectionUiState,
 ): void => {
-  const plural = selectionNounPlural[state.noun];
   elements.instruction.setText(selectionInstructionText(state.selectedCount, state.noun));
-  elements.count.setText(`${state.selectedCount} of ${state.totalCount} ${plural} selected`);
+  elements.count.setText(selectionCountText(state.selectedCount, state.totalCount, state.noun));
 };
 
 const normaliseAzureDevOpsOrganizationInput = (value: string): string => {
@@ -819,7 +824,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${lists.length} lists selected`,
+        text: selectionCountText(currentSelection.length, lists.length, "list"),
         cls: "setting-item-description microsoft-todo-selection-count",
       });
     };
@@ -1058,7 +1063,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${projects.length} projects selected`,
+        text: selectionCountText(currentSelection.length, projects.length, "project"),
         cls: "setting-item-description microsoft-todo-selection-count",
       });
     };
@@ -1415,7 +1420,7 @@ export class SettingsTab extends PluginSettingTab {
 
         if (selectedFolderGuids.length === 0) {
           selectedContainer.createEl("p", {
-            text: selectionInstructionText(0, "folder"),
+            text: `${selectionInstructionText(0, "folder")} Search below to add folders.`,
             cls: "setting-item-description",
           });
           return;
@@ -1649,7 +1654,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
       const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${lists.length} lists selected`,
+        text: selectionCountText(currentSelection.length, lists.length, "list"),
         cls: "setting-item-description google-tasks-selection-count",
       });
     };

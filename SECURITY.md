@@ -4,13 +4,13 @@ Syncer is a local Obsidian plugin. It does not run a Syncer backend, proxy, or h
 
 ## Capabilities
 
-| Capability                    | When                                | Scope                                                                                                                                                                                                                                                                               |
-| ----------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Vault read/write              | Sync enabled                        | User-chosen sync markdown note via Obsidian `vault` APIs                                                                                                                                                                                                                            |
-| Network (OAuth / APIs)        | Connected integrations              | Google, Microsoft, Azure DevOps endpoints only                                                                                                                                                                                                                                      |
-| Localhost OAuth redirect      | Connect flows                       | Ephemeral desktop HTTP server on loopback                                                                                                                                                                                                                                           |
+| Capability | When | Scope |
+| --- | --- | --- |
+| Vault read/write | Sync enabled | User-chosen sync markdown note via Obsidian `vault` APIs |
+| Network (OAuth / APIs) | Connected integrations | Google, Microsoft, Azure DevOps endpoints only |
+| Localhost OAuth redirect | Connect flows | Ephemeral desktop HTTP server on loopback |
 | Outside-vault filesystem read | Firefox Bookmarks enabled (desktop) | Firefox profile `profiles.ini`, `places.sqlite`, `places.sqlite-wal` under auto-detected roots (`~/.mozilla/firefox`, `~/.config/mozilla/firefox`, Snap, Flatpak, plus macOS/Windows profile folders) or a user-set path; temp hot-copies under a process-owned `mkdtemp` directory |
-| Local subprocess              | Firefox WAL merge (optional)        | Trusted `sqlite3` or `python3` binaries only, fixed argv templates                                                                                                                                                                                                                  |
+| Local subprocess | Firefox WAL merge (optional) | Trusted `sqlite3` or `python3` binaries only, fixed argv templates |
 
 ## Firefox Bookmarks filesystem access
 

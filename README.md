@@ -138,11 +138,11 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 One mark, reused on every consent screen. Do not invent a second logo.
 
-| File                                                       | Size    | Use                                                                                                                              |
-| ---------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| [`site/favicon.svg`](site/favicon.svg)                     | vector  | Source / tab icon                                                                                                                |
-| [`site/logo.png`](site/logo.png)                           | 512×512 | Google OAuth consent (120×120 minimum), Microsoft Entra branding, and Todoist `logo_uri` (`https://obsidiansyncer.com/logo.png`) |
-| [`docs/branding/logo-300.png`](docs/branding/logo-300.png) | 300×300 | Local 300² export if a console asks for that size                                                                                |
+| File | Size | Use |
+| --- | --- | --- |
+| [`site/favicon.svg`](site/favicon.svg) | vector | Source / tab icon |
+| [`site/logo.png`](site/logo.png) | 512×512 | Google OAuth consent (120×120 minimum), Microsoft Entra branding, and Todoist `logo_uri` (`https://obsidiansyncer.com/logo.png`) |
+| [`docs/branding/logo-300.png`](docs/branding/logo-300.png) | 300×300 | Local 300² export if a console asks for that size |
 
 ### Azure DevOps
 

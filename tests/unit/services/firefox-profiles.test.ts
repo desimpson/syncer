@@ -119,6 +119,46 @@ describe("getFirefoxProfilesIniRoots", () => {
     const roots = getFirefoxProfilesIniRoots("/Users/me", "darwin");
     expect(roots).toContain("/Users/me/Library/Application Support/Firefox");
   });
+
+  it("returns the Windows Mozilla Firefox root when APPDATA is set", () => {
+    // Arrange
+    const previousAppData = process.env["APPDATA"];
+    process.env["APPDATA"] = String.raw`C:\Users\me\AppData\Roaming`;
+
+    try {
+      // Act
+      const roots = getFirefoxProfilesIniRoots(String.raw`C:\Users\me`, "win32");
+
+      // Assert
+      expect(roots).toContain(String.raw`C:\Users\me\AppData\Roaming\Mozilla\Firefox`);
+    } finally {
+      if (previousAppData === undefined) {
+        delete process.env["APPDATA"];
+      } else {
+        process.env["APPDATA"] = previousAppData;
+      }
+    }
+  });
+
+  it("returns no Windows roots when APPDATA is unset", () => {
+    // Arrange
+    const previousAppData = process.env["APPDATA"];
+    delete process.env["APPDATA"];
+
+    try {
+      // Act
+      const roots = getFirefoxProfilesIniRoots(String.raw`C:\Users\me`, "win32");
+
+      // Assert
+      expect(roots).toEqual([]);
+    } finally {
+      if (previousAppData === undefined) {
+        delete process.env["APPDATA"];
+      } else {
+        process.env["APPDATA"] = previousAppData;
+      }
+    }
+  });
 });
 
 describe("collapseDescendantFolderMatches", () => {

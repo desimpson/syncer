@@ -269,6 +269,11 @@ export const selectDefaultProfile = (
 
 /**
  * Returns typical Firefox install roots that contain `profiles.ini`.
+ *
+ * Linux order matches Firefox itself: keep using `~/.mozilla/firefox` when that
+ * tree already exists, otherwise the XDG default `~/.config/mozilla/firefox`.
+ * Snap and Flatpak follow.
+ * `XDG_CONFIG_HOME` is not read from `process.env` — esbuild replaces that object.
  */
 export const getFirefoxProfilesIniRoots = (
   homeDirectory: string,
@@ -285,6 +290,7 @@ export const getFirefoxProfilesIniRoots = (
 
   return [
     `${homeDirectory}/.mozilla/firefox`,
+    `${homeDirectory}/.config/mozilla/firefox`,
     `${homeDirectory}/snap/firefox/common/.mozilla/firefox`,
     `${homeDirectory}/.var/app/org.mozilla.firefox/.mozilla/firefox`,
   ];

@@ -97,7 +97,22 @@ describe("getFirefoxProfilesIniRoots", () => {
   it("returns Linux roots including Snap and Flatpak", () => {
     const roots = getFirefoxProfilesIniRoots("/home/user", "linux");
     expect(roots).toContain("/home/user/.mozilla/firefox");
+    expect(roots).toContain("/home/user/.config/mozilla/firefox");
     expect(roots).toContain("/home/user/snap/firefox/common/.mozilla/firefox");
+    expect(roots).toContain("/home/user/.var/app/org.mozilla.firefox/.mozilla/firefox");
+  });
+
+  it("prefers the legacy Mozilla home over the XDG config root", () => {
+    // Arrange
+    const homeDirectory = "/home/user";
+
+    // Act
+    const roots = getFirefoxProfilesIniRoots(homeDirectory, "linux");
+
+    // Assert
+    expect(roots.indexOf(`${homeDirectory}/.mozilla/firefox`)).toBeLessThan(
+      roots.indexOf(`${homeDirectory}/.config/mozilla/firefox`),
+    );
   });
 
   it("returns macOS root", () => {

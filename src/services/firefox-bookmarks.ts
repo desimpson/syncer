@@ -3,6 +3,7 @@ import {
   createFirefoxPathGuard,
   FIREFOX_PROFILE_READ_BASENAMES,
   FIREFOX_TEMP_READ_BASENAMES,
+  FirefoxFsGuardError,
   type FirefoxPathGuard,
 } from "@/utils/firefox-fs-guard";
 import { resolveTrustedBinary } from "@/utils/trusted-binary";
@@ -659,11 +660,19 @@ const readProfilesIniCandidates = (): FirefoxProfileCandidate[] => {
 
   const { fs, os, path } = nodeModules;
   const roots = getFirefoxProfilesIniRoots(os.homedir(), process.platform);
-  const guard = createFirefoxPathGuard({
-    fs,
-    path,
-    firefoxProfileIniRoots: roots,
-  });
+  let guard: FirefoxPathGuard;
+  try {
+    guard = createFirefoxPathGuard({
+      fs,
+      path,
+      firefoxProfileIniRoots: roots,
+    });
+  } catch (error) {
+    if (error instanceof FirefoxFsGuardError) {
+      throw new FirefoxBookmarksError(FIREFOX_NOTICE.profilePathNotFound, error);
+    }
+    throw error;
+  }
   const candidates: FirefoxProfileCandidate[] = [];
 
   for (const root of roots) {

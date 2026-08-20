@@ -51,8 +51,12 @@
         Syncer does not run a Syncer backend, proxy, or hosted API. OAuth and
         API traffic goes from your Obsidian install to the provider you
         connected (Google, Microsoft, Todoist, or Azure DevOps). Firefox
-        Bookmarks sync reads a local Firefox profile on your machine and does
-        not use a cloud account.
+        Bookmarks sync is local: it does not use a cloud account. On desktop it
+        reads <code>profiles.ini</code>, <code>places.sqlite</code>, and WAL
+        sidecars from the Firefox profile outside your Obsidian vault
+        (auto-detect includes <code>~/.mozilla/firefox</code> and
+        <code>~/.config/mozilla/firefox</code>) and does not write back to the
+        live Firefox database.
       </p>
 
       <h2>What is stored on your device</h2>
@@ -141,7 +145,7 @@
         canonical Privacy Policy linked from the Google OAuth consent screen.
       </p>
 
-      <p class="updated">Last updated 14 August 2026.</p>
+      <p class="updated">Last updated 20 August 2026.</p>
     </main>
     <footer class="site-foot">
       <div class="wrap">

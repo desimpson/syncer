@@ -41,7 +41,7 @@ vi.mock("@/utils/desktop-fs", async (importOriginal) => {
 });
 
 describe("fetchFirefoxBookmarkFolders", () => {
-  it.fails("maps missing Firefox profile roots to a user-facing profile error", async () => {
+  it("maps missing Firefox profile roots to a user-facing profile error", async () => {
     // Arrange
     const originalPlatform = process.platform;
     Object.defineProperty(process, "platform", { value: "linux" });

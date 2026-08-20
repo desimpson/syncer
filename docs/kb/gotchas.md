@@ -39,6 +39,7 @@
 - Scheduler runs jobs **sequentially** ([`scheduler.ts`](../../src/sync/scheduler.ts)) — parallel `vault.process` on the same note races and drops creates (looked like “Firefox missed a bookmark”)
 - Job reconcile planning must be atomic (`reconcileSyncSourceAtomically` in [`writer.ts`](../../src/sync/writer.ts)); pre-read action planning can miss creates when the file changes before write
 - SyncGuard + file-content cache interaction is load-bearing; changing delete-detection without understanding it causes false delete prompts
+- Connected Google Tasks / Microsoft To Do / Todoist / Firefox with no lists/projects/folders selected → jobs no-op silently (no Notice on periodic sync); Settings shows “Nothing will sync until you select at least one …”
 - Known issues tracked in [`TODO.md`](../../TODO.md) (not duplicated here), including:
   - List deselect can trigger Google delete-sync prompts incorrectly
   - HTML `--` inside task URLs can break Kanban metadata comments

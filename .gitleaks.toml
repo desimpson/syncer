@@ -4,4 +4,6 @@ title = "Gitleaks"
 useDefault = true
 
 # Allowlist entries belong in #185 once staging/prod Desktop JSON is committed.
+# #185 should also add a custom [[rules]] entry for GOCSPX- (allowlists alone are no-ops
+# if defaults never match those strings in CI's git-log scan mode).
 # Do not allowlist the historical leak from #38.

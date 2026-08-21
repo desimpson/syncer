@@ -1,0 +1,7 @@
+title = "Gitleaks"
+
+[extend]
+useDefault = true
+
+# Allowlist entries belong in #185 once staging/prod Desktop JSON is committed.
+# Do not allowlist the historical leak from #38.

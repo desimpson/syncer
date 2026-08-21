@@ -200,9 +200,10 @@ Each sync tick saves the sync note when it is open with unsaved edits (including
 | `prod`  | `build:prod`          | committed `oauth-clients.prod.json` (Google, Microsoft, Todoist)                     |
 | `watch` | `build:watch` / `dev` | same as `dev`                                                                        |
 
-CI (`.github/workflows/build.yml`):
+CI (`.github/workflows/build.yml`, `.github/workflows/gitleaks.yml`):
 
 - All branches: typecheck, lint, format, `check:oauth-clients`, unit + integration tests, coverage with floor + vs-main baseline check ([#84](https://github.com/desimpson/syncer/issues/84))
+- All branches (except `badges` pushes): gitleaks default-rule secret scan on the PR/push commit range only ([#182](https://github.com/desimpson/syncer/issues/182); `GOCSPX-…` coverage deferred to [#185](https://github.com/desimpson/syncer/issues/185))
 - Non-`main`: build with GitHub Environment **`dev`** (`*_DEV` secrets)
 - `main`: production build from committed `oauth-clients.prod.json` (GitHub Environment **`prod`**, no client-ID secrets); coverage badges published to `badges` branch
 

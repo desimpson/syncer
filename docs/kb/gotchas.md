@@ -68,6 +68,7 @@
 
 ## Coverage badges and CI gates
 
+- **Gitleaks** — [`.github/workflows/gitleaks.yml`](../../.github/workflows/gitleaks.yml) runs on `pull_request` and `push` (not `badges`). The action scans only the event commit range via `--log-opts` (PR/push), not full git history. Do not add `schedule` or `workflow_dispatch` until [#38](https://github.com/desimpson/syncer/issues/38) (those modes scan all history). Default rules catch many secret shapes but **do not reliably flag bare `GOCSPX-…` strings** in the event commit-range scan (verified on gitleaks 8.24.3); a custom rule plus allowlist belongs in [#185](https://github.com/desimpson/syncer/issues/185) with the Desktop JSON cutover — do not assume this gate already covers those values
 - Coverage HTML lives under `coverage/` locally and as CI artifact `coverage` — not on Pages or obsidiansyncer.com
 - Machine-readable baseline for vs-main checks: orphan `badges` branch (`coverage-summary.json` + SVG badges). A `main`-only `publish-badges` job with `contents: write` pushes via `GITHUB_TOKEN` (does not re-trigger Test & Lint); workflow also ignores `badges` branch pushes
 - **Stale badge** — SVGs update only on successful `main` coverage runs; PR README badges show last-`main` values

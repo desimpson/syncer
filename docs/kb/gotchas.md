@@ -12,7 +12,8 @@
 
 ## Auth realities
 
-- Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`); token and API calls use Obsidian `requestUrl`
+- **GCP project IDs (canonical, #110):** dev → `obsidiansyncer-dev`, staging → `obsidiansyncer-staging`, prod → `obsidiansyncer-prod`. Consent app names (#130): `Syncer Dev`, `Syncer Staging`, `Syncer`. Each new project has one **Desktop** OAuth client (not UWP/Web). Old rollback projects `obsidian-syncer-development` / `obsidian-syncer-production` stay active until #194. Runtime auth migration (secret + PKCE): #146; build cutover: #184+
+- Google (shipped today): localhost redirect + UWP-style public client ID on the **old** projects (no PKCE in `src/auth/google.ts`); token and API calls use Obsidian `requestUrl`
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
 - Microsoft To Do reuses the **same Entra app / client ID** as Outlook but requests **Tasks.ReadWrite** (delegated) — add it to the existing app’s API permissions or Connect/consent will fail or Graph To Do calls return 403
 - Outlook and To Do store **separate** credential blobs and tokens; shared settings fields `microsoftAuthAccountKind` / `microsoftAuthWorkOrSchoolTenantId` only affect the **next** Connect (each integration persists its own `tenantSegment`)

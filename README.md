@@ -187,7 +187,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Set `GOOGLE_CLIENT_ID_DEV`, `MICROSOFT_CLIENT_ID_DEV`, and `TODOIST_CLIENT_ID_DEV` (see `.env.example`) to enable Connect in development builds. If omitted, the build still succeeds but the matching Connect actions are disabled.
+Set `GOOGLE_CLIENT_ID_DEV`, `MICROSOFT_CLIENT_ID_DEV`, and `TODOIST_CLIENT_ID_DEV` (see `.env.example`) to enable Connect in development builds. If omitted, the build still succeeds but the matching Connect actions are disabled. Google Connect needs **your own** Desktop client — `obsidiansyncer-dev` is maintainer-only (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)).
 
 Run tests with coverage (floor + report): [`npm run test:coverage`](docs/testing.md).
 

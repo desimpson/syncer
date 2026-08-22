@@ -3,7 +3,7 @@
 ## Build / env
 
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
-- Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional (Connect disabled if omitted). There is no committed `oauth-clients.dev.json` — Observer only rebuilds prod
+- Dev: OAuth client IDs via `.env` (`GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional — Connect disabled if omitted). #184 moves dev creds to gitignored `oauth-clients.dev.json`. Observer only rebuilds prod
 - Prod: Google, Microsoft, and Todoist IDs come from committed [`oauth-clients.prod.json`](../../oauth-clients.prod.json) (env `_PROD` vars may override locally). Do not inject those values in `release.yml` or CI `build-prod` — Observer rebuilds must match a clean checkout
 - That file is public client IDs only. Extra keys fail the prod parse (`productionOAuthClientsSchema` is `.strict()` in [`esbuild.config.mjs`](../../esbuild.config.mjs)); [`scripts/check-oauth-clients.mjs`](../../scripts/check-oauth-clients.mjs) also rejects secret-shaped values. Test & Lint and release both run `npm run check:oauth-clients`
 - See [`.env.example`](../../.env.example) for dev client IDs; CI `build-dev` may inject `*_DEV` secrets from the GitHub **`dev`** environment. CI `build-prod` and release use GitHub Environment **`prod`** for deployment records only — no `*_PROD` client-ID secrets
@@ -12,7 +12,7 @@
 
 ## Auth realities
 
-- **GCP project IDs (canonical, #110):** staging → `obsidiansyncer-staging`, prod → `obsidiansyncer-prod`. `obsidiansyncer-dev` is the **maintainer’s personal** Google Connect project — do not share its client ID/secret or add other developers to it. Contributors who want Google Connect locally create their own GCP project + Desktop client and put the ID in `GOOGLE_CLIENT_ID_DEV` (later `oauth-clients.dev.json`, gitignored — #184). Consent names (#130): `Syncer Dev` / `Syncer Staging` / `Syncer`. One **Desktop** client per project (not UWP/Web). Old rollback projects `obsidian-syncer-development` / `obsidian-syncer-production` stay active until #194. Runtime auth: #146; build cutover: #184+
+- **GCP project IDs (canonical, #110):** staging → `obsidiansyncer-staging`, prod → `obsidiansyncer-prod`. `obsidiansyncer-dev` is the **maintainer’s personal** Google Connect project (not in the repo). Dev client IDs/secrets stay local — `.env` today, gitignored `oauth-clients.dev.json` after #184 — so contributors who want Google Connect create their own GCP project + Desktop client. Consent names (#130): `Syncer Dev` / `Syncer Staging` / `Syncer`. One **Desktop** client per project (not UWP/Web). Old rollback projects `obsidian-syncer-development` / `obsidian-syncer-production` stay active until #194. Runtime auth: #146; build cutover: #184+
 - Google (shipped today): localhost redirect + UWP-style public client ID on the **old** projects (no PKCE in `src/auth/google.ts`); token and API calls use Obsidian `requestUrl`
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
 - Microsoft To Do reuses the **same Entra app / client ID** as Outlook but requests **Tasks.ReadWrite** (delegated) — add it to the existing app’s API permissions or Connect/consent will fail or Graph To Do calls return 403

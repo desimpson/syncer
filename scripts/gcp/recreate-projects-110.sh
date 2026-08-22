@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Issue #110 — recreate obsidiansyncer-* GCP projects (idempotent).
-# Maintainer-only. obsidiansyncer-dev is not a shared contributor project;
-# other developers create their own GCP project + Desktop client locally.
+# Maintainer-only (#110 cutover). Dev OAuth creds are not committed.
 #
 # Run from repo root (requires gcloud auth login + billing access):
 #   bash scripts/gcp/recreate-projects-110.sh

@@ -37,3 +37,7 @@ dist/
 
 # Cursor local planning artefacts
 .cursor/plans/
+
+# Local gcloud SDK config and #110 provisioning evidence (do not commit)
+.gcloud/
+artifacts/

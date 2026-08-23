@@ -176,7 +176,9 @@ One mark, reused on every consent screen. Do not invent a second logo.
 ## Development
 
 Contributor/agent notes for architecture and sync rules live in [docs/kb/](docs/kb/).
+
 For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 Install dependencies, then build with esbuild.
 
 ```sh

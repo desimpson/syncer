@@ -20,11 +20,11 @@ Write the PR description from the user's point of view.
 
 Link the related issue with `Closes #<id>` when the PR completes it, or `Refs #<id>` when it is related but does not close it.
 
-For bug fixes, add a failing test first using `it.fails` or the equivalent Vitest convention, then add the fix.
+For bug fixes, commit an `it.fails` test that demonstrates the current incorrect behaviour, then commit the fix and change `it.fails` to `it`.
 
 ## Dependency upgrades
 
-For dependency upgrades that ship in `main.js`, smoke-test the affected functionality, including dependencies such as `zod`, `sql.js`, and esbuild.
+For dependency upgrades that ship in `main.js`, smoke-test the affected functionality, including dependencies such as `zod` and `sql.js`.
 
 Lint- or test-only dependency upgrades can merge when CI is green.
 
@@ -33,6 +33,7 @@ Lint- or test-only dependency upgrades can merge when CI is green.
 - [Knowledge base](docs/kb/README.md)
 - [Testing](docs/testing.md)
 - [Definition of done and checklists](docs/kb/checklists.md)
-- [Development and releasing](README.md#development)
+- [Development](README.md#development)
+- [Releasing](README.md#releasing)
 
 These contributing conventions are inspired in part by the [Obsidian Tasks contributing guide](https://publish.obsidian.md/tasks-contributing/Welcome), scaled down for Syncer's needs.

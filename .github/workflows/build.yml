@@ -108,11 +108,10 @@ jobs:
     # Only build dev artifacts for non-main branches
     if: github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
     environment:
-      name: dev
-    env:
-      GOOGLE_CLIENT_ID_DEV: ${{ secrets.GOOGLE_CLIENT_ID_DEV }}
-      MICROSOFT_CLIENT_ID_DEV: ${{ secrets.MICROSOFT_CLIENT_ID_DEV }}
-      TODOIST_CLIENT_ID_DEV: ${{ secrets.TODOIST_CLIENT_ID_DEV }}
+      name: staging
+    # Non-main builds use build:dev; OAuth client IDs come from local .env (or
+    # oauth-clients.dev.json after #184), not Actions secrets. Staging is an
+    # empty deployment gate only.
 
     steps:
       - name: Checkout repository

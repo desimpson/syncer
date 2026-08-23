@@ -3,7 +3,7 @@
 ## Build / env
 
 - Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
-- Dev: `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional (Connect disabled if omitted). There is no committed `oauth-clients.dev.json` — Observer only rebuilds prod
+- Dev: OAuth client IDs via `.env` (`GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` and `TODOIST_CLIENT_ID_DEV` optional — Connect disabled if omitted). #184 moves dev creds to gitignored `oauth-clients.dev.json`. Observer only rebuilds prod
 - Prod: Google, Microsoft, and Todoist IDs come from committed [`oauth-clients.prod.json`](../../oauth-clients.prod.json) (env `_PROD` vars may override locally). Do not inject those values in `release.yml` or CI `build-prod` — Observer rebuilds must match a clean checkout
 - That file is public client IDs only. Extra keys fail the prod parse (`productionOAuthClientsSchema` is `.strict()` in [`esbuild.config.mjs`](../../esbuild.config.mjs)); [`scripts/check-oauth-clients.mjs`](../../scripts/check-oauth-clients.mjs) also rejects secret-shaped values. Test & Lint and release both run `npm run check:oauth-clients`
 - See [`.env.example`](../../.env.example) for dev client IDs; CI `build-dev` may inject `*_DEV` secrets from the GitHub **`dev`** environment. CI `build-prod` and release use GitHub Environment **`prod`** for deployment records only — no `*_PROD` client-ID secrets
@@ -12,7 +12,8 @@
 
 ## Auth realities
 
-- Google: localhost redirect + UWP-style public client ID (no PKCE in `src/auth/google.ts`); token and API calls use Obsidian `requestUrl`
+- **GCP project IDs (canonical, #110):** staging → `obsidiansyncer-staging`, prod → `obsidiansyncer-prod`. `obsidiansyncer-dev` is the **maintainer’s personal** Google Connect project (not in the repo). Dev client IDs/secrets stay local — `.env` today, gitignored `oauth-clients.dev.json` after #184 — so contributors who want Google Connect create their own GCP project + Desktop client. Consent names (#130): `Syncer Dev` / `Syncer Staging` / `Syncer`. One **Desktop** client per project (not UWP/Web). Old rollback projects `obsidian-syncer-development` / `obsidian-syncer-production` stay active until #194. Runtime auth: #146; build cutover: #184+
+- Google (shipped today): localhost redirect + UWP-style public client ID on the **old** projects (no PKCE in `src/auth/google.ts`); token and API calls use Obsidian `requestUrl`
 - Microsoft: Auth Code + PKCE; uses Obsidian `requestUrl` for token POSTs
 - Microsoft To Do reuses the **same Entra app / client ID** as Outlook but requests **Tasks.ReadWrite** (delegated) — add it to the existing app’s API permissions or Connect/consent will fail or Graph To Do calls return 403
 - Outlook and To Do store **separate** credential blobs and tokens; shared settings fields `microsoftAuthAccountKind` / `microsoftAuthWorkOrSchoolTenantId` only affect the **next** Connect (each integration persists its own `tenantSegment`)
@@ -39,6 +40,7 @@
 - Scheduler runs jobs **sequentially** ([`scheduler.ts`](../../src/sync/scheduler.ts)) — parallel `vault.process` on the same note races and drops creates (looked like “Firefox missed a bookmark”)
 - Job reconcile planning must be atomic (`reconcileSyncSourceAtomically` in [`writer.ts`](../../src/sync/writer.ts)); pre-read action planning can miss creates when the file changes before write
 - SyncGuard + file-content cache interaction is load-bearing; changing delete-detection without understanding it causes false delete prompts
+- Connected Google Tasks / Microsoft To Do / Todoist / Firefox with no lists/projects/folders selected → jobs no-op silently (no Notice on periodic sync); Settings shows “Nothing will sync until you select at least one …”
 - Known issues tracked in [`TODO.md`](../../TODO.md) (not duplicated here), including:
   - List deselect can trigger Google delete-sync prompts incorrectly
   - HTML `--` inside task URLs can break Kanban metadata comments
@@ -47,7 +49,7 @@
 ## Firefox Bookmarks
 
 - sql.js WASM is bundled into `main.js` by esbuild (`.wasm` binary loader); no separate `sql-wasm.wasm` release asset is required
-- Profile auto-detect scans standard paths plus Snap/Flatpak on Linux; manual profile path always wins
+- Profile auto-detect scans `~/.mozilla/firefox` first, then `~/.config/mozilla/firefox` (XDG), plus Snap/Flatpak. If none are accessible, Refresh folders shows profile-not-found (not a raw path-guard error). Manual path always wins. Do not read `XDG_CONFIG_HOME` from `process.env` (esbuild replaces that object; same trap as Windows `APPDATA`)
 - Copy-on-read of `places.sqlite` + `-wal` into a unique temp dir (never copy `-shm` — Firefox’s live WAL index can make merges miss newest frames); cleaned in `finally`
 - While Firefox is open, new bookmarks live in the WAL. sql.js cannot read WAL sidecars — merge via `sqlite3 .backup` or Python `sqlite3.Connection.backup` before open. If both fail, sync sees a stale main DB (notice: close Firefox briefly)
 - Sync job validates selected folders against the settings snapshot from **Refresh folders**, then opens places once for bookmark fetch (avoids a double hot-copy per sync)
@@ -67,6 +69,7 @@
 
 ## Coverage badges and CI gates
 
+- **Gitleaks** — [`.github/workflows/gitleaks.yml`](../../.github/workflows/gitleaks.yml) runs on `pull_request` and `push` (not `badges`). The action scans only the event commit range via `--log-opts` (PR/push), not full git history. Do not add `schedule` or `workflow_dispatch` until [#38](https://github.com/desimpson/syncer/issues/38) (those modes scan all history). Default rules catch many secret shapes but **do not reliably flag bare `GOCSPX-…` strings** in the event commit-range scan (verified on gitleaks 8.24.3); a custom rule plus allowlist belongs in [#185](https://github.com/desimpson/syncer/issues/185) with the Desktop JSON cutover — do not assume this gate already covers those values
 - Coverage HTML lives under `coverage/` locally and as CI artifact `coverage` — not on Pages or obsidiansyncer.com
 - Machine-readable baseline for vs-main checks: orphan `badges` branch (`coverage-summary.json` + SVG badges). A `main`-only `publish-badges` job with `contents: write` pushes via `GITHUB_TOKEN` (does not re-trigger Test & Lint); workflow also ignores `badges` branch pushes
 - **Stale badge** — SVGs update only on successful `main` coverage runs; PR README badges show last-`main` values

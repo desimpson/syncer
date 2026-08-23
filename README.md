@@ -160,10 +160,10 @@ One mark, reused on every consent screen. Do not invent a second logo.
 ### Firefox Bookmarks (desktop only)
 
 - Enable **Firefox Bookmarks** in the plugin settings
-- Optionally set a **Firefox profile path**; leave empty to auto-detect the default profile from `profiles.ini`
+- Optionally set a **Firefox profile path**; leave empty to auto-detect the default profile from `profiles.ini` (this reads files outside the vault — see [Privacy and disclosures](#privacy-and-disclosures))
 - Click **Refresh folders**, then search by folder name and select parents to include (subfolders are synced recursively — nested matches under a hit are hidden in search)
 - Typical profile locations:
-  - Linux: `~/.mozilla/firefox/<profile>/`
+  - Linux: `~/.mozilla/firefox/<profile>/` or `~/.config/mozilla/firefox/<profile>/`
   - macOS: `~/Library/Application Support/Firefox/Profiles/<profile>/`
   - Windows: `%APPDATA%\Mozilla\Firefox\Profiles\<profile>\`
 - If newest bookmarks are missing while Firefox is open, close Firefox briefly and sync again (or install the `sqlite3` CLI so the plugin can merge the live database)
@@ -189,7 +189,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Set `GOOGLE_CLIENT_ID_DEV`, `MICROSOFT_CLIENT_ID_DEV`, and `TODOIST_CLIENT_ID_DEV` (see `.env.example`) to enable Connect in development builds. If omitted, the build still succeeds but the matching Connect actions are disabled.
+Set OAuth client IDs for local `build:dev` to enable Connect (if omitted, the build still succeeds but matching Connect actions are disabled). **Today:** copy `.env.example` → `.env` and set `GOOGLE_CLIENT_ID_DEV`, `MICROSOFT_CLIENT_ID_DEV`, and `TODOIST_CLIENT_ID_DEV`. **After #184:** dev creds move to a gitignored `oauth-clients.dev.json` (copy from `oauth-clients.dev.json.example`). Google Connect needs **your own** Desktop client — dev creds are never committed; `obsidiansyncer-dev` is the maintainer’s personal project (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)).
 
 Run tests with coverage (floor + report): [`npm run test:coverage`](docs/testing.md).
 
@@ -220,7 +220,7 @@ Syncer is a local plugin: it does not run a Syncer backend, proxy, or hosted API
   - Azure DevOps: `dev.azure.com`
 
 > [!WARNING]
-> **Outside-vault filesystem access (Firefox Bookmarks).** On Obsidian desktop, enabling Firefox Bookmarks sync reads Firefox profile files outside your vault (for example `places.sqlite` and WAL sidecars) via the local filesystem, scoped to the selected or auto-detected profile and temporary hot-copy files. Syncer does not write back to the live Firefox database. See [SECURITY.md](SECURITY.md) for details.
+> **Outside-vault filesystem access (Firefox Bookmarks).** Community plugins are expected to stay inside the vault. Firefox stores bookmarks in the browser profile, so this desktop integration must read `profiles.ini`, `places.sqlite`, and WAL sidecars outside the vault: the selected path, or auto-detect under `~/.mozilla/firefox`, `~/.config/mozilla/firefox`, Snap, Flatpak, and the macOS/Windows folders listed in [Firefox Bookmarks](#firefox-bookmarks-desktop-only). Copies go to a temporary directory only. Syncer does not write back to the live Firefox database. See [SECURITY.md](SECURITY.md) for details.
 
 - **Telemetry / ads**: Syncer does not include client-side telemetry, analytics SDKs, or ads.
 

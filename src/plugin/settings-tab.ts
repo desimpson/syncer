@@ -36,6 +36,46 @@ const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
 export const shouldDeferGmailStarredMaxItemsValidation = (value: string): boolean =>
   value.trim().length === 0;
 
+export type SelectionNoun = "list" | "project" | "folder";
+
+const selectionNounPlural: Record<SelectionNoun, string> = {
+  list: "lists",
+  project: "projects",
+  folder: "folders",
+};
+
+export const selectionInstructionText = (selectedCount: number, noun: SelectionNoun): string => {
+  if (selectedCount === 0) {
+    return `Nothing will sync until you select at least one ${noun}.`;
+  }
+  return `Click ${selectionNounPlural[noun]} to select them for syncing:`;
+};
+
+export type ListSelectionUiElements = {
+  instruction: { setText: (text: string) => void };
+  count: { setText: (text: string) => void };
+};
+
+export type ListSelectionUiState = {
+  selectedCount: number;
+  totalCount: number;
+  noun: "list" | "project";
+};
+
+export const selectionCountText = (
+  selectedCount: number,
+  totalCount: number,
+  noun: ListSelectionUiState["noun"],
+): string => `${selectedCount} of ${totalCount} ${selectionNounPlural[noun]} selected`;
+
+export const updateListSelectionUi = (
+  elements: ListSelectionUiElements,
+  state: ListSelectionUiState,
+): void => {
+  elements.instruction.setText(selectionInstructionText(state.selectedCount, state.noun));
+  elements.count.setText(selectionCountText(state.selectedCount, state.totalCount, state.noun));
+};
+
 const normaliseAzureDevOpsOrganizationInput = (value: string): string => {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
@@ -746,8 +786,8 @@ export class SettingsTab extends PluginSettingTab {
         return;
       }
 
-      listContainer.createEl("p", {
-        text: "Click lists to select them for syncing:",
+      const instructionElement = listContainer.createEl("p", {
+        text: selectionInstructionText(currentSelection.length, "list"),
         cls: "setting-item-description",
       });
 
@@ -774,14 +814,17 @@ export class SettingsTab extends PluginSettingTab {
               button.addClass("is-selected");
             }
 
-            countElement.setText(`${newSelection.length} of ${lists.length} lists selected`);
+            updateListSelectionUi(
+              { instruction: instructionElement, count: countElement },
+              { selectedCount: newSelection.length, totalCount: lists.length, noun: "list" },
+            );
             await updateSelected(newSelection);
           })();
         });
       });
 
       const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${lists.length} lists selected`,
+        text: selectionCountText(currentSelection.length, lists.length, "list"),
         cls: "setting-item-description microsoft-todo-selection-count",
       });
     };
@@ -982,8 +1025,8 @@ export class SettingsTab extends PluginSettingTab {
         return;
       }
 
-      listContainer.createEl("p", {
-        text: "Click projects to select them for syncing:",
+      const instructionElement = listContainer.createEl("p", {
+        text: selectionInstructionText(currentSelection.length, "project"),
         cls: "setting-item-description",
       });
 
@@ -1010,14 +1053,17 @@ export class SettingsTab extends PluginSettingTab {
               button.addClass("is-selected");
             }
 
-            countElement.setText(`${newSelection.length} of ${projects.length} projects selected`);
+            updateListSelectionUi(
+              { instruction: instructionElement, count: countElement },
+              { selectedCount: newSelection.length, totalCount: projects.length, noun: "project" },
+            );
             await updateSelected(newSelection);
           })();
         });
       });
 
       const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${projects.length} projects selected`,
+        text: selectionCountText(currentSelection.length, projects.length, "project"),
         cls: "setting-item-description microsoft-todo-selection-count",
       });
     };
@@ -1195,7 +1241,7 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     containerElement.createEl("p", {
-      text: "Firefox Bookmarks reads profile files outside your vault (for example places.sqlite and WAL sidecars) via the local filesystem, scoped to the selected or auto-detected profile and temporary hot-copy files. Syncer does not write back to the live Firefox database.",
+      text: "Firefox Bookmarks reads profile files outside your vault because Firefox stores bookmarks in the browser profile, not in Obsidian. Access is scoped to the selected or auto-detected profile (for example places.sqlite and WAL sidecars) and temporary hot-copy files. Syncer does not write back to the live Firefox database.",
       cls: "setting-item-description mod-warning",
     });
 
@@ -1374,7 +1420,7 @@ export class SettingsTab extends PluginSettingTab {
 
         if (selectedFolderGuids.length === 0) {
           selectedContainer.createEl("p", {
-            text: "None selected yet. Search below to add folders.",
+            text: `${selectionInstructionText(0, "folder")} Search below to add folders.`,
             cls: "setting-item-description",
           });
           return;
@@ -1570,13 +1616,11 @@ export class SettingsTab extends PluginSettingTab {
         return;
       }
 
-      // Add clear instructions
-      listContainer.createEl("p", {
-        text: "Click lists to select them for syncing:",
+      const instructionElement = listContainer.createEl("p", {
+        text: selectionInstructionText(currentSelection.length, "list"),
         cls: "setting-item-description",
       });
 
-      // Create toggle buttons container
       const toggleContainer = listContainer.createDiv("google-tasks-toggle-container");
 
       lists.forEach((list) => {
@@ -1593,27 +1637,24 @@ export class SettingsTab extends PluginSettingTab {
             let newSelection: string[];
 
             if (wasSelected) {
-              // Remove from selection
               newSelection = selectedListIds.filter((id) => id !== list.id);
               button.removeClass("is-selected");
             } else {
-              // Add to selection
               newSelection = [...selectedListIds, list.id];
               button.addClass("is-selected");
             }
 
-            // Update count display
-            countElement.setText(`${newSelection.length} of ${lists.length} lists selected`);
-
-            // Save to settings (this will update the selectedListIds variable)
+            updateListSelectionUi(
+              { instruction: instructionElement, count: countElement },
+              { selectedCount: newSelection.length, totalCount: lists.length, noun: "list" },
+            );
             await updateSelected(newSelection);
           })();
         });
       });
 
-      // Show selection count below the buttons
       const countElement = listContainer.createEl("p", {
-        text: `${currentSelection.length} of ${lists.length} lists selected`,
+        text: selectionCountText(currentSelection.length, lists.length, "list"),
         cls: "setting-item-description google-tasks-selection-count",
       });
     };

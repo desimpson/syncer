@@ -194,17 +194,18 @@ Each sync tick saves the sync note when it is open with unsaved edits (including
 
 ## 7. Build, environments, and release
 
-| Mode    | npm script            | Client IDs                                                                           |
-| ------- | --------------------- | ------------------------------------------------------------------------------------ |
-| `dev`   | `build:dev`           | `GOOGLE_CLIENT_ID_DEV` required; `MICROSOFT_CLIENT_ID_DEV` / `TODOIST_CLIENT_ID_DEV` optional |
-| `prod`  | `build:prod`          | committed `oauth-clients.prod.json` (Google, Microsoft, Todoist)                     |
-| `watch` | `build:watch` / `dev` | same as `dev`                                                                        |
+| Mode      | npm script            | Client IDs                                                                                  |
+| --------- | --------------------- | ------------------------------------------------------------------------------------------- |
+| `dev`     | `build:dev`           | gitignored `oauth-clients.dev.json` (optional empty IDs disable Connect)                    |
+| `staging` | `build:staging`       | committed `oauth-clients.staging.json` (Google, Microsoft, Todoist)                         |
+| `prod`    | `build:prod`          | committed `oauth-clients.prod.json` (Google, Microsoft, Todoist)                            |
+| `watch`   | `build:watch` / `dev` | same as `dev`                                                                               |
 
 CI (`.github/workflows/build.yml`, `.github/workflows/gitleaks.yml`):
 
 - All branches: typecheck, lint, format, `check:oauth-clients`, unit + integration tests, coverage with floor + vs-main baseline check ([#84](https://github.com/desimpson/syncer/issues/84))
 - All branches (except `badges` pushes): gitleaks secret scan on the PR/push commit range only ([#182](https://github.com/desimpson/syncer/issues/182)); custom `GOCSPX-…` rule + exact staging/prod Desktop secret allowlist in [`.gitleaks.toml`](../.gitleaks.toml) ([#185](https://github.com/desimpson/syncer/issues/185))
-- Non-`main`: `build:dev` artifact build under GitHub Environment **`staging`** (empty gate — no OAuth secrets injected)
+- Non-`main`: `build:staging` artifact build under GitHub Environment **`staging`** (committed `oauth-clients.staging.json`, empty gate — no OAuth secrets injected)
 - `main`: production build from committed `oauth-clients.prod.json` (GitHub Environment **`prod`**, empty gate, no client-ID secrets); coverage badges published to `badges` branch
 
 Release (`.github/workflows/release.yml`): **annotated** version tags matching `[0-9]*` (lightweight tags are skipped by `git push --follow-tags`), GitHub Environment **`prod`**, committed `oauth-clients.prod.json` (no `*_PROD` secret injects), attach `main.js` / `manifest.json` / `styles.css`, then submit first release via `community.obsidian.md`.

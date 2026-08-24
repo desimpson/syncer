@@ -339,7 +339,7 @@ export class SettingsTab extends PluginSettingTab {
       setting.setName("No Google Tasks account connected");
       setting.setDesc(
         this.config.googleClientId.length === 0
-          ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_CLIENT_ID_DEV or GOOGLE_CLIENT_ID_PROD when building to enable Connect."
+          ? "The plugin build does not include a Google application (client) ID. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect."
           : "Connect your Google Tasks account to sync references and links to incomplete tasks.",
       );
       setting.addButton((button) => {
@@ -418,7 +418,7 @@ export class SettingsTab extends PluginSettingTab {
       setting.setName("No Gmail Starred account connected");
       setting.setDesc(
         this.config.googleClientId.length === 0
-          ? "The plugin build does not include a Google application (client) ID. Set GOOGLE_CLIENT_ID_DEV or GOOGLE_CLIENT_ID_PROD when building to enable Connect."
+          ? "The plugin build does not include a Google application (client) ID. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect."
           : "Connect opens your browser to sign in with Google; after you consent, starred mail syncs on the next run. Uses separate credentials from Google Tasks.",
       );
       setting.addButton((button) => {
@@ -569,7 +569,7 @@ export class SettingsTab extends PluginSettingTab {
       outlookRow.setName("No Microsoft Outlook account connected");
       outlookRow.setDesc(
         this.config.microsoftClientId.length === 0
-          ? "The plugin build does not include a Microsoft application (client) ID. Set MICROSOFT_CLIENT_ID_DEV or MICROSOFT_CLIENT_ID_PROD when building to enable Connect."
+          ? "The plugin build does not include a Microsoft application (client) ID. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect."
           : "Connect opens your browser to sign in with Microsoft; after you consent, you are redirected back to Obsidian on localhost to finish linking.",
       );
       outlookRow.addButton((button) => {
@@ -662,7 +662,7 @@ export class SettingsTab extends PluginSettingTab {
       toDoRow.setName("No Microsoft To Do account connected");
       toDoRow.setDesc(
         this.config.microsoftClientId.length === 0
-          ? "The plugin build does not include a Microsoft application (client) ID. Set MICROSOFT_CLIENT_ID_DEV or MICROSOFT_CLIENT_ID_PROD when building to enable Connect."
+          ? "The plugin build does not include a Microsoft application (client) ID. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect."
           : "Connect opens your browser to sign in with Microsoft. Uses the Outlook account type / tenant fields above; changing them affects the next Connect only. Already-connected Outlook and To Do keep their stored tenant.",
       );
       toDoRow.addButton((button) => {

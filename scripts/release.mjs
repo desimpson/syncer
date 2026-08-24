@@ -223,9 +223,8 @@ const printErrorMessage = (fileCheck, versionCheck, versionsJsonCheck, manifestC
   console.log("Release readiness checks failed.");
   if (!fileCheck.allFilesExist) {
     console.log("\nHint: Build the plugin first:");
-    console.log("   export GOOGLE_CLIENT_ID_PROD='your-client-id'");
-    console.log("   export MICROSOFT_CLIENT_ID_PROD='your-client-id'");
     console.log("   npm run build:prod");
+    console.log("   (uses committed oauth-clients.prod.json)");
   }
   if (versionCheck.packageJson && versionCheck.manifest && !versionCheck.versionsMatch) {
     console.log("\nHint: Sync versions:");

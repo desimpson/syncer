@@ -35,6 +35,9 @@ dist/
 .direnv
 .env
 
+# Local OAuth client configuration (copy from oauth-clients.dev.json.example)
+oauth-clients.dev.json
+
 # Cursor local planning artefacts
 .cursor/plans/
 

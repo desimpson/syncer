@@ -1,6 +1,6 @@
 import esbuild from "esbuild";
 import console from "node:console";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { builtinModules } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,20 +8,82 @@ import process from "node:process";
 import { z } from "zod";
 
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
-const productionOAuthClientsPath = path.join(rootDirectory, "oauth-clients.prod.json");
 
-// Extra keys must fail the prod build; default z.object() would strip them.
-const productionOAuthClientsSchema = z
+/** @typedef {"development" | "staging" | "production" | "watch"} BuildMode */
+
+const oauthClientsFileByMode = {
+  development: "oauth-clients.dev.json",
+  staging: "oauth-clients.staging.json",
+  production: "oauth-clients.prod.json",
+};
+
+// Extra keys must fail the build; default z.object() would strip them.
+const oauthClientsSchema = z
   .object({
-    GOOGLE_CLIENT_ID: z.string().min(1),
-    MICROSOFT_CLIENT_ID: z.string().min(1),
-    TODOIST_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_ID: z.string(),
+    MICROSOFT_CLIENT_ID: z.string(),
+    TODOIST_CLIENT_ID: z.string(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
   })
   .strict();
 
-const readCommittedProductionOAuthClients = () => {
-  const raw = readFileSync(productionOAuthClientsPath, "utf8");
-  return productionOAuthClientsSchema.parse(JSON.parse(raw));
+/**
+ * @typedef {z.infer<typeof oauthClientsSchema>} OAuthClientsConfig
+ */
+
+/**
+ * Returns the OAuth clients JSON path for a build mode.
+ *
+ * @param {BuildMode} mode
+ * @returns {string}
+ */
+const getOAuthClientsPath = (mode) => {
+  const resolvedMode = mode === "watch" ? "development" : mode;
+  const fileName = oauthClientsFileByMode[resolvedMode];
+  return path.join(rootDirectory, fileName);
+};
+
+/**
+ * Reads and validates OAuth client configuration for the given build mode.
+ * Development allows a missing file or empty IDs (Connect disabled).
+ * Staging and production require committed JSON with non-empty client IDs.
+ *
+ * @param {BuildMode} mode
+ * @returns {OAuthClientsConfig}
+ */
+const readOAuthClients = (mode) => {
+  const resolvedMode = mode === "watch" ? "development" : mode;
+  const clientsPath = getOAuthClientsPath(mode);
+
+  if (!existsSync(clientsPath)) {
+    if (resolvedMode === "development") {
+      console.info(
+        `OAuth clients file not found (${oauthClientsFileByMode.development}); copy oauth-clients.dev.json.example and fill in your local client IDs.`,
+      );
+      return {
+        GOOGLE_CLIENT_ID: "",
+        MICROSOFT_CLIENT_ID: "",
+        TODOIST_CLIENT_ID: "",
+      };
+    }
+
+    throw new Error(
+      `Missing OAuth clients file: ${oauthClientsFileByMode[resolvedMode]}. Committed staging/prod JSON is required for this build mode.`,
+    );
+  }
+
+  const raw = readFileSync(clientsPath, "utf8");
+  const parsed = oauthClientsSchema.parse(JSON.parse(raw));
+
+  if (resolvedMode !== "development") {
+    for (const key of ["GOOGLE_CLIENT_ID", "MICROSOFT_CLIENT_ID", "TODOIST_CLIENT_ID"]) {
+      if (parsed[key].trim().length === 0) {
+        throw new Error(`${key} is required in ${oauthClientsFileByMode[resolvedMode]}.`);
+      }
+    }
+  }
+
+  return parsed;
 };
 
 // Load environment variables from .env (if present)
@@ -70,120 +132,38 @@ const baseOptions = {
   treeShaking: true,
 };
 
-const environmentSchema = z.object({
-  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
-});
-
 /**
- * Returns the Microsoft (Entra) client ID for the current build mode.
- * Production builds require MICROSOFT_CLIENT_ID_PROD (Outlook is a shipped feature).
- * Development builds treat MICROSOFT_CLIENT_ID_DEV as optional (Outlook Connect disabled if omitted).
- */
-const getMicrosoftClientId = (mode) => {
-  const environmentVariableName =
-    mode === "production" ? "MICROSOFT_CLIENT_ID_PROD" : "MICROSOFT_CLIENT_ID_DEV";
-  const clientId = process.env[environmentVariableName];
-  const trimmed = typeof clientId === "string" ? clientId.trim() : "";
-
-  if (trimmed.length > 0) {
-    return trimmed;
-  }
-
-  if (mode === "production") {
-    return readCommittedProductionOAuthClients().MICROSOFT_CLIENT_ID;
-  }
-
-  return "";
-};
-
-/**
- * Validates and returns the Google OAuth client ID for the current build mode.
- * Production builds require GOOGLE_CLIENT_ID_PROD.
- * Development builds treat GOOGLE_CLIENT_ID_DEV as optional (Google Connect disabled if omitted).
- */
-const getValidatedClientId = (mode) => {
-  const environmentVariableName =
-    mode === "production" ? "GOOGLE_CLIENT_ID_PROD" : "GOOGLE_CLIENT_ID_DEV";
-  const clientId = process.env[environmentVariableName];
-
-  if (clientId && clientId.trim() !== "") {
-    const result = environmentSchema.safeParse({ GOOGLE_CLIENT_ID: clientId });
-    if (!result.success) {
-      const issues = result.error.issues
-        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-        .join("; ");
-      throw new Error(`Invalid Google client ID: ${issues}`);
-    }
-    return result.data.GOOGLE_CLIENT_ID;
-  }
-
-  if (mode === "production") {
-    return readCommittedProductionOAuthClients().GOOGLE_CLIENT_ID;
-  }
-
-  console.info("Google Client ID not set (Google connect disabled until configured).");
-  return "";
-};
-
-/**
- * Returns the Todoist OAuth client ID for the current build mode.
- * Production builds use committed oauth-clients.prod.json (env may override locally).
- * Development builds treat TODOIST_CLIENT_ID_DEV as optional (Connect disabled if omitted).
- */
-const getTodoistClientId = (mode) => {
-  const environmentVariableName =
-    mode === "production" ? "TODOIST_CLIENT_ID_PROD" : "TODOIST_CLIENT_ID_DEV";
-  const clientId = process.env[environmentVariableName];
-  const trimmed = typeof clientId === "string" ? clientId.trim() : "";
-
-  if (trimmed.length > 0) {
-    return trimmed;
-  }
-
-  if (mode === "production") {
-    return readCommittedProductionOAuthClients().TODOIST_CLIENT_ID;
-  }
-
-  console.info("Todoist Client ID not set (Todoist connect disabled until configured).");
-  return "";
-};
-
-/**
- * Creates production build options with the validated client ID.
+ * Creates production build options with OAuth client IDs injected at build time.
  *
- * @param {string} clientId
- * @param {string} microsoftClientId
- * @param {string} todoistClientId
+ * @param {OAuthClientsConfig} clients
  */
-const createProductionOptions = (clientId, microsoftClientId, todoistClientId) => ({
+const createProductionOptions = (clients) => ({
   ...baseOptions,
   sourcemap: false,
   minify: true,
   define: {
     "process.env": JSON.stringify({
-      GOOGLE_CLIENT_ID: clientId,
-      MICROSOFT_CLIENT_ID: microsoftClientId,
-      TODOIST_CLIENT_ID: todoistClientId,
+      GOOGLE_CLIENT_ID: clients.GOOGLE_CLIENT_ID.trim(),
+      MICROSOFT_CLIENT_ID: clients.MICROSOFT_CLIENT_ID.trim(),
+      TODOIST_CLIENT_ID: clients.TODOIST_CLIENT_ID.trim(),
     }),
   },
 });
 
 /**
- * Creates development build options with the validated client ID.
+ * Creates development build options with OAuth client IDs injected at build time.
  *
- * @param {string} clientId
- * @param {string} microsoftClientId
- * @param {string} todoistClientId
+ * @param {OAuthClientsConfig} clients
  */
-const createDevelopmentOptions = (clientId, microsoftClientId, todoistClientId) => ({
+const createDevelopmentOptions = (clients) => ({
   ...baseOptions,
   sourcemap: "inline",
   minify: false,
   define: {
     "process.env": JSON.stringify({
-      GOOGLE_CLIENT_ID: clientId,
-      MICROSOFT_CLIENT_ID: microsoftClientId,
-      TODOIST_CLIENT_ID: todoistClientId,
+      GOOGLE_CLIENT_ID: clients.GOOGLE_CLIENT_ID.trim(),
+      MICROSOFT_CLIENT_ID: clients.MICROSOFT_CLIENT_ID.trim(),
+      TODOIST_CLIENT_ID: clients.TODOIST_CLIENT_ID.trim(),
     }),
   },
 });
@@ -223,7 +203,7 @@ const watch = async (options) => {
 /**
  * Parses and normalises the build mode from command-line arguments.
  *
- * @returns {"production" | "development" | "watch"} The current mode.
+ * @returns {BuildMode} The current mode.
  */
 const getMode = () => {
   const modeFlagIndex = process.argv.indexOf("--mode");
@@ -238,6 +218,9 @@ const getMode = () => {
     case "production": {
       return "production";
     }
+    case "staging": {
+      return "staging";
+    }
     case "dev":
     case "development": {
       return "development";
@@ -247,8 +230,32 @@ const getMode = () => {
     }
     default: {
       throw new Error(
-        `Unknown build mode "${String(rawMode)}". Use one of: dev, prod, development, production, watch.`,
+        `Unknown build mode "${String(rawMode)}". Use one of: dev, staging, prod, development, production, watch.`,
       );
+    }
+  }
+};
+
+/**
+ * Logs which OAuth client IDs are active for this build.
+ *
+ * @param {BuildMode} mode
+ * @param {OAuthClientsConfig} clients
+ */
+const logOAuthClients = (mode, clients) => {
+  const modeLabel =
+    mode === "development" || mode === "watch" ? "dev" : mode === "staging" ? "staging" : "prod";
+
+  for (const [key, value] of [
+    ["Google", clients.GOOGLE_CLIENT_ID],
+    ["Microsoft", clients.MICROSOFT_CLIENT_ID],
+    ["Todoist", clients.TODOIST_CLIENT_ID],
+  ]) {
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      console.info(`Using ${key} Client ID (${modeLabel}): ${trimmed.slice(0, 20)}...`);
+    } else {
+      console.info(`${key} Client ID not set (${modeLabel}; Connect disabled until configured).`);
     }
   }
 };
@@ -260,45 +267,33 @@ const getMode = () => {
  */
 const run = async () => {
   const mode = getMode();
-  const modeLabel = mode === "development" ? "dev" : mode === "production" ? "prod" : mode;
+  const modeLabel =
+    mode === "development"
+      ? "dev"
+      : mode === "production"
+        ? "prod"
+        : mode === "staging"
+          ? "staging"
+          : mode;
   console.info(`Starting build script in mode: ${modeLabel}`);
 
-  // Get and validate the appropriate client ID for this build mode
-  const clientId = getValidatedClientId(mode);
-  const clientIdType = mode === "production" ? "PROD" : "DEV";
-  if (clientId.length > 0) {
-    console.info(`Using Google Client ID (${clientIdType}): ${clientId.slice(0, 20)}...`);
-  }
-
-  const microsoftClientId = getMicrosoftClientId(
-    mode === "production" ? "production" : "development",
-  );
-  if (microsoftClientId.length > 0) {
-    console.info(
-      `Using Microsoft Client ID (${clientIdType}): ${microsoftClientId.slice(0, 8)}...`,
-    );
-  } else {
-    console.info("Microsoft Client ID not set (Outlook connect disabled until configured).");
-  }
-
-  const todoistClientId = getTodoistClientId(mode === "production" ? "production" : "development");
-  if (todoistClientId.length > 0) {
-    console.info(`Using Todoist Client ID (${clientIdType}): ${todoistClientId.slice(0, 8)}...`);
-  }
+  const clients = readOAuthClients(mode);
+  logOAuthClients(mode, clients);
 
   switch (mode) {
-    case "production": {
-      const options = createProductionOptions(clientId, microsoftClientId, todoistClientId);
+    case "production":
+    case "staging": {
+      const options = createProductionOptions(clients);
       await build(options);
       break;
     }
     case "development": {
-      const options = createDevelopmentOptions(clientId, microsoftClientId, todoistClientId);
+      const options = createDevelopmentOptions(clients);
       await build(options);
       break;
     }
     default: {
-      const options = createDevelopmentOptions(clientId, microsoftClientId, todoistClientId);
+      const options = createDevelopmentOptions(clients);
       await watch(options);
     }
   }

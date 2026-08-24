@@ -7,6 +7,7 @@
   "scripts": {
     "build": "npm run build:prod",
     "build:dev": "npm run typecheck && node esbuild.config.mjs --mode dev",
+    "build:staging": "npm run typecheck && node esbuild.config.mjs --mode staging",
     "build:prod": "npm run typecheck && node esbuild.config.mjs --mode prod",
     "build:watch": "npm run typecheck && node esbuild.config.mjs --mode watch",
     "dev": "npm run build:watch",

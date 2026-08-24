@@ -3,7 +3,22 @@ title = "Gitleaks"
 [extend]
 useDefault = true
 
-# Allowlist entries belong in #185 once staging/prod Desktop JSON is committed.
-# #185 should also add a custom [[rules]] entry for GOCSPX- (allowlists alone are no-ops
-# if defaults never match those strings in CI's git-log scan mode).
+# Google OAuth installed-app client secrets (GOCSPX-…). Default rules do not
+# reliably match bare GOCSPX strings in CI's commit-range scan (#182).
+# Exact staging/prod values below are public-by-design Desktop identifiers
+# committed for clean-checkout builds — not confidential server secrets.
 # Do not allowlist the historical leak from #38.
+
+[[rules]]
+id = "google-oauth-installed-app-secret"
+description = "Google OAuth installed-app client secret (GOCSPX-)"
+regex = '''GOCSPX-[0-9A-Za-z_-]{20,}'''
+keywords = ["GOCSPX"]
+
+  [[rules.allowlists]]
+  description = "Syncer staging + prod Google Desktop installed-app secrets (public-by-design)"
+  regexTarget = "secret"
+  regexes = [
+    '''^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$''',
+    '''^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$''',
+  ]

@@ -7,8 +7,13 @@ const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 const committedFiles = ["oauth-clients.staging.json", "oauth-clients.prod.json"];
 
-const requiredKeys = ["GOOGLE_CLIENT_ID", "MICROSOFT_CLIENT_ID", "TODOIST_CLIENT_ID"];
-const allowedKeys = new Set([...requiredKeys, "GOOGLE_CLIENT_SECRET"]);
+const requiredKeys = [
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "MICROSOFT_CLIENT_ID",
+  "TODOIST_CLIENT_ID",
+];
+const allowedKeys = new Set(requiredKeys);
 const forbiddenKeyPattern = /private_key|refresh_token|api_key|password/i;
 const publicClientForbiddenValuePattern = /^[A-Za-z0-9+/=]{80,}$/;
 

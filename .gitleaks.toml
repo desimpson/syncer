@@ -22,3 +22,13 @@ keywords = ["GOCSPX"]
     '''^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$''',
     '''^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$''',
   ]
+
+# Global allowlist so default rules (e.g. generic-api-key) also skip these
+# public-by-design Desktop secrets — rule-scoped allowlists alone are insufficient.
+[[allowlists]]
+description = "Syncer staging + prod Google Desktop installed-app secrets (public-by-design)"
+regexTarget = "secret"
+regexes = [
+  '''^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$''',
+  '''^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$''',
+]

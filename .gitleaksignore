@@ -1,0 +1,9 @@
+# Public-by-design Syncer Google Desktop installed-app secrets in committed
+# oauth-clients JSON (staging/prod). Exact values are also listed in
+# .gitleaks.toml; this ignore file is required for gitleaks 8.24.3 used in CI,
+# which does not reliably honour [[allowlists]] regexes when extending defaults.
+# Do not ignore the historical leak from #38.
+oauth-clients.staging.json:generic-api-key:3
+oauth-clients.prod.json:generic-api-key:3
+oauth-clients.staging.json:google-oauth-installed-app-secret:3
+oauth-clients.prod.json:google-oauth-installed-app-secret:3

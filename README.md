@@ -122,7 +122,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 ### Todoist
 
-- Connect using **Connect** (production builds include the committed Todoist client ID; local `build:dev` needs `TODOIST_CLIENT_ID_DEV`)
+- Connect using **Connect** (production builds include the committed Todoist client ID; local `build:dev` needs `oauth-clients.dev.json`)
 - Select one or more projects to sync
 - Incomplete tasks from selected projects sync under the sync heading
 - Disconnect clears Todoist credentials; existing Todoist lines remain in your sync note until you remove them or deselect their projects
@@ -131,7 +131,7 @@ GTD tip: The plugin ships with sensible defaults for a GTD-style setup—`GTD.md
 
 1. Register a **public client** with `POST https://api.todoist.com/oauth/register` (`token_endpoint_auth_method: none`, scope `data:read_write`, grant types `authorization_code` + `refresh_token`). Include `logo_uri` (`https://obsidiansyncer.com/logo.png`) and `client_uri` (`https://obsidiansyncer.com`). The [App Management Console](https://developer.todoist.com/appconsole.html) only creates confidential clients, which require a `client_secret` Syncer cannot ship, and it cannot brand DCR clients.
 2. Use redirect URIs: `http://localhost:27855/`, `http://localhost:27856/`, `http://localhost:27857/`
-3. Put the **production** `tdd_…` client ID in `oauth-clients.prod.json` (and allow the key in `scripts/check-oauth-clients.mjs`). Use `TODOIST_CLIENT_ID_DEV` in `.env` for local `build:dev` only. After changing a client ID, Disconnect and Connect again.
+3. Put the **production** `tdd_…` client ID in `oauth-clients.prod.json`. Use `oauth-clients.dev.json` (copied from `oauth-clients.dev.json.example`) for local `build:dev` only. After changing a client ID, Disconnect and Connect again.
 4. Todoist does not document a DCR update API. To change the consent icon or name, re-register with the same metadata plus the new `logo_uri`, then swap the client ID. There is no Todoist CLI for this.
 
 #### OAuth app icon (maintainers)
@@ -189,7 +189,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Set OAuth client IDs for local `build:dev` to enable Connect (if omitted, the build still succeeds but matching Connect actions are disabled). **Today:** copy `.env.example` → `.env` and set `GOOGLE_CLIENT_ID_DEV`, `MICROSOFT_CLIENT_ID_DEV`, and `TODOIST_CLIENT_ID_DEV`. **After #184:** dev creds move to a gitignored `oauth-clients.dev.json` (copy from `oauth-clients.dev.json.example`). Google Connect needs **your own** Desktop client — dev creds are never committed; `obsidiansyncer-dev` is the maintainer’s personal project (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)).
+Set OAuth client IDs for local `build:dev` to enable Connect (if omitted, the build still succeeds but matching Connect actions are disabled). Copy `oauth-clients.dev.json.example` → `oauth-clients.dev.json` and fill in your client IDs. Google Connect needs **your own** Desktop client — dev creds are never committed; `obsidiansyncer-dev` is the maintainer’s personal project (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)).
 
 Run tests with coverage (floor + report): [`npm run test:coverage`](docs/testing.md).
 
@@ -231,7 +231,7 @@ No third-party UI components are currently bundled in the settings tab.
 ## Releasing
 
 1. Bump version with **`npm version patch|minor|major`** (or `npm version x.y.z`). This updates `package.json` / `manifest.json` / `versions.json`, commits, and creates an **annotated** git tag (required). Do not use `git tag x.y.z` without `-a` — `git push --follow-tags` only pushes annotated tags.
-2. Build production: `npm run build` (uses committed public OAuth client IDs in `oauth-clients.prod.json`; local env vars may override for development)
+2. Build production: `npm run build` (uses committed OAuth client IDs in `oauth-clients.prod.json`)
 3. Verify: `npm run release:check` (fails if the version tag exists but is lightweight)
 4. Confirm the tag is annotated: `git cat-file -t x.y.z` must print `tag` (not `commit`). If you ever need a manual tag: `git tag -a x.y.z -m "x.y.z"`.
 5. Push commit and tag: `git push --follow-tags` (triggers release workflow; tags must match `[0-9]*`, e.g. `0.2.1`, not `v0.2.1`). If `--follow-tags` skips the tag, push it explicitly: `git push origin x.y.z`.

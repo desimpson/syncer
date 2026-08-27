@@ -267,7 +267,7 @@ export const authenticate = async (options: TodoistAuthOptions): Promise<Todoist
     if (trimmedClientId.length === 0) {
       reject(
         new Error(
-          "Todoist client ID is missing. Set TODOIST_CLIENT_ID_DEV or TODOIST_CLIENT_ID_PROD for your build.",
+          "Todoist client ID is missing. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building.",
         ),
       );
       return;

@@ -302,7 +302,7 @@ export const authenticate = async (options: MicrosoftAuthOptions): Promise<Micro
     if (trimmedClientId.length === 0) {
       reject(
         new Error(
-          "Microsoft application (client) ID is missing. Set MICROSOFT_CLIENT_ID_DEV or MICROSOFT_CLIENT_ID_PROD for your build.",
+          "Microsoft application (client) ID is missing. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building.",
         ),
       );
       return;

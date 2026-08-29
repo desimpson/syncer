@@ -36,7 +36,8 @@ const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
 /** True when the build includes both Google Desktop client ID and secret. */
 export const isGoogleConnectConfigured = (
   config: Pick<PluginConfig, "googleClientId" | "googleClientSecret">,
-): boolean => config.googleClientId.length > 0 && config.googleClientSecret.length > 0;
+): boolean =>
+  config.googleClientId.trim().length > 0 && config.googleClientSecret.trim().length > 0;
 
 const googleConnectUnavailableDescription =
   "The plugin build does not include a Google Desktop application (client) ID and secret. Add both to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect.";

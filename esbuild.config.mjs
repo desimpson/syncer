@@ -46,7 +46,7 @@ const getOAuthClientsPath = (mode) => {
 /**
  * Reads and validates OAuth client configuration for the given build mode.
  * Development allows a missing file or empty IDs (Connect disabled).
- * Staging and production require committed JSON with non-empty client IDs.
+ * Staging and production require committed JSON with non-empty OAuth values.
  *
  * @param {BuildMode} mode
  * @returns {OAuthClientsConfig}
@@ -77,8 +77,14 @@ const readOAuthClients = (mode) => {
   const parsed = oauthClientsSchema.parse(JSON.parse(raw));
 
   if (resolvedMode !== "development") {
-    for (const key of ["GOOGLE_CLIENT_ID", "MICROSOFT_CLIENT_ID", "TODOIST_CLIENT_ID"]) {
-      if (parsed[key].trim().length === 0) {
+    for (const key of [
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "MICROSOFT_CLIENT_ID",
+      "TODOIST_CLIENT_ID",
+    ]) {
+      const value = (parsed[key] ?? "").trim();
+      if (value.length === 0) {
         throw new Error(`${key} is required in ${oauthClientsFileByMode[resolvedMode]}.`);
       }
     }

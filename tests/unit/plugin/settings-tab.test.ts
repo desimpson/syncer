@@ -20,6 +20,11 @@ describe("isGoogleConnectConfigured", () => {
       expected: false,
     },
     {
+      label: "client values are whitespace only",
+      config: { googleClientId: "  ", googleClientSecret: " \t " },
+      expected: false,
+    },
+    {
       label: "both client ID and secret are set",
       config: { googleClientId: "id", googleClientSecret: "secret" },
       expected: true,

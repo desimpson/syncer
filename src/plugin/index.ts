@@ -37,11 +37,11 @@ export default class SyncerPlugin extends Plugin {
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    const { GOOGLE_CLIENT_ID, MICROSOFT_CLIENT_ID, TODOIST_CLIENT_ID } = pluginSchema.parse(
-      process.env,
-    );
+    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID, TODOIST_CLIENT_ID } =
+      pluginSchema.parse(process.env);
     this.config = {
       googleClientId: GOOGLE_CLIENT_ID,
+      googleClientSecret: GOOGLE_CLIENT_SECRET,
       microsoftClientId: MICROSOFT_CLIENT_ID.trim(),
       todoistClientId: TODOIST_CLIENT_ID.trim(),
       pluginDirectory: resolvePluginDirectory(app, manifest),
@@ -438,6 +438,7 @@ export default class SyncerPlugin extends Plugin {
       if (token.expiryDate < Date.now()) {
         const refreshed = await GoogleAuth.refreshAccessToken(
           this.config.googleClientId,
+          this.config.googleClientSecret,
           token.refreshToken,
         );
         accessToken = refreshed.accessToken;
@@ -500,6 +501,7 @@ export default class SyncerPlugin extends Plugin {
       if (token.expiryDate < Date.now()) {
         const refreshed = await GoogleAuth.refreshAccessToken(
           this.config.googleClientId,
+          this.config.googleClientSecret,
           token.refreshToken,
         );
         accessToken = refreshed.accessToken;

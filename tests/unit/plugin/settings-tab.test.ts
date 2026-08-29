@@ -1,10 +1,39 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  isGoogleConnectConfigured,
   selectionCountText,
   selectionInstructionText,
   shouldDeferGmailStarredMaxItemsValidation,
   updateListSelectionUi,
 } from "@/plugin/settings-tab";
+
+describe("isGoogleConnectConfigured", () => {
+  it.each([
+    {
+      label: "client ID is empty",
+      config: { googleClientId: "", googleClientSecret: "secret" },
+      expected: false,
+    },
+    {
+      label: "client secret is empty",
+      config: { googleClientId: "id", googleClientSecret: "" },
+      expected: false,
+    },
+    {
+      label: "both client ID and secret are set",
+      config: { googleClientId: "id", googleClientSecret: "secret" },
+      expected: true,
+    },
+  ])("returns $expected when $label", ({ config, expected }) => {
+    // Arrange
+
+    // Act
+    const actual = isGoogleConnectConfigured(config);
+
+    // Assert
+    expect(actual).toBe(expected);
+  });
+});
 
 describe("shouldDeferGmailStarredMaxItemsValidation", () => {
   it("returns true for empty draft values", () => {

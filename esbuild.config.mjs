@@ -62,6 +62,7 @@ const readOAuthClients = (mode) => {
       );
       return {
         GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
         MICROSOFT_CLIENT_ID: "",
         TODOIST_CLIENT_ID: "",
       };
@@ -137,6 +138,7 @@ const createProductionOptions = (clients) => ({
   define: {
     "process.env": JSON.stringify({
       GOOGLE_CLIENT_ID: clients.GOOGLE_CLIENT_ID.trim(),
+      GOOGLE_CLIENT_SECRET: (clients.GOOGLE_CLIENT_SECRET ?? "").trim(),
       MICROSOFT_CLIENT_ID: clients.MICROSOFT_CLIENT_ID.trim(),
       TODOIST_CLIENT_ID: clients.TODOIST_CLIENT_ID.trim(),
     }),
@@ -155,6 +157,7 @@ const createDevelopmentOptions = (clients) => ({
   define: {
     "process.env": JSON.stringify({
       GOOGLE_CLIENT_ID: clients.GOOGLE_CLIENT_ID.trim(),
+      GOOGLE_CLIENT_SECRET: (clients.GOOGLE_CLIENT_SECRET ?? "").trim(),
       MICROSOFT_CLIENT_ID: clients.MICROSOFT_CLIENT_ID.trim(),
       TODOIST_CLIENT_ID: clients.TODOIST_CLIENT_ID.trim(),
     }),

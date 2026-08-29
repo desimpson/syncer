@@ -74,6 +74,7 @@ import { GraphAuthorizationError, GraphRateLimitError } from "@/services/microso
 
 const baseConfig = {
   googleClientId: "",
+  googleClientSecret: "",
   microsoftClientId: "ms-client-id",
   todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",

@@ -71,6 +71,7 @@ import { TodoistAuthorizationError, TodoistRateLimitError } from "@/services/tod
 
 const baseConfig = {
   googleClientId: "",
+  googleClientSecret: "",
   microsoftClientId: "",
   todoistClientId: "todoist-client-id",
   pluginDirectory: "/tmp/syncer-plugin",

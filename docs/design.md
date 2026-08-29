@@ -169,7 +169,7 @@ Full rules: [`docs/kb/sync-semantics.md`](kb/sync-semantics.md). Summary:
 
 | Provider  | Flow                                     | Notes                                                                                       |
 | --------- | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Google    | Auth Code via ephemeral localhost server | Shipped: UWP-style public client on old `obsidian-syncer-*` projects (no PKCE, no secret). New GCP projects (`obsidiansyncer-*`, #110) use **Desktop** clients; runtime secret + PKCE cutover: [#146](https://github.com/desimpson/syncer/issues/146). |
+| Google    | Auth Code + **PKCE (S256)** + Desktop client secret | Ephemeral localhost redirect; token exchange and refresh include `client_secret` + PKCE verifier; uses Obsidian `requestUrl`. After client migration, Disconnect + Connect. |
 | Microsoft | Auth Code + **PKCE (S256)** + `state`    | Token POSTs use Obsidian `requestUrl`; tenant segment from personal vs work/school settings |
 
 Refresh tokens are stored with credentials in plugin settings. Revoked refresh → clear credentials and prompt reconnect. Microsoft revoked-access UX hardening: [#65](https://github.com/desimpson/syncer/issues/65).

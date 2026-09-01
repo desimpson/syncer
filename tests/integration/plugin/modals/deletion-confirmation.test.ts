@@ -442,7 +442,11 @@ describe("Task deletion confirmation", () => {
 
     // Assert
     // Use expect.any(String) for client ID because CI masks environment variables as "***"
-    expect(GoogleAuth.refreshAccessToken).toHaveBeenCalledWith(expect.any(String), "refresh-123");
+    expect(GoogleAuth.refreshAccessToken).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      "refresh-123",
+    );
     expect(fetchGoogleTasks).toHaveBeenCalledWith("new-token", listId, true);
     expect(deleteGoogleTask).toHaveBeenCalledWith("new-token", listId, taskId);
   });

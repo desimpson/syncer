@@ -39,6 +39,7 @@ describe("pluginSchema", () => {
     // Arrange
     const input = {
       GOOGLE_CLIENT_ID: "id-123",
+      GOOGLE_CLIENT_SECRET: "secret-456",
     };
 
     // Act
@@ -48,8 +49,25 @@ describe("pluginSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.GOOGLE_CLIENT_ID).toBe("id-123");
+      expect(result.data.GOOGLE_CLIENT_SECRET).toBe("secret-456");
       expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
       expect(result.data.TODOIST_CLIENT_ID).toBe("");
+    }
+  });
+
+  it("defaults GOOGLE_CLIENT_SECRET to empty string when omitted", () => {
+    // Arrange
+    const input = {
+      GOOGLE_CLIENT_ID: "id-123",
+    };
+
+    // Act
+    const result = pluginSchema.safeParse(input);
+
+    // Assert
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.GOOGLE_CLIENT_SECRET).toBe("");
     }
   });
 

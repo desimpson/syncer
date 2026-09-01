@@ -31,6 +31,7 @@ const ensureAccessToken = async (
   if (token.expiryDate < Date.now()) {
     const { accessToken, expiryDate } = await GoogleAuth.refreshAccessToken(
       config.googleClientId,
+      config.googleClientSecret,
       token.refreshToken,
     );
 

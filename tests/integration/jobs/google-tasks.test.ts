@@ -66,15 +66,29 @@ vi.mock("@/services/google-tasks", () => {
   return { updateGoogleTaskStatus, fetchGoogleTasks };
 });
 
-vi.mock("@/auth", () => {
+vi.mock("@/auth", async () => {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Vitest generic needs module object type
+  const actual = await vi.importActual<typeof import("@/auth")>("@/auth");
   const refreshAccessToken = vi.fn() as unknown as (
     clientId: string,
+    clientSecret: string,
     refreshToken: string,
   ) => Promise<{ accessToken: string; expiryDate: number }>;
   return {
-    GoogleAuth: { refreshAccessToken },
+    ...actual,
+    GoogleAuth: { ...actual.GoogleAuth, refreshAccessToken },
   };
 });
+
+const { modalOpen } = vi.hoisted(() => ({
+  modalOpen: vi.fn(),
+}));
+
+vi.mock("@/plugin/modals/authorization-expired-modal", () => ({
+  AuthorizationExpiredModal: class {
+    public open = modalOpen;
+  },
+}));
 
 // No need to mock Obsidian Notice here; we inject a notifier callback instead.
 
@@ -82,11 +96,12 @@ vi.mock("@/auth", () => {
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import { GoogleTasksService } from "@/services";
-import { GoogleAuth } from "@/auth";
+import { GoogleAuth, InvalidGrantError } from "@/auth";
 import { updateGoogleTaskStatus, fetchGoogleTasks } from "@/services/google-tasks";
 
 const baseConfig = {
   googleClientId: "id",
+  googleClientSecret: "secret",
   microsoftClientId: "",
   todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",
@@ -324,7 +339,7 @@ describe("createGoogleTasksJob", () => {
     await job.task();
 
     // Assert token refresh & persistence
-    expect(GoogleAuth.refreshAccessToken).toHaveBeenCalledWith("id", "ref");
+    expect(GoogleAuth.refreshAccessToken).toHaveBeenCalledWith("id", "secret", "ref");
     expect(saveSettings).toHaveBeenCalledTimes(1);
     const savedSettingsArgument = saveSettings.mock.calls[0]?.[0];
     expect(savedSettingsArgument.googleTasks.credentials.accessToken).toBe("new-token");
@@ -340,6 +355,50 @@ describe("createGoogleTasksJob", () => {
       "## Inbox",
       expect.any(Function),
     );
+  });
+
+  it("clears credentials on InvalidGrantError during refresh", async () => {
+    // Arrange
+    const settings = {
+      googleTasks: {
+        credentials: {
+          accessToken: "expired",
+          refreshToken: "ref",
+          expiryDate: Date.now() - 1,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["A"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    };
+    const loadSettings = vi
+      .fn()
+      .mockResolvedValueOnce(settings)
+      .mockResolvedValueOnce({ ...settings, googleTasks: undefined });
+    const saveSettings = vi.fn();
+
+    vi.mocked(GoogleAuth.refreshAccessToken).mockRejectedValue(
+      new InvalidGrantError("Token has been expired or revoked"),
+    );
+
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      makeVault(makeFile()),
+      vi.fn(),
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(saveSettings).toHaveBeenCalledWith(expect.objectContaining({ googleTasks: undefined }));
+    expect(modalOpen).toHaveBeenCalled();
   });
 
   it("performs a full sync when configured and token valid", async () => {

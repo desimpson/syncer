@@ -42,6 +42,7 @@ export type PluginSettings = {
  */
 export type PluginConfig = {
   googleClientId: string;
+  googleClientSecret: string;
   microsoftClientId: string;
   todoistClientId: string;
   pluginDirectory: string;

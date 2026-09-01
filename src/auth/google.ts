@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import type { ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -34,6 +35,7 @@ export class InvalidGrantError extends Error {
 
 export type AuthOptions = {
   clientId: string;
+  clientSecret: string;
   scopes: string;
 };
 
@@ -69,10 +71,24 @@ const isAddressInfo = (address: string | AddressInfo | null): address is Address
 
 const createRedirectUri = (port: number): string => `http://localhost:${port}/`;
 
+const base64UrlEncode = (buffer: Buffer): string =>
+  buffer.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+
+const generatePkcePair = (): { codeVerifier: string; codeChallenge: string } => {
+  const codeVerifier = base64UrlEncode(randomBytes(32));
+  const codeChallenge = base64UrlEncode(createHash("sha256").update(codeVerifier).digest());
+  return { codeVerifier, codeChallenge };
+};
+
 /**
- * Generate Google OAuth 2.0 authorization URL
+ * Generate Google OAuth 2.0 authorization URL with PKCE S256.
  */
-const generateAuthUrl = (clientId: string, redirectUri: string, scopes: string): string => {
+const generateAuthUrl = (
+  clientId: string,
+  redirectUri: string,
+  scopes: string,
+  codeChallenge: string,
+): string => {
   const parameters = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -80,6 +96,8 @@ const generateAuthUrl = (clientId: string, redirectUri: string, scopes: string):
     scope: scopes,
     access_type: "offline",
     prompt: "consent", // Force refresh token to be returned
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
   });
 
   return `${GOOGLE_AUTH_URL}?${parameters.toString()}`;
@@ -107,14 +125,18 @@ const postForm = async (
  */
 const exchangeCodeForTokens = async (
   clientId: string,
+  clientSecret: string,
   code: string,
   redirectUri: string,
+  codeVerifier: string,
 ): Promise<GoogleCredentials> => {
   const parameters = new URLSearchParams({
     client_id: clientId,
+    client_secret: clientSecret,
     code,
     redirect_uri: redirectUri,
     grant_type: "authorization_code",
+    code_verifier: codeVerifier,
   });
 
   const { statusCode, body: errorOrBody } = await postForm(GOOGLE_TOKEN_URL, parameters.toString());
@@ -190,7 +212,9 @@ const handleAuthError = (error: AuthError, response: ServerResponse): void => {
 
 const createAuthServer = (
   clientId: string,
+  clientSecret: string,
   redirectPath: string,
+  codeVerifier: string,
   getRedirectUri: () => string,
   onSuccess: (credentials: GoogleCredentials) => void,
   onError: (error: Error) => void,
@@ -206,8 +230,10 @@ const createAuthServer = (
           const redirectUri = getRedirectUri(); // Get the redirectUri when we need it
           const authenticatedClient = await exchangeCodeForTokens(
             clientId,
+            clientSecret,
             result.code,
             redirectUri,
+            codeVerifier,
           );
 
           response.end(SUCCESS_MESSAGE);
@@ -237,6 +263,7 @@ const createAuthServer = (
  *
  * @param options - Authentication configuration options
  * @param options.clientId - Your Google OAuth 2.0 client ID
+ * @param options.clientSecret - Your Google Desktop installed-app client secret
  * @param options.scopes - Space-separated string of OAuth scopes to request
  * @returns A Promise that resolves to Google credentials with access/refresh tokens
  * @throws {Error} When the OAuth flow fails, the server cannot start, or the user denies authorization
@@ -245,6 +272,7 @@ const createAuthServer = (
  * ```typescript
  * const credentials = await authenticate({
  *   clientId: "your-client-id.googleusercontent.com",
+ *   clientSecret: "your-client-secret",
  *   scopes: "https://www.googleapis.com/auth/tasks openid email profile"
  * });
  *
@@ -258,17 +286,21 @@ const createAuthServer = (
  * - The temporary server is automatically closed after successful authentication or error
  * - Supports both authorization success and error scenarios (user denial, missing code, etc.)
  * - Forces consent prompt to ensure refresh token is always returned
+ * - Uses PKCE S256 and includes client_secret for Desktop installed-app clients
  */
 export const authenticate = async (options: AuthOptions): Promise<GoogleCredentials> =>
   new Promise((resolve, reject) => {
     const redirectPath = "/";
+    const { codeVerifier, codeChallenge } = generatePkcePair();
     let serverPort: number; // Store port from server.listen callback
 
     const getRedirectUri = () => createRedirectUri(serverPort);
 
     const server = createAuthServer(
       options.clientId,
+      options.clientSecret,
       redirectPath,
+      codeVerifier,
       getRedirectUri,
       (credentials: GoogleCredentials) => {
         server.close();
@@ -291,7 +323,7 @@ export const authenticate = async (options: AuthOptions): Promise<GoogleCredenti
       serverPort = address.port;
       const redirectUri = createRedirectUri(serverPort);
 
-      const authUrl = generateAuthUrl(options.clientId, redirectUri, options.scopes);
+      const authUrl = generateAuthUrl(options.clientId, redirectUri, options.scopes, codeChallenge);
       runtimeOpen(authUrl, "_blank");
     });
   });
@@ -330,6 +362,7 @@ export const getUserInfo = async (accessToken: string): Promise<GoogleUserInfo> 
  * Refreshes a Google OAuth 2.0 access token using a refresh token, with retries.
  *
  * @param clientId - Your Google OAuth client ID
+ * @param clientSecret - Your Google Desktop installed-app client secret
  * @param refreshToken - The refresh token issued by Google
  * @param retries - Number of times to retry on network failure (default 2)
  * @returns A Promise resolving to an object containing the new access token and expiry timestamp
@@ -337,11 +370,13 @@ export const getUserInfo = async (accessToken: string): Promise<GoogleUserInfo> 
  */
 export const refreshAccessToken = async (
   clientId: string,
+  clientSecret: string,
   refreshToken: string,
   retries = 2,
 ): Promise<{ accessToken: string; expiryDate: number }> => {
   const parameters = new URLSearchParams({
     client_id: clientId,
+    client_secret: clientSecret,
     refresh_token: refreshToken,
     grant_type: "refresh_token",
   });

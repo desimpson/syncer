@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { RequestUrlResponse } from "obsidian";
+import type { RequestUrlParam, RequestUrlResponse } from "obsidian";
 import { requestUrl } from "obsidian";
-import { authenticate, type AuthOptions } from "@/auth/google";
+import { authenticate, type AuthOptions, InvalidGrantError } from "@/auth/google";
 import { GoogleAuth } from "@/auth";
 
 // Mock dependencies
@@ -46,6 +46,23 @@ const requestUrlResponse = (status: number, text: string): RequestUrlResponse =>
   arrayBuffer: new ArrayBuffer(0),
   json: safeJson(text),
 });
+
+const isRequestUrlParameter = (value: string | RequestUrlParam): value is RequestUrlParam =>
+  typeof value === "object" && value !== null;
+
+const formBodyFromRequestUrlCall = (
+  call: readonly [string | RequestUrlParam, ...unknown[]] | undefined,
+): string | undefined => {
+  const parameters = call?.[0];
+  if (
+    parameters === undefined ||
+    !isRequestUrlParameter(parameters) ||
+    typeof parameters.body !== "string"
+  ) {
+    return undefined;
+  }
+  return parameters.body;
+};
 
 describe("authenticate", () => {
   let mockServer: MockServer;
@@ -98,6 +115,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1 scope2",
       };
 
@@ -150,9 +168,76 @@ describe("authenticate", () => {
         expect.stringContaining("https://accounts.google.com/o/oauth2/auth"),
         "_blank",
       );
+      const authUrl = vi.mocked(window.open).mock.calls[0]?.[0] as string;
+      expect(authUrl).toContain("code_challenge=");
+      expect(authUrl).toContain("code_challenge_method=S256");
       expect(mockResponse.end).toHaveBeenCalledWith(
         "Authentication successful! Please return to the console.",
       );
+    });
+    it("sends client_secret and code_verifier in token exchange POST body", async () => {
+      // Arrange
+      const options: AuthOptions = {
+        clientId: "test-client-id",
+        clientSecret: "test-client-secret",
+        scopes: "scope1",
+      };
+
+      const mockTokenResponse = {
+        access_token: "access-token",
+        refresh_token: "refresh-token",
+        expires_in: 3600,
+        scope: "scope1",
+        token_type: "Bearer",
+      };
+
+      const mockAddress: AddressInfo = {
+        address: "127.0.0.1",
+        family: "IPv4",
+        port: 3000,
+      };
+
+      mockServer.address.mockReturnValue(mockAddress);
+
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify(mockTokenResponse)),
+      );
+
+      mockServer.listen.mockImplementation((_port: number, callback: () => void) => {
+        callback();
+        mockRequest.url = "/?code=auth-code-123";
+        setTimeout(() => {
+          mockServer.callback?.(mockRequest, mockResponse);
+        }, 0);
+      });
+
+      mockServer.close.mockImplementation((callback?: () => void) => {
+        callback?.();
+      });
+
+      // Act
+      await authenticate(options);
+
+      // Assert
+      expect(requestUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "https://oauth2.googleapis.com/token",
+          method: "POST",
+        }),
+      );
+      const tokenCall = vi.mocked(requestUrl).mock.calls.find((call) => {
+        const parameters = call[0];
+        return (
+          isRequestUrlParameter(parameters) &&
+          parameters.url === "https://oauth2.googleapis.com/token"
+        );
+      });
+      const formBody = formBodyFromRequestUrlCall(tokenCall);
+      expect(formBody).toBeDefined();
+      const formParameters = new URLSearchParams(formBody);
+      expect(formParameters.get("client_secret")).toBe("test-client-secret");
+      expect(formParameters.get("code_verifier")).toMatch(/^[A-Za-z0-9_-]+$/);
+      expect(formParameters.get("grant_type")).toBe("authorization_code");
     });
   });
 
@@ -161,6 +246,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1",
       };
 
@@ -192,6 +278,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1",
       };
 
@@ -223,6 +310,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1",
       };
 
@@ -278,6 +366,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1",
       };
 
@@ -312,6 +401,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1",
       };
 
@@ -329,6 +419,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1",
       };
 
@@ -377,6 +468,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1 scope2",
       };
 
@@ -427,6 +519,7 @@ describe("authenticate", () => {
       // Arrange
       const options: AuthOptions = {
         clientId: "test-client-id",
+        clientSecret: "test-client-secret",
         scopes: "scope1 scope2 scope3",
       };
 
@@ -531,10 +624,45 @@ describe("GoogleAuth", () => {
       );
 
       // Act
-      const result = await GoogleAuth.refreshAccessToken("id", "refresh");
+      const result = await GoogleAuth.refreshAccessToken("id", "secret", "refresh");
 
       // Assert
       expect(result).toEqual({ accessToken: "new-token", expiryDate: expect.any(Number) });
+    });
+
+    it("sends client_secret in refresh POST body", async () => {
+      // Arrange
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(200, JSON.stringify({ access_token: "new-token", expires_in: 3600 })),
+      );
+
+      // Act
+      await GoogleAuth.refreshAccessToken("id", "my-secret", "refresh");
+
+      // Assert
+      const formBody = formBodyFromRequestUrlCall(vi.mocked(requestUrl).mock.calls[0]);
+      expect(formBody).toBeDefined();
+      const formParameters = new URLSearchParams(formBody);
+      expect(formParameters.get("client_secret")).toBe("my-secret");
+      expect(formParameters.get("grant_type")).toBe("refresh_token");
+    });
+
+    it("throws InvalidGrantError for invalid_grant response", async () => {
+      // Arrange
+      vi.mocked(requestUrl).mockResolvedValue(
+        requestUrlResponse(
+          400,
+          JSON.stringify({
+            error: "invalid_grant",
+            error_description: "Token has been expired or revoked",
+          }),
+        ),
+      );
+
+      // Act & Assert
+      await expect(
+        GoogleAuth.refreshAccessToken("id", "secret", "refresh", 0),
+      ).rejects.toBeInstanceOf(InvalidGrantError);
     });
 
     it("retries on network failure and succeeds", async () => {
@@ -546,7 +674,7 @@ describe("GoogleAuth", () => {
         );
 
       // Act
-      const result = await GoogleAuth.refreshAccessToken("id", "refresh", 2);
+      const result = await GoogleAuth.refreshAccessToken("id", "secret", "refresh", 2);
 
       // Assert
       expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(2);
@@ -558,7 +686,7 @@ describe("GoogleAuth", () => {
       vi.mocked(requestUrl).mockRejectedValue(new TypeError("Network error"));
 
       // Act & Assert
-      await expect(GoogleAuth.refreshAccessToken("id", "refresh", 1)).rejects.toThrow(
+      await expect(GoogleAuth.refreshAccessToken("id", "secret", "refresh", 1)).rejects.toThrow(
         "Token refresh failed after retries",
       );
     });

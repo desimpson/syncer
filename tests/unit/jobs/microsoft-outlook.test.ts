@@ -73,6 +73,7 @@ import { MicrosoftAuth } from "@/auth";
 
 const baseConfig = {
   googleClientId: "",
+  googleClientSecret: "",
   microsoftClientId: "outlook-client-id",
   todoistClientId: "",
   pluginDirectory: "/tmp/syncer-plugin",

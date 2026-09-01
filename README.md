@@ -189,7 +189,7 @@ npm clean-install
 npm run build:dev
 ```
 
-Set OAuth client IDs for local `build:dev` to enable Connect (if omitted, the build still succeeds but matching Connect actions are disabled). Copy `oauth-clients.dev.json.example` → `oauth-clients.dev.json` and fill in your client IDs. Google Connect needs **your own** Desktop client — dev creds are never committed; `obsidiansyncer-dev` is the maintainer’s personal project (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)).
+Set OAuth client IDs for local `build:dev` to enable Connect (if omitted, the build still succeeds but matching Connect actions are disabled). Copy `oauth-clients.dev.json.example` → `oauth-clients.dev.json` and fill in your client IDs. Google Connect needs **your own** Desktop client (ID **and** secret) — dev creds are never committed; `obsidiansyncer-dev` is the maintainer’s personal project (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)). After changing Google client ID or secret, Disconnect and Connect again.
 
 Run tests with coverage (floor + report): [`npm run test:coverage`](docs/testing.md).
 

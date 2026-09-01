@@ -33,6 +33,15 @@ import { resolvePluginDirectory } from "@/plugin/plugin-directory";
 const firefoxFolderLabel = (folder: FirefoxBookmarkFolder): string =>
   folder.path.length > 0 ? folder.path : folder.title;
 
+/** True when the build includes both Google Desktop client ID and secret. */
+export const isGoogleConnectConfigured = (
+  config: Pick<PluginConfig, "googleClientId" | "googleClientSecret">,
+): boolean =>
+  config.googleClientId.trim().length > 0 && config.googleClientSecret.trim().length > 0;
+
+const googleConnectUnavailableDescription =
+  "The plugin build does not include a Google Desktop application (client) ID and secret. Add both to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect.";
+
 export const shouldDeferGmailStarredMaxItemsValidation = (value: string): boolean =>
   value.trim().length === 0;
 
@@ -338,12 +347,12 @@ export class SettingsTab extends PluginSettingTab {
     if (googleTasks === undefined) {
       setting.setName("No Google Tasks account connected");
       setting.setDesc(
-        this.config.googleClientId.length === 0
-          ? "The plugin build does not include a Google application (client) ID. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect."
-          : "Connect your Google Tasks account to sync references and links to incomplete tasks.",
+        isGoogleConnectConfigured(this.config)
+          ? "Connect your Google Tasks account to sync references and links to incomplete tasks."
+          : googleConnectUnavailableDescription,
       );
       setting.addButton((button) => {
-        if (this.config.googleClientId.length === 0) {
+        if (!isGoogleConnectConfigured(this.config)) {
           button.setDisabled(true);
         }
         button.setButtonText("Connect").onClick(async () => {
@@ -371,14 +380,15 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async connectGoogleTasks(): Promise<void> {
-    if (this.config.googleClientId.length === 0) {
-      new Notice("Google client ID is not configured for this build.");
+    if (!isGoogleConnectConfigured(this.config)) {
+      new Notice("Google client ID and secret are not configured for this build.");
       return;
     }
 
     try {
       const credentials = await GoogleAuth.authenticate({
         clientId: this.config.googleClientId,
+        clientSecret: this.config.googleClientSecret,
         scopes: "https://www.googleapis.com/auth/tasks openid email profile",
       });
 
@@ -417,12 +427,12 @@ export class SettingsTab extends PluginSettingTab {
     if (gmailStarred === undefined) {
       setting.setName("No Gmail Starred account connected");
       setting.setDesc(
-        this.config.googleClientId.length === 0
-          ? "The plugin build does not include a Google application (client) ID. Add it to oauth-clients.dev.json (local dev) or the committed staging/prod JSON when building to enable Connect."
-          : "Connect opens your browser to sign in with Google; after you consent, starred mail syncs on the next run. Uses separate credentials from Google Tasks.",
+        isGoogleConnectConfigured(this.config)
+          ? "Connect opens your browser to sign in with Google; after you consent, starred mail syncs on the next run. Uses separate credentials from Google Tasks."
+          : googleConnectUnavailableDescription,
       );
       setting.addButton((button) => {
-        if (this.config.googleClientId.length === 0) {
+        if (!isGoogleConnectConfigured(this.config)) {
           button.setDisabled(true);
         }
         button.setButtonText("Connect").onClick(async () => {
@@ -471,14 +481,15 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   private async connectGmailStarred(): Promise<void> {
-    if (this.config.googleClientId.length === 0) {
-      new Notice("Google client ID is not configured for this build.");
+    if (!isGoogleConnectConfigured(this.config)) {
+      new Notice("Google client ID and secret are not configured for this build.");
       return;
     }
 
     try {
       const credentials = await GoogleAuth.authenticate({
         clientId: this.config.googleClientId,
+        clientSecret: this.config.googleClientSecret,
         scopes: "https://www.googleapis.com/auth/gmail.modify openid email profile",
       });
 
@@ -1671,6 +1682,7 @@ export class SettingsTab extends PluginSettingTab {
         if (token.expiryDate < Date.now()) {
           const refreshed = await GoogleAuth.refreshAccessToken(
             this.config.googleClientId,
+            this.config.googleClientSecret,
             token.refreshToken,
           );
 

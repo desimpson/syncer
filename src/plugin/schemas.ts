@@ -21,20 +21,6 @@ const markdownExtensionRegex = /\.md$/;
 const h2HeadingRegex = /^##\s.+/;
 
 /**
- * Schema for validating and parsing the plugin configuration settings.
- */
-export const pluginSchema = z.object({
-  /** Optional at build time; Google connect is disabled when empty. */
-  GOOGLE_CLIENT_ID: z.string().default(""),
-  /** Optional at build time; Google Desktop connect is disabled when empty. */
-  GOOGLE_CLIENT_SECRET: z.string().default(""),
-  /** Optional at build time; Outlook connect is disabled when empty. */
-  MICROSOFT_CLIENT_ID: z.string().default(""),
-  /** Optional at build time; Todoist connect is disabled when empty. */
-  TODOIST_CLIENT_ID: z.string().default(""),
-});
-
-/**
  * Base schema (sync) for Markdown file path shape/format. Reused across
  * settings parsing and UI field validation. Does NOT check existence.
  */

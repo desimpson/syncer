@@ -131,9 +131,6 @@ describe("Task deletion confirmation", () => {
     modalInstances = [];
     modifyCallbacks = [];
 
-    // Setup required env var
-    process.env["GOOGLE_CLIENT_ID"] = process.env["GOOGLE_CLIENT_ID"] ?? "test-client-id";
-
     // Mock file
     mockFile = {
       path: syncDocument,

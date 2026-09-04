@@ -189,7 +189,9 @@ npm clean-install
 npm run build:dev
 ```
 
-Set OAuth client IDs for local `build:dev` to enable Connect (if omitted, the build still succeeds but matching Connect actions are disabled). Copy `oauth-clients.dev.json.example` → `oauth-clients.dev.json` and fill in your client IDs. Google Connect needs **your own** Desktop client (ID **and** secret) — dev creds are never committed; `obsidiansyncer-dev` is the maintainer’s personal project (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)). After changing Google client ID or secret, Disconnect and Connect again.
+Build scripts set `BUILD_ENV` automatically (`dev`, `staging`, `prod`). If you invoke `esbuild.config.mjs` directly, set `BUILD_ENV` explicitly.
+
+Set OAuth client IDs for local `build:dev` to enable Connect. `build:dev` now requires a local `oauth-clients.dev.json`; copy `oauth-clients.dev.json.example` → `oauth-clients.dev.json` first (empty IDs are allowed and simply disable matching Connect actions). Google Connect needs **your own** Desktop client (ID **and** secret) — dev creds are never committed; `obsidiansyncer-dev` is the maintainer’s personal project (see [`docs/kb/gotchas.md`](docs/kb/gotchas.md)). After changing Google client ID or secret, Disconnect and Connect again.
 
 Run tests with coverage (floor + report): [`npm run test:coverage`](docs/testing.md).
 

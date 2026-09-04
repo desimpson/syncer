@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import SyncerPlugin from "@/plugin";
 import type { App, PluginManifest, TFile, Vault } from "obsidian";
 
@@ -11,11 +11,6 @@ const mockManifest = {
 } as unknown as PluginManifest;
 
 describe("Plugin settings method binding", () => {
-  beforeEach(() => {
-    // Ensure required env vars for constructor schema parse
-    process.env["GOOGLE_CLIENT_ID"] = process.env["GOOGLE_CLIENT_ID"] ?? "test-client-id";
-  });
-
   it("allows calling load/save/update after destructuring (bound methods)", async () => {
     // Arrange
     const plugin = new SyncerPlugin(mockApp, mockManifest);
@@ -37,11 +32,6 @@ describe("Plugin settings method binding", () => {
 });
 
 describe("Plugin file content cache initialization", () => {
-  beforeEach(() => {
-    // Ensure required env vars for constructor schema parse
-    process.env["GOOGLE_CLIENT_ID"] = process.env["GOOGLE_CLIENT_ID"] ?? "test-client-id";
-  });
-
   it("re-initializes cache when syncDocument changes", async () => {
     // Arrange
     const file1Content = "# File 1\n- Task 1";

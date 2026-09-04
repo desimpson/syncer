@@ -5,7 +5,6 @@ import {
   maximumGmailStarredMaxItems,
   minimumGmailStarredMaxItems,
   minimumSyncIntervalMinutes,
-  pluginSchema,
   syncIntervalSchema,
   pluginSettingsSchema,
   googleTasksSettingsSchema,
@@ -33,62 +32,6 @@ const makeMockVault = (existingFiles: string[] = [], content = ""): Vault =>
     },
     read: async () => content,
   }) as unknown as Vault;
-
-describe("pluginSchema", () => {
-  it("accepts valid non-empty client credentials", () => {
-    // Arrange
-    const input = {
-      GOOGLE_CLIENT_ID: "id-123",
-      GOOGLE_CLIENT_SECRET: "secret-456",
-    };
-
-    // Act
-    const result = pluginSchema.safeParse(input);
-
-    // Assert
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.GOOGLE_CLIENT_ID).toBe("id-123");
-      expect(result.data.GOOGLE_CLIENT_SECRET).toBe("secret-456");
-      expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
-      expect(result.data.TODOIST_CLIENT_ID).toBe("");
-    }
-  });
-
-  it("defaults GOOGLE_CLIENT_SECRET to empty string when omitted", () => {
-    // Arrange
-    const input = {
-      GOOGLE_CLIENT_ID: "id-123",
-    };
-
-    // Act
-    const result = pluginSchema.safeParse(input);
-
-    // Assert
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.GOOGLE_CLIENT_SECRET).toBe("");
-    }
-  });
-
-  it("accepts empty client credentials and defaults all IDs", () => {
-    // Arrange
-    const input = {
-      GOOGLE_CLIENT_ID: "",
-    };
-
-    // Act
-    const result = pluginSchema.safeParse(input);
-
-    // Assert
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.GOOGLE_CLIENT_ID).toBe("");
-      expect(result.data.MICROSOFT_CLIENT_ID).toBe("");
-      expect(result.data.TODOIST_CLIENT_ID).toBe("");
-    }
-  });
-});
 
 describe("createMarkdownFilePathSchema", () => {
   it("accepts a valid existing Markdown file path", async () => {

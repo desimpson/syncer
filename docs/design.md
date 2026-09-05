@@ -67,7 +67,7 @@ Settings are Obsidian plugin data (`loadData` / `saveData`), validated by Zod in
 | Todoist           | credentials, `availableProjects`, `selectedProjectIds`, `userInfo`                                                                              |
 | Firefox Bookmarks | profile paths, `availableFolders`, `selectedFolderGuids`                                                                                        |
 
-OAuth tokens live **in plugin settings**, not a separate OS keychain. Build-time client IDs (`GOOGLE_CLIENT_ID`, `MICROSOFT_CLIENT_ID`, `TODOIST_CLIENT_ID`) are injected by esbuild and validated via `pluginSchema`.
+OAuth tokens live **in plugin settings**, not a separate OS keychain. Build-time OAuth settings are injected by esbuild named defines (`__ENABLE_GOOGLE__`, `__GOOGLE_CLIENT_ID__`, `__GOOGLE_CLIENT_SECRET__`, `__MICROSOFT_CLIENT_ID__`, `__TODOIST_CLIENT_ID__`) and parsed by `src/plugin/build-config.ts`.
 
 There is **one connected account per OAuth source** today. Multi-account support is backlog ([#40](https://github.com/desimpson/syncer/issues/40)).
 

@@ -18,12 +18,13 @@ import { createTodoistJob } from "@/jobs/todoist";
 import { createAzureDevOpsJob } from "@/jobs/azure-devops";
 import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
 import type { PluginConfig, PluginSettings } from "@/plugin/types";
-import { pluginSchema, pluginSettingsSchema } from "./schemas";
+import { pluginSettingsSchema } from "./schemas";
 import { DeleteTaskConfirmationModal } from "@/plugin/modals/delete-confirmation-modal";
 import { deleteGoogleTask } from "@/services/google-tasks";
 import { GoogleAuth } from "@/auth";
 import { parsedLineSchema } from "@/sync/schemas";
 import { resolvePluginDirectory } from "@/plugin/plugin-directory";
+import { buildConfig } from "@/plugin/build-config";
 
 /**
  * Syncer plugin.
@@ -37,13 +38,11 @@ export default class SyncerPlugin extends Plugin {
 
   public constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID, TODOIST_CLIENT_ID } =
-      pluginSchema.parse(process.env);
     this.config = {
-      googleClientId: GOOGLE_CLIENT_ID,
-      googleClientSecret: GOOGLE_CLIENT_SECRET,
-      microsoftClientId: MICROSOFT_CLIENT_ID.trim(),
-      todoistClientId: TODOIST_CLIENT_ID.trim(),
+      googleClientId: buildConfig.googleClientId,
+      googleClientSecret: buildConfig.googleClientSecret,
+      microsoftClientId: buildConfig.microsoftClientId,
+      todoistClientId: buildConfig.todoistClientId,
       pluginDirectory: resolvePluginDirectory(app, manifest),
     };
   }

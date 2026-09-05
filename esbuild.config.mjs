@@ -9,12 +9,12 @@ import { z } from "zod";
 
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 
-/** @typedef {"development" | "staging" | "production" | "watch"} BuildMode */
+/** @typedef {"dev" | "staging" | "prod"} BuildEnvironment */
 
 const oauthClientsFileByMode = {
-  development: "oauth-clients.dev.json",
+  dev: "oauth-clients.dev.json",
   staging: "oauth-clients.staging.json",
-  production: "oauth-clients.prod.json",
+  prod: "oauth-clients.prod.json",
 };
 
 // Extra keys must fail the build; default z.object() would strip them.
@@ -34,49 +34,35 @@ const oauthClientsSchema = z
 /**
  * Returns the OAuth clients JSON path for a build mode.
  *
- * @param {BuildMode} mode
+ * @param {BuildEnvironment} buildEnvironment
  * @returns {string}
  */
-const getOAuthClientsPath = (mode) => {
-  const resolvedMode = mode === "watch" ? "development" : mode;
-  const fileName = oauthClientsFileByMode[resolvedMode];
+const getOAuthClientsPath = (buildEnvironment) => {
+  const fileName = oauthClientsFileByMode[buildEnvironment];
   return path.join(rootDirectory, fileName);
 };
 
 /**
- * Reads and validates OAuth client configuration for the given build mode.
- * Development allows a missing file or empty IDs (Connect disabled).
- * Staging and production require committed JSON with non-empty OAuth values.
+ * Reads and validates OAuth client configuration for the given build environment.
+ * The file must exist in all environments. Staging and production require
+ * non-empty OAuth values.
  *
- * @param {BuildMode} mode
+ * @param {BuildEnvironment} buildEnvironment
  * @returns {OAuthClientsConfig}
  */
-const readOAuthClients = (mode) => {
-  const resolvedMode = mode === "watch" ? "development" : mode;
-  const clientsPath = getOAuthClientsPath(mode);
+const readOAuthClients = (buildEnvironment) => {
+  const clientsPath = getOAuthClientsPath(buildEnvironment);
 
   if (!existsSync(clientsPath)) {
-    if (resolvedMode === "development") {
-      console.info(
-        `OAuth clients file not found (${oauthClientsFileByMode.development}); copy oauth-clients.dev.json.example and fill in your local client IDs.`,
-      );
-      return {
-        GOOGLE_CLIENT_ID: "",
-        GOOGLE_CLIENT_SECRET: "",
-        MICROSOFT_CLIENT_ID: "",
-        TODOIST_CLIENT_ID: "",
-      };
-    }
-
     throw new Error(
-      `Missing OAuth clients file: ${oauthClientsFileByMode[resolvedMode]}. Committed staging/prod JSON is required for this build mode.`,
+      `Missing OAuth clients file: ${oauthClientsFileByMode[buildEnvironment]}. Copy oauth-clients.dev.json.example for dev, or ensure committed staging/prod JSON exists.`,
     );
   }
 
   const raw = readFileSync(clientsPath, "utf8");
   const parsed = oauthClientsSchema.parse(JSON.parse(raw));
 
-  if (resolvedMode !== "development") {
+  if (buildEnvironment !== "dev") {
     for (const key of [
       "GOOGLE_CLIENT_ID",
       "GOOGLE_CLIENT_SECRET",
@@ -85,7 +71,7 @@ const readOAuthClients = (mode) => {
     ]) {
       const value = (parsed[key] ?? "").trim();
       if (value.length === 0) {
-        throw new Error(`${key} is required in ${oauthClientsFileByMode[resolvedMode]}.`);
+        throw new Error(`${key} is required in ${oauthClientsFileByMode[buildEnvironment]}.`);
       }
     }
   }
@@ -133,41 +119,24 @@ const baseOptions = {
 };
 
 /**
- * Creates production build options with OAuth client IDs injected at build time.
+ * Creates build options with OAuth client IDs injected at build time.
  *
  * @param {OAuthClientsConfig} clients
+ * @param {BuildEnvironment} buildEnvironment
+ * @param {boolean} watchMode
  */
-const createProductionOptions = (clients) => ({
+const createBuildOptions = (clients, buildEnvironment, watchMode) => ({
   ...baseOptions,
-  sourcemap: false,
-  minify: true,
+  sourcemap: buildEnvironment === "dev" ? "inline" : false,
+  minify: buildEnvironment !== "dev",
   define: {
-    "process.env": JSON.stringify({
-      GOOGLE_CLIENT_ID: clients.GOOGLE_CLIENT_ID.trim(),
-      GOOGLE_CLIENT_SECRET: (clients.GOOGLE_CLIENT_SECRET ?? "").trim(),
-      MICROSOFT_CLIENT_ID: clients.MICROSOFT_CLIENT_ID.trim(),
-      TODOIST_CLIENT_ID: clients.TODOIST_CLIENT_ID.trim(),
-    }),
+    __ENABLE_GOOGLE__: buildEnvironment === "prod" ? "false" : "true",
+    __GOOGLE_CLIENT_ID__: JSON.stringify(clients.GOOGLE_CLIENT_ID.trim()),
+    __GOOGLE_CLIENT_SECRET__: JSON.stringify((clients.GOOGLE_CLIENT_SECRET ?? "").trim()),
+    __MICROSOFT_CLIENT_ID__: JSON.stringify(clients.MICROSOFT_CLIENT_ID.trim()),
+    __TODOIST_CLIENT_ID__: JSON.stringify(clients.TODOIST_CLIENT_ID.trim()),
   },
-});
-
-/**
- * Creates development build options with OAuth client IDs injected at build time.
- *
- * @param {OAuthClientsConfig} clients
- */
-const createDevelopmentOptions = (clients) => ({
-  ...baseOptions,
-  sourcemap: "inline",
-  minify: false,
-  define: {
-    "process.env": JSON.stringify({
-      GOOGLE_CLIENT_ID: clients.GOOGLE_CLIENT_ID.trim(),
-      GOOGLE_CLIENT_SECRET: (clients.GOOGLE_CLIENT_SECRET ?? "").trim(),
-      MICROSOFT_CLIENT_ID: clients.MICROSOFT_CLIENT_ID.trim(),
-      TODOIST_CLIENT_ID: clients.TODOIST_CLIENT_ID.trim(),
-    }),
-  },
+  ...(watchMode ? { sourcemap: "inline", minify: false } : {}),
 });
 
 /**
@@ -203,36 +172,31 @@ const watch = async (options) => {
 };
 
 /**
- * Parses and normalises the build mode from command-line arguments.
+ * Parses and normalises build environment from BUILD_ENV.
  *
- * @returns {BuildMode} The current mode.
+ * @returns {BuildEnvironment}
  */
-const getMode = () => {
-  const modeFlagIndex = process.argv.indexOf("--mode");
-  if (modeFlagIndex === -1) {
-    return "watch";
+const getBuildEnvironment = () => {
+  const rawBuildEnvironment = process.env.BUILD_ENV?.trim().toLowerCase();
+  if (rawBuildEnvironment === undefined || rawBuildEnvironment.length === 0) {
+    throw new Error("Missing BUILD_ENV. Use one of: dev, staging, prod.");
   }
 
-  const rawMode = process.argv[modeFlagIndex + 1];
-
-  switch (rawMode) {
-    case "prod":
-    case "production": {
-      return "production";
+  switch (rawBuildEnvironment) {
+    case "dev":
+    case "development": {
+      return "dev";
     }
     case "staging": {
       return "staging";
     }
-    case "dev":
-    case "development": {
-      return "development";
-    }
-    case "watch": {
-      return "watch";
+    case "prod":
+    case "production": {
+      return "prod";
     }
     default: {
       throw new Error(
-        `Unknown build mode "${String(rawMode)}". Use one of: dev, staging, prod, development, production, watch.`,
+        `Unknown BUILD_ENV "${String(rawBuildEnvironment)}". Use one of: dev, staging, prod.`,
       );
     }
   }
@@ -241,13 +205,10 @@ const getMode = () => {
 /**
  * Logs which OAuth client IDs are active for this build.
  *
- * @param {BuildMode} mode
+ * @param {BuildEnvironment} buildEnvironment
  * @param {OAuthClientsConfig} clients
  */
-const logOAuthClients = (mode, clients) => {
-  const modeLabel =
-    mode === "development" || mode === "watch" ? "dev" : mode === "staging" ? "staging" : "prod";
-
+const logOAuthClients = (buildEnvironment, clients) => {
   for (const [key, value] of [
     ["Google", clients.GOOGLE_CLIENT_ID],
     ["Microsoft", clients.MICROSOFT_CLIENT_ID],
@@ -255,11 +216,17 @@ const logOAuthClients = (mode, clients) => {
   ]) {
     const trimmed = value.trim();
     if (trimmed.length > 0) {
-      console.info(`Using ${key} Client ID (${modeLabel}): ${trimmed.slice(0, 20)}...`);
+      console.info(`Using ${key} Client ID (${buildEnvironment}): ${trimmed.slice(0, 20)}...`);
     } else {
-      console.info(`${key} Client ID not set (${modeLabel}; Connect disabled until configured).`);
+      console.info(
+        `${key} Client ID not set (${buildEnvironment}; Connect disabled until configured).`,
+      );
     }
   }
+
+  console.info(
+    `Google integration enabled at build-time: ${buildEnvironment === "prod" ? "no" : "yes"}`,
+  );
 };
 
 /**
@@ -268,37 +235,21 @@ const logOAuthClients = (mode, clients) => {
  * @returns {Promise<void>}
  */
 const run = async () => {
-  const mode = getMode();
-  const modeLabel =
-    mode === "development"
-      ? "dev"
-      : mode === "production"
-        ? "prod"
-        : mode === "staging"
-          ? "staging"
-          : mode;
-  console.info(`Starting build script in mode: ${modeLabel}`);
+  const buildEnvironment = getBuildEnvironment();
+  const watchMode = process.argv.includes("--watch");
+  const runMode = watchMode ? "watch" : "build";
+  console.info(`Starting build script in mode: ${runMode} (${buildEnvironment})`);
 
-  const clients = readOAuthClients(mode);
-  logOAuthClients(mode, clients);
+  const clients = readOAuthClients(buildEnvironment);
+  logOAuthClients(buildEnvironment, clients);
 
-  switch (mode) {
-    case "production":
-    case "staging": {
-      const options = createProductionOptions(clients);
-      await build(options);
-      break;
-    }
-    case "development": {
-      const options = createDevelopmentOptions(clients);
-      await build(options);
-      break;
-    }
-    default: {
-      const options = createDevelopmentOptions(clients);
-      await watch(options);
-    }
+  const options = createBuildOptions(clients, buildEnvironment, watchMode);
+  if (watchMode) {
+    await watch(options);
+    return;
   }
+
+  await build(options);
 };
 
 await run();

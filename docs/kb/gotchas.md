@@ -2,7 +2,7 @@
 
 ## Build / env
 
-- Client IDs are **build-time** injects via `esbuild.config.mjs` → `process.env` → `pluginSchema`
+- Client IDs are **build-time** injects via `esbuild.config.mjs` named defines (`__GOOGLE_CLIENT_ID__`, etc.) parsed by `src/plugin/build-config.ts`; do not reintroduce whole-object `process.env` define replacement
 - Three OAuth JSON files (Google, Microsoft, Todoist only — Azure DevOps PAT and Firefox stay out):
   - **Dev:** gitignored `oauth-clients.dev.json` (copy [`oauth-clients.dev.json.example`](../../oauth-clients.dev.json.example)); empty IDs disable Connect for that provider
   - **Staging:** committed [`oauth-clients.staging.json`](../../oauth-clients.staging.json) — `npm run build:staging`; CI non-`main` artifact build
@@ -10,6 +10,7 @@
 - **Public-by-design:** Microsoft Entra and Todoist client IDs are public; they ship in the bundle. Google Desktop installed-app clients also commit a `GOOGLE_CLIENT_SECRET` in staging/prod JSON; do not treat that as a hidden server secret — it is bundled-adjacent config checked into the repo for clean-checkout builds (exact strings allowlisted in [`.gitleaks.toml`](../../.gitleaks.toml) via [#185](https://github.com/desimpson/syncer/issues/185)). Local dev needs both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in gitignored `oauth-clients.dev.json`; Connect is disabled when either is empty
 - **Do not cross-use clients between environments** — each env has its own GCP / Entra / Todoist app; using prod creds in dev (or vice versa) breaks consent, redirect URIs, and rollback
 - Extra keys fail the build parse (`oauthClientsSchema` is `.strict()` in [`esbuild.config.mjs`](../../esbuild.config.mjs)); [`scripts/check-oauth-clients.mjs`](../../scripts/check-oauth-clients.mjs) validates committed staging + prod JSON. Test & Lint and release both run `npm run check:oauth-clients`
+- Build mode comes from `BUILD_ENV=dev|staging|prod` (watch uses `BUILD_ENV=dev` + `--watch`); `prod` compiles with `__ENABLE_GOOGLE__=false` so Google Connect is intentionally disabled in production bundles
 - See [`oauth-clients.dev.json.example`](../../oauth-clients.dev.json.example) for local dev shape. CI `build-staging` and `build-prod` use GitHub Environments **`staging`** / **`prod`** as empty deployment gates — no OAuth secrets injected
 - Vault install: `npm run sync` needs `OBSIDIAN_VAULT_PLUGIN_DIR_DEV` (see `.envrc.example`); copies `main.js`, `manifest.json`, and `styles.css`
 - `electron` is an esbuild **external** only ([`esbuild.config.mjs`](../../esbuild.config.mjs)); Obsidian supplies Electron at runtime. Do not re-add it as an npm dependency for typing or audit cosmetics unless the plugin actually imports it
@@ -53,7 +54,7 @@
 ## Firefox Bookmarks
 
 - sql.js WASM is bundled into `main.js` by esbuild (`.wasm` binary loader); no separate `sql-wasm.wasm` release asset is required
-- Profile auto-detect scans `~/.mozilla/firefox` first, then `~/.config/mozilla/firefox` (XDG), plus Snap/Flatpak. If none are accessible, Refresh folders shows profile-not-found (not a raw path-guard error). Manual path always wins. Do not read `XDG_CONFIG_HOME` from `process.env` (esbuild replaces that object; same trap as Windows `APPDATA`)
+- Profile auto-detect scans `~/.mozilla/firefox` first, then `~/.config/mozilla/firefox` (XDG), plus Snap/Flatpak. If none are accessible, Refresh folders shows profile-not-found (not a raw path-guard error). Manual path always wins. Runtime paths rely on native `process.env`; do not reintroduce whole-object `process.env` define replacement in the bundler.
 - Copy-on-read of `places.sqlite` + `-wal` into a unique temp dir (never copy `-shm` — Firefox’s live WAL index can make merges miss newest frames); cleaned in `finally`
 - While Firefox is open, new bookmarks live in the WAL. sql.js cannot read WAL sidecars — merge via `sqlite3 .backup` or Python `sqlite3.Connection.backup` before open. If both fail, sync sees a stale main DB (notice: close Firefox briefly)
 - Sync job validates selected folders against the settings snapshot from **Refresh folders**, then opens places once for bookmark fetch (avoids a double hot-copy per sync)

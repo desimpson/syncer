@@ -23,7 +23,7 @@ Jobs glue auth + services + adaptors + sync. Plugin owns lifecycle, settings, an
 
 - Validate settings, API payloads, and Markdown metadata with Zod (`*Schema` in nearby `schemas.ts`)
 - Prefer `z.infer<typeof …Schema>` for types
-- Parse at boundaries (`pluginSchema.parse(process.env)`, `pluginSettingsSchema.parse`, service responses)
+- Parse at boundaries (`parseBuildConfig` in `src/plugin/build-config.ts`, `pluginSettingsSchema.parse`, service responses)
 
 ## Naming
 

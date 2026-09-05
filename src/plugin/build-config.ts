@@ -8,6 +8,9 @@ const rawBuildConfigSchema = z.object({
   todoistClientId: z.string(),
 });
 
+/**
+ * Build-time integration config injected via esbuild named defines.
+ */
 export type BuildConfig = {
   enableGoogle: boolean;
   googleClientId: string;
@@ -16,6 +19,15 @@ export type BuildConfig = {
   todoistClientId: string;
 };
 
+/**
+ * Parse and normalise build-time define values for runtime consumption.
+ *
+ * Google credentials are intentionally blanked when Google is disabled so
+ * downstream checks can rely on a single source of truth.
+ *
+ * @param raw - Untrusted raw config object from build defines.
+ * @returns Parsed and normalised build configuration.
+ */
 export const parseBuildConfig = (raw: unknown): BuildConfig => {
   const parsed = rawBuildConfigSchema.parse(raw);
 
@@ -33,14 +45,15 @@ export const parseBuildConfig = (raw: unknown): BuildConfig => {
   };
 };
 
-const getDefineString = (defineValue: string | undefined): string => {
-  return typeof defineValue === "string" ? defineValue : "";
-};
+const getDefineString = (defineValue: string | undefined): string =>
+  typeof defineValue === "string" ? defineValue : "";
 
-const getDefineBoolean = (defineValue: boolean | undefined): boolean => {
-  return typeof defineValue === "boolean" ? defineValue : false;
-};
+const getDefineBoolean = (defineValue: boolean | undefined): boolean =>
+  typeof defineValue === "boolean" ? defineValue : false;
 
+/**
+ * Resolved build configuration used by plugin bootstrap.
+ */
 export const buildConfig = parseBuildConfig({
   enableGoogle: getDefineBoolean(
     typeof __ENABLE_GOOGLE__ === "boolean" ? __ENABLE_GOOGLE__ : undefined,

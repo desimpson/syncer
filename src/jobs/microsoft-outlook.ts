@@ -12,11 +12,12 @@ import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { MICROSOFT_OUTLOOK_SOURCE, type SyncItem } from "@/sync/types";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
-import type { TFile, Vault } from "obsidian";
+import type { TFile } from "obsidian";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
-import { runtimeSetTimeout } from "@/utils/browser-runtime";
-
-const VAULT_INIT_RETRY_DELAY_MS = 500;
+import {
+  notifyIfSyncDocumentUnavailable,
+  resolveReadableSyncDocument,
+} from "@/sync/resolve-sync-document";
 
 type CompletionChange = {
   messageId: string;
@@ -59,28 +60,6 @@ const ensureAccessToken = async (
   }
 
   return token.accessToken;
-};
-
-const getSyncFileWithRetry = async (
-  vault: Vault,
-  syncDocument: string,
-  notify: (message: string) => void,
-): Promise<TFile | undefined> => {
-  const file = vault.getFileByPath(syncDocument);
-  if (file !== null) {
-    return file;
-  }
-
-  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
-  const retryFile = vault.getFileByPath(syncDocument);
-
-  if (retryFile === null) {
-    notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
-    console.warn(`Sync document [${syncDocument}] not found. Aborting Outlook sync.`);
-    return undefined;
-  }
-
-  return retryFile;
 };
 
 /**
@@ -279,10 +258,8 @@ const mergeCompletionFromMarkdown = async (
   return updateIncomingItemsWithCompletionChanges(incoming, successfulChanges, existing);
 };
 
-const isMissingFileError = (message: string): boolean =>
-  /ENOENT|no such file or directory|not found/i.test(message);
-
 const syncOutlookMessagesToFile = async (
+  vault: Parameters<SyncJobCreator>[3],
   file: TFile,
   messages: readonly OutlookFlaggedMessage[],
   accessToken: string,
@@ -313,12 +290,7 @@ const syncOutlookMessagesToFile = async (
       shouldPreserveCompletedDeletes,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (isMissingFileError(message)) {
-      notify(
-        `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
-      );
-      console.error(`File missing during Outlook sync: [${message}]. Aborting sync.`);
+    if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
       return;
     }
     throw error;
@@ -393,6 +365,11 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
       return;
     }
 
+    const file = await resolveReadableSyncDocument(vault, syncDocument, notify);
+    if (file === undefined) {
+      return;
+    }
+
     let currentAccessToken: string;
     try {
       currentAccessToken = await ensureAccessToken(
@@ -411,30 +388,17 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
         await clearOutlookCredentials(loadSettings, saveSettings, app);
         return;
       }
-      throw error;
-    }
-
-    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
-    if (file === undefined) {
-      return;
-    }
-
-    let messages: readonly OutlookFlaggedMessage[];
-    try {
-      messages = await fetchFlaggedMessages(currentAccessToken);
-    } catch (error) {
-      if (error instanceof GraphAuthorizationError) {
-        console.warn(
-          `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
-        );
-        await clearOutlookCredentials(loadSettings, saveSettings, app);
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
         return;
       }
       throw error;
     }
 
     try {
+      const messages = await fetchFlaggedMessages(currentAccessToken);
+
       await syncOutlookMessagesToFile(
+        vault,
         file,
         messages,
         currentAccessToken,
@@ -449,6 +413,9 @@ export const createMicrosoftOutlookJob: SyncJobCreator = (
           `Microsoft Graph authorization failed (${error.status}). Clearing credentials...`,
         );
         await clearOutlookCredentials(loadSettings, saveSettings, app);
+        return;
+      }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
         return;
       }
       throw error;

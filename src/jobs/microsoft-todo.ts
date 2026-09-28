@@ -10,11 +10,12 @@ import { readMarkdownSyncItems } from "@/sync/reader";
 import { MICROSOFT_TO_DO_SOURCE, type SyncItem } from "@/sync/types";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import { formatLogError, formatUiError } from "@/utils/error-formatters";
-import type { TFile, Vault } from "obsidian";
+import type { TFile } from "obsidian";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
-import { runtimeSetTimeout } from "@/utils/browser-runtime";
-
-const VAULT_INIT_RETRY_DELAY_MS = 500;
+import {
+  notifyIfSyncDocumentUnavailable,
+  resolveReadableSyncDocument,
+} from "@/sync/resolve-sync-document";
 
 type CompletionChange = {
   taskId: string;
@@ -58,28 +59,6 @@ const ensureAccessToken = async (
   }
 
   return token.accessToken;
-};
-
-const getSyncFileWithRetry = async (
-  vault: Vault,
-  syncDocument: string,
-  notify: (message: string) => void,
-): Promise<TFile | undefined> => {
-  const file = vault.getFileByPath(syncDocument);
-  if (file !== null) {
-    return file;
-  }
-
-  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
-  const retryFile = vault.getFileByPath(syncDocument);
-
-  if (retryFile === null) {
-    notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
-    console.warn(`Sync document [${syncDocument}] not found. Aborting Microsoft To Do sync.`);
-    return undefined;
-  }
-
-  return retryFile;
 };
 
 const buildTaskIdToListIdMap = (
@@ -322,6 +301,7 @@ const updateIncomingItemsWithCompletionChanges = (
 };
 
 const syncTasksToFile = async (
+  vault: Parameters<SyncJobCreator>[3],
   file: TFile,
   tasksByList: readonly { listId: string; tasks: readonly MicrosoftToDoTask[] }[],
   tenantSegment: string,
@@ -364,12 +344,7 @@ const syncTasksToFile = async (
       shouldPreserveCompletedDeletes,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/ENOENT|no such file or directory|not found/i.test(message)) {
-      notify(
-        `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
-      );
-      console.error(`File missing during Microsoft To Do sync: [${message}]. Aborting sync.`);
+    if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
       return;
     }
     throw error;
@@ -482,6 +457,11 @@ export const createMicrosoftToDoJob: SyncJobCreator = (
       return;
     }
 
+    const file = await resolveReadableSyncDocument(vault, syncDocument, notify);
+    if (file === undefined) {
+      return;
+    }
+
     let currentAccessToken: string;
     try {
       currentAccessToken = await ensureAccessToken(
@@ -500,17 +480,12 @@ export const createMicrosoftToDoJob: SyncJobCreator = (
         await clearMicrosoftToDoCredentials(loadSettings, saveSettings, app);
         return;
       }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
+        return;
+      }
       notifySyncFailure(error, notify);
       return;
     }
-
-    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
-    if (file === undefined) {
-      return;
-    }
-
-    let tasksByList: readonly { listId: string; tasks: readonly MicrosoftToDoTask[] }[];
-    let taskIdToListIdMap: Map<string, string>;
 
     try {
       const fetchResult = await fetchAllSelectedTasks(
@@ -518,31 +493,10 @@ export const createMicrosoftToDoJob: SyncJobCreator = (
         microsoftToDo.selectedListIds,
         syncCompletionStatus,
       );
-      tasksByList = fetchResult.tasksByList;
-      taskIdToListIdMap = fetchResult.taskIdToListIdMap;
-    } catch (error) {
-      if (error instanceof GraphAuthorizationError) {
-        await handleMicrosoftToDoAuthorizationFailure(
-          error,
-          notify,
-          loadSettings,
-          saveSettings,
-          app,
-        );
-        return;
-      }
-      if (error instanceof GraphRateLimitError) {
-        notify("Microsoft To Do sync hit a rate limit. Try again later.");
-        console.warn(`Microsoft To Do rate limit: [${error.message}].`);
-        return;
-      }
-      notifySyncFailure(error, notify);
-      console.error(`Microsoft To Do sync read failed: [${formatLogError(error)}].`);
-      return;
-    }
+      const { tasksByList, taskIdToListIdMap } = fetchResult;
 
-    try {
       await syncTasksToFile(
+        vault,
         file,
         tasksByList,
         microsoftToDo.credentials.tenantSegment,
@@ -567,6 +521,9 @@ export const createMicrosoftToDoJob: SyncJobCreator = (
       if (error instanceof GraphRateLimitError) {
         notify("Microsoft To Do sync hit a rate limit. Try again later.");
         console.warn(`Microsoft To Do rate limit: [${error.message}].`);
+        return;
+      }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
         return;
       }
       notifySyncFailure(error, notify);

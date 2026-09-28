@@ -1,9 +1,15 @@
+import {
+  formatSyncDocumentMissingOnDiskNotice,
+  formatSyncDocumentNotFoundNotice,
+  formatSyncDocumentPrepareFailureNotice,
+  isSyncDocumentMissingFileError,
+  SYNC_DOCUMENT_VAULT_INIT_RETRY_DELAY_MS,
+} from "@/sync/resolve-sync-document";
 import { runtimeSetTimeout } from "@/utils/browser-runtime";
 import type { TFile, Vault } from "obsidian";
 
 export const SYNC_DOCUMENT_STABILITY_POLL_ATTEMPTS = 6;
 export const SYNC_DOCUMENT_STABILITY_POLL_DELAY_MS = 150;
-export const SYNC_DOCUMENT_VAULT_INIT_RETRY_DELAY_MS = 500;
 
 export const PREPARE_SYNC_DOCUMENT_UNSTABLE_NOTICE =
   "Sync document is still changing on disk. Sync skipped; retry shortly.";
@@ -39,12 +45,15 @@ export const formatPrepareSyncDocumentFailureNotice = (
   message: string,
 ): string => {
   if (/not found/i.test(message)) {
-    return `Sync document "${syncDocument}" not found. Please update settings or create the file.`;
+    return formatSyncDocumentNotFoundNotice(syncDocument);
   }
-  if (/missing on disk|ENOENT|no such file/i.test(message)) {
-    return `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`;
+  if (
+    /missing on disk|ENOENT|no such file/i.test(message) ||
+    isSyncDocumentMissingFileError(message)
+  ) {
+    return formatSyncDocumentMissingOnDiskNotice(syncDocument);
   }
-  return `Sync document prepare failed: ${message}`;
+  return formatSyncDocumentPrepareFailureNotice(syncDocument, message);
 };
 
 const computeContentFingerprint = (content: string): string => {
@@ -199,3 +208,5 @@ export const prepareSyncDocumentForRun = async ({
   await waitForStableSyncDocumentSnapshot(vault, file, syncHeading);
   return file;
 };
+
+export { SYNC_DOCUMENT_VAULT_INIT_RETRY_DELAY_MS } from "@/sync/resolve-sync-document";

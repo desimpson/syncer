@@ -5,15 +5,16 @@ import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { readMarkdownSyncItems } from "@/sync/reader";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import type { PluginConfig, GoogleTasksSettings, PluginSettings } from "@/plugin/types";
-import type { TFile, Vault } from "obsidian";
+import type { TFile } from "obsidian";
 import type { GoogleTask } from "@/services/types";
 import { GoogleAuth, InvalidGrantError } from "@/auth";
 import { fetchGoogleTasks, updateGoogleTaskStatus } from "@/services/google-tasks";
 import type { SyncItem } from "@/sync/types";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
-import { runtimeSetTimeout } from "@/utils/browser-runtime";
-
-const VAULT_INIT_RETRY_DELAY_MS = 500;
+import {
+  notifyIfSyncDocumentUnavailable,
+  resolveReadableSyncDocument,
+} from "@/sync/resolve-sync-document";
 
 type CompletionChange = {
   taskId: string;
@@ -40,30 +41,6 @@ const ensureAccessToken = async (
   }
 
   return token.accessToken;
-};
-
-const getSyncFileWithRetry = async (
-  vault: Vault,
-  syncDocument: string,
-  notify: (message: string) => void,
-): Promise<TFile | undefined> => {
-  // The initial lookup fails when Obsidian is still starting up
-  const file = vault.getFileByPath(syncDocument);
-  if (file !== null) {
-    return file;
-  }
-
-  // Retry after a short delay in case vault is still initialising
-  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
-  const retryFile = vault.getFileByPath(syncDocument);
-
-  if (retryFile === null) {
-    notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
-    console.warn(`Sync document [${syncDocument}] not found. Aborting sync.`);
-    return undefined;
-  }
-
-  return retryFile;
 };
 
 const buildTaskIdToListIdMap = (
@@ -285,6 +262,7 @@ const updateIncomingItemsWithCompletionChanges = (
 };
 
 const syncTasksToFile = async (
+  vault: Parameters<SyncJobCreator>[3],
   file: TFile,
   tasks: readonly GoogleTask[],
   taskIdToListIdMap: Map<string, string>,
@@ -344,12 +322,7 @@ const syncTasksToFile = async (
       shouldPreserveCompletedDeletes,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/ENOENT|no such file or directory|not found/i.test(message)) {
-      notify(
-        `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
-      );
-      console.error(`File missing during sync: [${message}]. Aborting sync.`);
+    if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
       return;
     }
     throw error;
@@ -397,6 +370,11 @@ export const createGoogleTasksJob: SyncJobCreator = (
       return;
     }
 
+    const file = await resolveReadableSyncDocument(vault, syncDocument, notify);
+    if (file === undefined) {
+      return;
+    }
+
     let currentAccessToken: string;
     try {
       currentAccessToken = await ensureAccessToken(
@@ -430,34 +408,37 @@ export const createGoogleTasksJob: SyncJobCreator = (
         new AuthorizationExpiredModal(app, "Google Tasks").open();
         return;
       }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
+        return;
+      }
       throw error;
     }
 
-    // Read the Markdown file with retry for Obsidian startup timing
-    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
-    if (file === undefined) {
-      return;
+    try {
+      const { tasks, taskIdToListIdMap } = await fetchAllSelectedTasks(
+        currentAccessToken,
+        googleTasks.selectedListIds,
+      );
+
+      await syncTasksToFile(
+        vault,
+        file,
+        tasks,
+        taskIdToListIdMap,
+        currentAccessToken,
+        syncHeading,
+        syncDocument,
+        syncCompletionStatus,
+        manuallyDeletedTaskIds,
+        saveSettings,
+        loadSettings,
+        notify,
+      );
+    } catch (error) {
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
+        return;
+      }
+      throw error;
     }
-
-    // Fetch tasks from Google Tasks
-    const { tasks, taskIdToListIdMap } = await fetchAllSelectedTasks(
-      currentAccessToken,
-      googleTasks.selectedListIds,
-    );
-
-    // Convert and sync
-    await syncTasksToFile(
-      file,
-      tasks,
-      taskIdToListIdMap,
-      currentAccessToken,
-      syncHeading,
-      syncDocument,
-      syncCompletionStatus,
-      manuallyDeletedTaskIds,
-      saveSettings,
-      loadSettings,
-      notify,
-    );
   },
 });

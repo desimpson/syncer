@@ -659,50 +659,48 @@ describe("createMicrosoftOutlookJob missing sync document resolution (#33)", () 
     modalOpen.mockReset();
   });
 
-  it.fails(
-    "notifies not-found before refresh when token expired and sync path is missing",
-    async () => {
-      // Arrange
-      const notify = vi.fn();
-      const saveSettings = vi.fn();
-      // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
-      const vault = makeVault(null);
-      const loadSettings = vi.fn().mockResolvedValue({
-        microsoftOutlook: {
-          ...makeOutlookSettings(),
-          credentials: {
-            ...makeOutlookSettings().credentials,
-            expiryDate: Date.now() - 1000,
-          },
+  it("notifies not-found before refresh when token expired and sync path is missing", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const saveSettings = vi.fn();
+    const loadSettings = vi.fn().mockResolvedValue({
+      microsoftOutlook: {
+        ...makeOutlookSettings(),
+        credentials: {
+          ...makeOutlookSettings().credentials,
+          expiryDate: Date.now() - 1000,
         },
-        syncDocument: "Missing.md",
-        syncHeading: "## Inbox",
-      });
-      vi.mocked(MicrosoftAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
+      },
+      syncDocument: "Missing.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(MicrosoftAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
 
-      const job = createMicrosoftOutlookJob(
-        loadSettings,
-        saveSettings,
-        baseConfig,
-        vault,
-        notify,
-        mockApp,
-      );
+    // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
+    const vault = makeVault(null);
 
-      // Act
-      await job.task();
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
 
-      // Assert
-      expect(MicrosoftAuth.refreshAccessToken).not.toHaveBeenCalled();
-      expect(notify).toHaveBeenCalledWith(
-        expect.stringContaining('Sync document "Missing.md" not found'),
-      );
-      expect(saveSettings).not.toHaveBeenCalled();
-      expect(modalOpen).not.toHaveBeenCalled();
-    },
-  );
+    // Act
+    await job.task();
 
-  it.fails("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
+    // Assert
+    expect(MicrosoftAuth.refreshAccessToken).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining('Sync document "Missing.md" not found'),
+    );
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(modalOpen).not.toHaveBeenCalled();
+  });
+
+  it("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
     // Arrange
     const notify = vi.fn();
     const file = makeFile();
@@ -734,7 +732,7 @@ describe("createMicrosoftOutlookJob missing sync document resolution (#33)", () 
     expect(fetchFlaggedMessages).not.toHaveBeenCalled();
   });
 
-  it.fails("notifies missing-on-disk when fetch rejects and sync note is gone", async () => {
+  it("notifies missing-on-disk when fetch rejects and sync note is gone", async () => {
     // Arrange
     const notify = vi.fn();
     const file = makeFile();

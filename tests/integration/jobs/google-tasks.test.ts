@@ -809,55 +809,52 @@ describe("createGoogleTasksJob missing sync document resolution (#33)", () => {
     vi.mocked(fetchGoogleTasks).mockResolvedValue([]);
   });
 
-  it.fails(
-    "notifies not-found before refresh when token expired and sync path is missing",
-    async () => {
-      // Arrange
-      const notify = vi.fn();
-      const saveSettings = vi.fn();
-      const loadSettings = vi.fn().mockResolvedValue({
-        googleTasks: {
-          credentials: {
-            accessToken: "old",
-            refreshToken: "ref",
-            expiryDate: Date.now() - 1000,
-            scope: "scope",
-          },
-          availableLists: [],
-          selectedListIds: ["list-1"],
-          userInfo: { email: "e@x.com" },
+  it("notifies not-found before refresh when token expired and sync path is missing", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const saveSettings = vi.fn();
+    const loadSettings = vi.fn().mockResolvedValue({
+      googleTasks: {
+        credentials: {
+          accessToken: "old",
+          refreshToken: "ref",
+          expiryDate: Date.now() - 1000,
+          scope: "scope",
         },
-        syncDocument: "Missing.md",
-        syncHeading: "## Inbox",
-      });
-      vi.mocked(GoogleAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
+        availableLists: [],
+        selectedListIds: ["list-1"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "Missing.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(GoogleAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
 
-      // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
-      const vault = makeVault(null);
+    // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
+    const vault = makeVault(null);
 
-      const job = createGoogleTasksJob(
-        loadSettings,
-        saveSettings,
-        baseConfig,
-        vault,
-        notify,
-        mockApp,
-      );
+    const job = createGoogleTasksJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
 
-      // Act
-      await job.task();
+    // Act
+    await job.task();
 
-      // Assert
-      expect(GoogleAuth.refreshAccessToken).not.toHaveBeenCalled();
-      expect(notify).toHaveBeenCalledWith(
-        expect.stringContaining('Sync document "Missing.md" not found'),
-      );
-      expect(saveSettings).not.toHaveBeenCalled();
-      expect(modalOpen).not.toHaveBeenCalled();
-    },
-  );
+    // Assert
+    expect(GoogleAuth.refreshAccessToken).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining('Sync document "Missing.md" not found'),
+    );
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(modalOpen).not.toHaveBeenCalled();
+  });
 
-  it.fails("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
+  it("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
     // Arrange
     const notify = vi.fn();
     const file = makeFile();
@@ -895,7 +892,7 @@ describe("createGoogleTasksJob missing sync document resolution (#33)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.fails("notifies missing-on-disk when fetch rejects and sync note is gone", async () => {
+  it("notifies missing-on-disk when fetch rejects and sync note is gone", async () => {
     // Arrange
     const notify = vi.fn();
     const file = makeFile();
@@ -938,7 +935,7 @@ describe("createGoogleTasksJob missing sync document resolution (#33)", () => {
     expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
   });
 
-  it.fails("rethrows provider not-found errors when sync document is still readable", async () => {
+  it("rethrows provider not-found errors when sync document is still readable", async () => {
     // Arrange
     const notify = vi.fn();
     const file = makeFile();

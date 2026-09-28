@@ -136,7 +136,7 @@ describe("createAzureDevOpsJob missing sync document resolution (#33)", () => {
     vi.resetAllMocks();
   });
 
-  it.fails("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
+  it("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
     // Arrange
     const notify = vi.fn();
     const file = makeFile();

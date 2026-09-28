@@ -45,6 +45,17 @@ This avoids stale pre-read races where actions are planned from an older `vault.
 
 Guaranteed when prepare succeeds: jobs read a **saved, stable** on-disk note; remote items absent from that note get `create` again (e.g. delete line → immediate Manual sync). Not guaranteed: provider APIs return every remote item; true no-diff syncs still no-op; `manuallyDeletedTaskIds` still suppress re-add.
 
+## Sync document resolution (per job)
+
+After integration guards (not connected, empty client id, no lists/projects/folders), each job calls [`resolveReadableSyncDocument`](../../src/sync/resolve-sync-document.ts) **before** token refresh or provider/Firefox fetch. The probe uses `vault.read` only (not `cachedRead`) so a stale metadata handle is treated as missing on disk.
+
+- Path null (including after the 500ms vault-init retry) → not-found Notice; return
+- `vault.read` throws ENOENT → missing-on-disk Notice; return
+- Fetch/reconcile throws while the note is now missing → [`notifyIfSyncDocumentUnavailable`](../../src/sync/resolve-sync-document.ts) shows the missing-file Notice and returns (network error does not escape)
+- Fetch/reconcile throws while the note is still readable → rethrow (scheduler `console.error`; user-facing connectivity is #34)
+
+Prepare-at-tick-start still Notices once and skips all jobs when the note is missing. A note deleted **after** prepare may Notice once per later job in that tick; debouncing repeats is #34.
+
 ## Google Tasks
 
 Owning job: [`src/jobs/google-tasks.ts`](../../src/jobs/google-tasks.ts).

@@ -119,42 +119,39 @@ describe("Firefox bookmarks missing sync document resolution (#33)", () => {
     vi.resetAllMocks();
   });
 
-  it.fails(
-    "notifies missing-on-disk when vault.read throws ENOENT before places.sqlite read",
-    async () => {
-      // Arrange
-      const notify = vi.fn();
-      const file = { path: "GTD.md", name: "GTD.md" } as TFile;
-      const vault = {
-        getFileByPath: vi.fn().mockReturnValue(file),
-        read: vi.fn().mockRejectedValue(new Error("ENOENT: no such file or directory")),
-      } as unknown as Vault;
-      const loadSettings = vi.fn().mockResolvedValue({
-        syncDocument: "GTD.md",
-        syncHeading: "## Inbox",
-        firefoxBookmarks: {
-          profilePath: "",
-          resolvedProfilePath: "/profile",
-          availableFolders: [{ guid: "folder-1", title: "Inbox", path: "Toolbar / Inbox" }],
-          selectedFolderGuids: ["folder-1"],
-        },
-      });
+  it("notifies missing-on-disk when vault.read throws ENOENT before places.sqlite read", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const file = { path: "GTD.md", name: "GTD.md" } as TFile;
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockRejectedValue(new Error("ENOENT: no such file or directory")),
+    } as unknown as Vault;
+    const loadSettings = vi.fn().mockResolvedValue({
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+      firefoxBookmarks: {
+        profilePath: "",
+        resolvedProfilePath: "/profile",
+        availableFolders: [{ guid: "folder-1", title: "Inbox", path: "Toolbar / Inbox" }],
+        selectedFolderGuids: ["folder-1"],
+      },
+    });
 
-      const job = createFirefoxBookmarksJob(
-        loadSettings,
-        vi.fn(),
-        baseConfig,
-        vault,
-        notify,
-        {} as never,
-      );
+    const job = createFirefoxBookmarksJob(
+      loadSettings,
+      vi.fn(),
+      baseConfig,
+      vault,
+      notify,
+      {} as never,
+    );
 
-      // Act
-      await job.task();
+    // Act
+    await job.task();
 
-      // Assert
-      expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
-      expect(fetchFirefoxBookmarks).not.toHaveBeenCalled();
-    },
-  );
+    // Assert
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
+    expect(fetchFirefoxBookmarks).not.toHaveBeenCalled();
+  });
 });

@@ -407,39 +407,37 @@ describe("createTodoistJob missing sync document resolution (#33)", () => {
     modalOpen.mockReset();
   });
 
-  it.fails(
-    "notifies not-found before refresh when token expired and sync path is missing",
-    async () => {
-      // Arrange
-      const notify = vi.fn();
-      const saveSettings = vi.fn();
-      // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
-      const vault = makeVault(null);
-      const loadSettings = vi.fn().mockResolvedValue({
-        todoist: {
-          ...makeTodoistSettings(),
-          credentials: {
-            ...makeTodoistSettings().credentials,
-            expiryDate: Date.now() - 1000,
-          },
+  it("notifies not-found before refresh when token expired and sync path is missing", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const saveSettings = vi.fn();
+    const loadSettings = vi.fn().mockResolvedValue({
+      todoist: {
+        ...makeTodoistSettings(),
+        credentials: {
+          ...makeTodoistSettings().credentials,
+          expiryDate: Date.now() - 1000,
         },
-        syncDocument: "Missing.md",
-        syncHeading: "## Inbox",
-      });
-      vi.mocked(TodoistAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
+      },
+      syncDocument: "Missing.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(TodoistAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
 
-      const job = createTodoistJob(loadSettings, saveSettings, baseConfig, vault, notify, mockApp);
+    // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
+    const vault = makeVault(null);
 
-      // Act
-      await job.task();
+    const job = createTodoistJob(loadSettings, saveSettings, baseConfig, vault, notify, mockApp);
 
-      // Assert
-      expect(TodoistAuth.refreshAccessToken).not.toHaveBeenCalled();
-      expect(notify).toHaveBeenCalledWith(
-        expect.stringContaining('Sync document "Missing.md" not found'),
-      );
-      expect(saveSettings).not.toHaveBeenCalled();
-      expect(modalOpen).not.toHaveBeenCalled();
-    },
-  );
+    // Act
+    await job.task();
+
+    // Assert
+    expect(TodoistAuth.refreshAccessToken).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining('Sync document "Missing.md" not found'),
+    );
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(modalOpen).not.toHaveBeenCalled();
+  });
 });

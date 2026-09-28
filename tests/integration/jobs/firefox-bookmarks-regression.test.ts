@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFirefoxBookmarksJob } from "@/jobs/firefox-bookmarks";
 import { parseMarkdownSyncItemsFromContent } from "@/sync/reader";
 import { FIREFOX_BOOKMARKS_SOURCE } from "@/sync/types";

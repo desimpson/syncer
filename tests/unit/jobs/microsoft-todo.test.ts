@@ -81,7 +81,10 @@ const baseConfig = {
 } as const;
 
 const makeVault = (file: TFile | null) =>
-  ({ getFileByPath: vi.fn().mockReturnValue(file) }) as unknown as Vault;
+  ({
+    getFileByPath: vi.fn().mockReturnValue(file),
+    read: vi.fn().mockResolvedValue(""),
+  }) as unknown as Vault;
 
 const makeFile = (path = "GTD.md"): TFile =>
   ({
@@ -444,4 +447,54 @@ describe("createMicrosoftToDoJob", () => {
       expect.any(Function),
     );
   });
+});
+
+describe("createMicrosoftToDoJob missing sync document resolution (#33)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    modalOpen.mockReset();
+  });
+
+  it.fails(
+    "notifies not-found before refresh when token expired and sync path is missing",
+    async () => {
+      // Arrange
+      const notify = vi.fn();
+      const saveSettings = vi.fn();
+      // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
+      const vault = makeVault(null);
+      const loadSettings = vi.fn().mockResolvedValue({
+        microsoftToDo: {
+          ...makeToDoSettings(),
+          credentials: {
+            ...makeToDoSettings().credentials,
+            expiryDate: Date.now() - 1000,
+          },
+        },
+        syncDocument: "Missing.md",
+        syncHeading: "## Inbox",
+      });
+      vi.mocked(MicrosoftAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
+
+      const job = createMicrosoftToDoJob(
+        loadSettings,
+        saveSettings,
+        baseConfig,
+        vault,
+        notify,
+        mockApp,
+      );
+
+      // Act
+      await job.task();
+
+      // Assert
+      expect(MicrosoftAuth.refreshAccessToken).not.toHaveBeenCalled();
+      expect(notify).toHaveBeenCalledWith(
+        expect.stringContaining('Sync document "Missing.md" not found'),
+      );
+      expect(saveSettings).not.toHaveBeenCalled();
+      expect(modalOpen).not.toHaveBeenCalled();
+    },
+  );
 });

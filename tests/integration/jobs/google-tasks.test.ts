@@ -108,7 +108,10 @@ const baseConfig = {
 } as const;
 
 const makeVault = (file: TFile | null) =>
-  ({ getFileByPath: vi.fn().mockReturnValue(file) }) as unknown as Vault;
+  ({
+    getFileByPath: vi.fn().mockReturnValue(file),
+    read: vi.fn().mockResolvedValue(""),
+  }) as unknown as Vault;
 
 const makeFile = (path = "GTD.md"): TFile =>
   ({
@@ -262,7 +265,17 @@ describe("createGoogleTasksJob", () => {
     const loadSettings = vi.fn().mockResolvedValue(settings);
     const saveSettings = vi.fn();
     const file = makeFile();
-    const vault = makeVault(file);
+    let readCount = 0;
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockImplementation(async () => {
+        readCount += 1;
+        if (readCount === 1) {
+          return "";
+        }
+        throw new Error("ENOENT: no such file or directory");
+      }),
+    } as unknown as Vault;
 
     vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
       { id: "A-1", title: "T", webViewLink: "https://x" },
@@ -787,5 +800,176 @@ describe("createGoogleTasksJob", () => {
       (call) => call[0]?.manuallyDeletedTaskIds !== undefined,
     )?.[0];
     expect(savedSettings?.manuallyDeletedTaskIds).toEqual(["A-1"]);
+  });
+});
+
+describe("createGoogleTasksJob missing sync document resolution (#33)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(fetchGoogleTasks).mockResolvedValue([]);
+  });
+
+  it.fails(
+    "notifies not-found before refresh when token expired and sync path is missing",
+    async () => {
+      // Arrange
+      const notify = vi.fn();
+      const saveSettings = vi.fn();
+      const loadSettings = vi.fn().mockResolvedValue({
+        googleTasks: {
+          credentials: {
+            accessToken: "old",
+            refreshToken: "ref",
+            expiryDate: Date.now() - 1000,
+            scope: "scope",
+          },
+          availableLists: [],
+          selectedListIds: ["list-1"],
+          userInfo: { email: "e@x.com" },
+        },
+        syncDocument: "Missing.md",
+        syncHeading: "## Inbox",
+      });
+      vi.mocked(GoogleAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
+
+      // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
+      const vault = makeVault(null);
+
+      const job = createGoogleTasksJob(
+        loadSettings,
+        saveSettings,
+        baseConfig,
+        vault,
+        notify,
+        mockApp,
+      );
+
+      // Act
+      await job.task();
+
+      // Assert
+      expect(GoogleAuth.refreshAccessToken).not.toHaveBeenCalled();
+      expect(notify).toHaveBeenCalledWith(
+        expect.stringContaining('Sync document "Missing.md" not found'),
+      );
+      expect(saveSettings).not.toHaveBeenCalled();
+      expect(modalOpen).not.toHaveBeenCalled();
+    },
+  );
+
+  it.fails("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const file = makeFile();
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockRejectedValue(new Error("ENOENT: no such file or directory")),
+    } as unknown as Vault;
+    const loadSettings = vi.fn().mockResolvedValue({
+      googleTasks: {
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["list-1"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue([{ id: "t-1", title: "T", webViewLink: "https://x" }]);
+    vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(fetchMock);
+
+    const job = createGoogleTasksJob(loadSettings, vi.fn(), baseConfig, vault, notify, mockApp);
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.fails("notifies missing-on-disk when fetch rejects and sync note is gone", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const file = makeFile();
+    let readCount = 0;
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockImplementation(async () => {
+        readCount += 1;
+        if (readCount === 1) {
+          return "";
+        }
+        throw new Error("ENOENT: no such file or directory");
+      }),
+    } as unknown as Vault;
+    const loadSettings = vi.fn().mockResolvedValue({
+      googleTasks: {
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["list-1"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(
+      vi.fn().mockRejectedValue(new Error("Network offline")),
+    );
+
+    const job = createGoogleTasksJob(loadSettings, vi.fn(), baseConfig, vault, notify, mockApp);
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
+  });
+
+  it.fails("rethrows provider not-found errors when sync document is still readable", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const file = makeFile();
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockResolvedValue(""),
+    } as unknown as Vault;
+    const loadSettings = vi.fn().mockResolvedValue({
+      googleTasks: {
+        credentials: {
+          accessToken: "tok",
+          refreshToken: "ref",
+          expiryDate: Date.now() + 60_000,
+          scope: "scope",
+        },
+        availableLists: [],
+        selectedListIds: ["list-1"],
+        userInfo: { email: "e@x.com" },
+      },
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(GoogleTasksService.createGoogleTasksFetcher).mockReturnValue(async () => [
+      { id: "t-1", title: "T", webViewLink: "https://x" },
+    ]);
+    vi.mocked(readMarkdownSyncItems).mockRejectedValue(new Error("Task list not found"));
+
+    const job = createGoogleTasksJob(loadSettings, vi.fn(), baseConfig, vault, notify, mockApp);
+
+    // Act & Assert
+    await expect(job.task()).rejects.toThrow("Task list not found");
+    expect(notify).not.toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
   });
 });

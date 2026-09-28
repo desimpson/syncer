@@ -18,7 +18,7 @@ Hard constraints: no provider HTTP in `sync/`; no Obsidian APIs in `services/` o
 | `auth/`     | OAuth connect + refresh                        |
 | `utils/`    | Pure helpers                                   |
 
-Entry points: `plugin/{index,save-sync-document,open-sync-document}.ts`, `sync/{scheduler,prepare-sync-document,writer,reader,sync-guard}.ts`, `jobs/*`, `services/*`, `adaptors/*`, `auth/{google,microsoft,todoist,azure-devops}.ts`.
+Entry points: `plugin/{index,save-sync-document,open-sync-document}.ts`, `sync/{scheduler,prepare-sync-document,resolve-sync-document,writer,reader,sync-guard}.ts`, `jobs/*`, `services/*`, `adaptors/*`, `auth/{google,microsoft,todoist,azure-devops}.ts`.
 
 ## Module map
 
@@ -86,6 +86,7 @@ sequenceDiagram
   Prepare->>Vault: save open dirty view if needed
   Prepare->>Vault: waitForStable snapshot
   Scheduler->>Job: task()
+  Job->>Vault: resolveReadableSyncDocument (vault.read preflight)
   Job->>Auth: refresh token if expired
   Job->>Service: fetch remote items
   Service-->>Adaptor: provider DTOs

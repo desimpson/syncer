@@ -6,35 +6,11 @@ import { FIREFOX_NOTICE } from "@/services/firefox-messages";
 import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { FIREFOX_BOOKMARKS_SOURCE } from "@/sync/types";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
-import { runtimeSetTimeout } from "@/utils/browser-runtime";
-import { Platform, type TFile, type Vault } from "obsidian";
-
-const VAULT_INIT_RETRY_DELAY_MS = 500;
-
-const getSyncFileWithRetry = async (
-  vault: Vault,
-  syncDocument: string,
-  notify: (message: string) => void,
-): Promise<TFile | undefined> => {
-  const file = vault.getFileByPath(syncDocument);
-  if (file !== null) {
-    return file;
-  }
-
-  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
-  const retryFile = vault.getFileByPath(syncDocument);
-
-  if (retryFile === null) {
-    notify(FIREFOX_NOTICE.syncDocumentMissing(syncDocument));
-    console.warn(`Sync document [${syncDocument}] not found. Aborting Firefox sync.`);
-    return undefined;
-  }
-
-  return retryFile;
-};
-
-const isMissingFileError = (message: string): boolean =>
-  /ENOENT|no such file or directory|not found/i.test(message);
+import {
+  notifyIfSyncDocumentUnavailable,
+  resolveReadableSyncDocument,
+} from "@/sync/resolve-sync-document";
+import { Platform } from "obsidian";
 
 /**
  * Validate selected folders against the last Refresh folders snapshot (settings),
@@ -87,7 +63,7 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
       return;
     }
 
-    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
+    const file = await resolveReadableSyncDocument(vault, syncDocument, notify);
     if (file === undefined) {
       return;
     }
@@ -120,10 +96,7 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
           shouldPreserveCompletedDeletes,
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (isMissingFileError(message)) {
-          notify(FIREFOX_NOTICE.syncDocumentMissingOnDisk(syncDocument));
-          console.error(`File missing during Firefox sync: [${message}]. Aborting sync.`);
+        if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
           return;
         }
         throw error;
@@ -132,6 +105,9 @@ export const createFirefoxBookmarksJob: SyncJobCreator = (
       if (error instanceof FirefoxBookmarksError) {
         notify(error.userMessage);
         console.warn(`Firefox bookmarks sync failed: ${error.message}`);
+        return;
+      }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
         return;
       }
       throw error;

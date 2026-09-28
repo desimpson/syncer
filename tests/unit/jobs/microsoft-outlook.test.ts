@@ -80,7 +80,10 @@ const baseConfig = {
 } as const;
 
 const makeVault = (file: TFile | null) =>
-  ({ getFileByPath: vi.fn().mockReturnValue(file) }) as unknown as Vault;
+  ({
+    getFileByPath: vi.fn().mockReturnValue(file),
+    read: vi.fn().mockResolvedValue(""),
+  }) as unknown as Vault;
 
 const makeFile = (path = "GTD.md"): TFile =>
   ({
@@ -647,5 +650,123 @@ describe("createMicrosoftOutlookJob completion sync", () => {
     );
     expect(modalOpen).toHaveBeenCalled();
     expect(reconcileSyncSourceAtomically).not.toHaveBeenCalled();
+  });
+});
+
+describe("createMicrosoftOutlookJob missing sync document resolution (#33)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    modalOpen.mockReset();
+  });
+
+  it("notifies not-found before refresh when token expired and sync path is missing", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const saveSettings = vi.fn();
+    const loadSettings = vi.fn().mockResolvedValue({
+      microsoftOutlook: {
+        ...makeOutlookSettings(),
+        credentials: {
+          ...makeOutlookSettings().credentials,
+          expiryDate: Date.now() - 1000,
+        },
+      },
+      syncDocument: "Missing.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(MicrosoftAuth.refreshAccessToken).mockRejectedValue(new Error("Network offline"));
+
+    // eslint-disable-next-line unicorn/no-null -- Obsidian vault.getFileByPath returns null when missing
+    const vault = makeVault(null);
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      saveSettings,
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(MicrosoftAuth.refreshAccessToken).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining('Sync document "Missing.md" not found'),
+    );
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(modalOpen).not.toHaveBeenCalled();
+  });
+
+  it("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const file = makeFile();
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockRejectedValue(new Error("ENOENT: no such file or directory")),
+    } as unknown as Vault;
+    const loadSettings = vi.fn().mockResolvedValue({
+      microsoftOutlook: makeOutlookSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(fetchFlaggedMessages).mockRejectedValue(new Error("Network offline"));
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      vi.fn(),
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
+    expect(fetchFlaggedMessages).not.toHaveBeenCalled();
+  });
+
+  it("notifies missing-on-disk when fetch rejects and sync note is gone", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const file = makeFile();
+    let readCount = 0;
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockImplementation(async () => {
+        readCount += 1;
+        if (readCount === 1) {
+          return "";
+        }
+        throw new Error("ENOENT: no such file or directory");
+      }),
+    } as unknown as Vault;
+    const loadSettings = vi.fn().mockResolvedValue({
+      microsoftOutlook: makeOutlookSettings(),
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(fetchFlaggedMessages).mockRejectedValue(new Error("Network offline"));
+
+    const job = createMicrosoftOutlookJob(
+      loadSettings,
+      vi.fn(),
+      baseConfig,
+      vault,
+      notify,
+      mockApp,
+    );
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
   });
 });

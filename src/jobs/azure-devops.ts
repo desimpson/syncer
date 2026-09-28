@@ -9,37 +9,14 @@ import {
 import { shouldPreserveCompletedDeletes } from "@/sync/actions";
 import { AZURE_DEVOPS_SOURCE } from "@/sync/types";
 import { reconcileSyncSourceAtomically, type AtomicReconcileResult } from "@/sync/writer";
-import { runtimeSetTimeout } from "@/utils/browser-runtime";
-import type { TFile, Vault } from "obsidian";
-
-const VAULT_INIT_RETRY_DELAY_MS = 500;
-
-const getSyncFileWithRetry = async (
-  vault: Vault,
-  syncDocument: string,
-  notify: (message: string) => void,
-): Promise<TFile | undefined> => {
-  const file = vault.getFileByPath(syncDocument);
-  if (file !== null) {
-    return file;
-  }
-
-  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
-  const retryFile = vault.getFileByPath(syncDocument);
-
-  if (retryFile === null) {
-    notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
-    console.warn(`Sync document [${syncDocument}] not found. Aborting Azure DevOps sync.`);
-    return undefined;
-  }
-
-  return retryFile;
-};
-
-const isMissingFileError = (message: string): boolean =>
-  /ENOENT|no such file or directory|not found/i.test(message);
+import {
+  notifyIfSyncDocumentUnavailable,
+  resolveReadableSyncDocument,
+} from "@/sync/resolve-sync-document";
+import type { TFile } from "obsidian";
 
 const syncWorkItemsToFile = async (
+  vault: Parameters<SyncJobCreator>[3],
   file: TFile,
   workItems: readonly AzureDevOpsWorkItem[],
   syncHeading: string,
@@ -58,12 +35,7 @@ const syncWorkItemsToFile = async (
       shouldPreserveCompletedDeletes,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (isMissingFileError(message)) {
-      notify(
-        `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
-      );
-      console.error(`File missing during Azure DevOps sync: [${message}]. Aborting sync.`);
+    if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
       return { actions: [], existingItems: [] };
     }
     throw error;
@@ -103,14 +75,14 @@ export const createAzureDevOpsJob: SyncJobCreator = (
 
     const auth: AzureDevOpsApiAuth = { kind: "pat", personalAccessToken };
 
-    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
+    const file = await resolveReadableSyncDocument(vault, syncDocument, notify);
     if (file === undefined) {
       return;
     }
 
-    let workItems: readonly AzureDevOpsWorkItem[];
     try {
-      workItems = await fetchAssignedWorkItems(auth, organization, projectName);
+      const workItems = await fetchAssignedWorkItems(auth, organization, projectName);
+      await syncWorkItemsToFile(vault, file, workItems, syncHeading, syncDocument, notify);
     } catch (error) {
       if (error instanceof AzureDevOpsAuthorizationError) {
         notify(
@@ -118,16 +90,7 @@ export const createAzureDevOpsJob: SyncJobCreator = (
         );
         return;
       }
-      throw error;
-    }
-
-    try {
-      await syncWorkItemsToFile(file, workItems, syncHeading, syncDocument, notify);
-    } catch (error) {
-      if (error instanceof AzureDevOpsAuthorizationError) {
-        notify(
-          "Azure DevOps PAT authorization failed. Verify PAT scopes and organisation/project values.",
-        );
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
         return;
       }
       throw error;

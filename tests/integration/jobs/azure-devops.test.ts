@@ -39,7 +39,10 @@ const baseConfig = {
 } as const;
 
 const makeVault = (file: TFile | null) =>
-  ({ getFileByPath: vi.fn().mockReturnValue(file) }) as unknown as Vault;
+  ({
+    getFileByPath: vi.fn().mockReturnValue(file),
+    read: vi.fn().mockResolvedValue(""),
+  }) as unknown as Vault;
 
 const makeFile = (path = "GTD.md"): TFile =>
   ({
@@ -125,5 +128,38 @@ describe("createAzureDevOpsJob integration", () => {
       "Contoso",
     );
     expect(vi.mocked(reconcileSyncSourceAtomically)).toHaveBeenCalled();
+  });
+});
+
+describe("createAzureDevOpsJob missing sync document resolution (#33)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("notifies missing-on-disk when vault.read throws ENOENT before fetch", async () => {
+    // Arrange
+    const notify = vi.fn();
+    const file = makeFile();
+    const vault = {
+      getFileByPath: vi.fn().mockReturnValue(file),
+      read: vi.fn().mockRejectedValue(new Error("ENOENT: no such file or directory")),
+    } as unknown as Vault;
+    const loadSettings = vi.fn().mockResolvedValue({
+      azureDevOpsOrganization: "my-org",
+      azureDevOpsProjectName: "Contoso",
+      azureDevOpsPersonalAccessToken: "pat-token",
+      syncDocument: "GTD.md",
+      syncHeading: "## Inbox",
+    });
+    vi.mocked(fetchAssignedWorkItems).mockRejectedValue(new Error("Network offline"));
+
+    const job = createAzureDevOpsJob(loadSettings, vi.fn(), baseConfig, vault, notify, mockApp);
+
+    // Act
+    await job.task();
+
+    // Assert
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("missing on disk"));
+    expect(fetchAssignedWorkItems).not.toHaveBeenCalled();
   });
 });

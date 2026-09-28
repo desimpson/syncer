@@ -14,11 +14,12 @@ import { readMarkdownSyncItems } from "@/sync/reader";
 import { GMAIL_STARRED_SOURCE, type SyncItem } from "@/sync/types";
 import { reconcileSyncSourceAtomically } from "@/sync/writer";
 import { formatUiError } from "@/utils/error-formatters";
-import type { TFile, Vault } from "obsidian";
+import type { TFile } from "obsidian";
 import { AuthorizationExpiredModal } from "@/plugin/modals/authorization-expired-modal";
-import { runtimeSetTimeout } from "@/utils/browser-runtime";
-
-const VAULT_INIT_RETRY_DELAY_MS = 500;
+import {
+  notifyIfSyncDocumentUnavailable,
+  resolveReadableSyncDocument,
+} from "@/sync/resolve-sync-document";
 
 type CompletionChange = {
   messageId: string;
@@ -55,28 +56,6 @@ const ensureAccessToken = async (
   }
 
   return token.accessToken;
-};
-
-const getSyncFileWithRetry = async (
-  vault: Vault,
-  syncDocument: string,
-  notify: (message: string) => void,
-): Promise<TFile | undefined> => {
-  const file = vault.getFileByPath(syncDocument);
-  if (file !== null) {
-    return file;
-  }
-
-  await new Promise((resolve) => runtimeSetTimeout(resolve, VAULT_INIT_RETRY_DELAY_MS));
-  const retryFile = vault.getFileByPath(syncDocument);
-
-  if (retryFile === null) {
-    notify(`Sync document "${syncDocument}" not found. Please update settings or create the file.`);
-    console.warn(`Sync document [${syncDocument}] not found. Aborting Gmail Starred sync.`);
-    return undefined;
-  }
-
-  return retryFile;
 };
 
 const buildGmailMessageIdToListKeyMap = (items: readonly SyncItem[]): Map<string, string> =>
@@ -269,10 +248,8 @@ const mergeCompletionFromMarkdown = async (
   return updateIncomingItemsWithCompletionChanges(incoming, successfulChanges, existing);
 };
 
-const isMissingFileError = (message: string): boolean =>
-  /ENOENT|no such file or directory|not found/i.test(message);
-
 const syncGmailMessagesToFile = async (
+  vault: Parameters<SyncJobCreator>[3],
   file: TFile,
   messages: readonly GmailStarredMessage[],
   accessToken: string,
@@ -303,12 +280,7 @@ const syncGmailMessagesToFile = async (
       shouldPreserveCompletedDeletes,
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (isMissingFileError(message)) {
-      notify(
-        `Sync document "${syncDocument}" is missing on disk. Please recreate it or update settings.`,
-      );
-      console.error(`File missing during Gmail Starred sync: [${message}]. Aborting sync.`);
+    if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
       return;
     }
     throw error;
@@ -407,6 +379,11 @@ export const createGmailStarredJob: SyncJobCreator = (
       return;
     }
 
+    const file = await resolveReadableSyncDocument(vault, syncDocument, notify);
+    if (file === undefined) {
+      return;
+    }
+
     let currentAccessToken: string;
     try {
       currentAccessToken = await ensureAccessToken(
@@ -425,12 +402,10 @@ export const createGmailStarredJob: SyncJobCreator = (
         await clearGmailStarredCredentials(loadSettings, saveSettings, app);
         return;
       }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
+        return;
+      }
       notifySyncFailure(error, notify);
-      return;
-    }
-
-    const file = await getSyncFileWithRetry(vault, syncDocument, notify);
-    if (file === undefined) {
       return;
     }
 
@@ -452,6 +427,9 @@ export const createGmailStarredJob: SyncJobCreator = (
         console.warn(`Gmail Starred rate limit: [${error.message}].`);
         return;
       }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
+        return;
+      }
       notifySyncFailure(error, notify);
       return;
     }
@@ -464,6 +442,7 @@ export const createGmailStarredJob: SyncJobCreator = (
 
     try {
       await syncGmailMessagesToFile(
+        vault,
         file,
         messages,
         currentAccessToken,
@@ -475,6 +454,9 @@ export const createGmailStarredJob: SyncJobCreator = (
     } catch (error) {
       if (error instanceof GmailAuthorizationError) {
         await handleGmailAuthorizationFailure(error, notify, loadSettings, saveSettings, app);
+        return;
+      }
+      if (await notifyIfSyncDocumentUnavailable(vault, syncDocument, notify)) {
         return;
       }
       notifySyncFailure(error, notify);

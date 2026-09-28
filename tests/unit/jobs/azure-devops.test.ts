@@ -39,7 +39,10 @@ const baseConfig = {
 } as const;
 
 const makeVault = (file: TFile | null) =>
-  ({ getFileByPath: vi.fn().mockReturnValue(file) }) as unknown as Vault;
+  ({
+    getFileByPath: vi.fn().mockReturnValue(file),
+    read: vi.fn().mockResolvedValue(""),
+  }) as unknown as Vault;
 
 const makeFile = (path = "GTD.md"): TFile =>
   ({
